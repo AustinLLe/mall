@@ -1,37 +1,116 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
-		{
-			"path": "pages/index/index",
-			"style": {
-				"navigationBarTitleText": "uni-app"
-			}
-		},
+	"pages": [
 		{
 			"path": "pages/home/home",
 			"style": {
-				"navigationBarTitleText": ""
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/browse/browse",
+			"style": {
+				"navigationBarTitleText": "逛逛",
+				"navigationBarBackgroundColor": "#f5f4f1",
+				"backgroundColor": "#f5f4f1"
+			}
+		},
+		{
+			"path": "pages/cart/cart",
+			"style": {
+				"navigationBarTitleText": "购物车",
+				"navigationBarBackgroundColor": "#f5f4f1",
+				"backgroundColor": "#f5f4f1"
+			}
+		},
+		{
+			"path": "pages/user/index",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/auth/login",
+			"style": {
+				"navigationBarTitleText": "登录",
+				"navigationBarBackgroundColor": "#f5f4f1",
+				"backgroundColor": "#f5f4f1"
+			}
+		},
+		{
+			"path": "pages/auth/register",
+			"style": {
+				"navigationBarTitleText": "注册",
+				"navigationBarBackgroundColor": "#f5f4f1",
+				"backgroundColor": "#f5f4f1"
+			}
+		},
+		{
+			"path": "pages/goods/detail",
+			"style": {
+				"navigationBarTitleText": "商品详情",
+				"navigationBarBackgroundColor": "#ffffff",
+				"backgroundColor": "#f5f4f1"
+			}
+		},
+		{
+			"path": "pages/message/message",
+			"style": {
+				"navigationBarTitleText": "消息",
+				"navigationBarBackgroundColor": "#f5f4f1",
+				"backgroundColor": "#f5f4f1"
+			}
+		},
+		{
+			"path": "pages/publish/publish",
+			"style": {
+				"navigationBarTitleText": "发布闲置",
+				"navigationBarBackgroundColor": "#f5f4f1",
+				"backgroundColor": "#f5f4f1"
+			}
+		},
+		{
+			"path": "pages/address/list",
+			"style": {
+				"navigationBarTitleText": "收货地址",
+				"navigationBarBackgroundColor": "#f5f4f1",
+				"backgroundColor": "#f5f4f1"
+			}
+		},
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "联通测试"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
+		"navigationBarTitleText": "轻市",
+		"navigationBarBackgroundColor": "#f5f4f1",
+		"backgroundColor": "#f5f4f1"
 	},
-	"uniIdRouter": {},
 	"tabBar": {
-	    "color": "#7A7E83",
-	    "selectedColor": "#2979ff",
-	    "list": [
-	        {
-	            "pagePath": "pages/index/index",
-	            "text": "连通测试"
-	        },
-	        {
-	            "pagePath": "pages/home/home",
-	            "text": "交易首页"
-	        }
-	    ]
+		"color": "#8a8a8a",
+		"selectedColor": "#1b4332",
+		"backgroundColor": "#ffffff",
+		"borderStyle": "white",
+		"list": [
+			{
+				"pagePath": "pages/home/home",
+				"text": "首页"
+			},
+			{
+				"pagePath": "pages/browse/browse",
+				"text": "逛逛"
+			},
+			{
+				"pagePath": "pages/cart/cart",
+				"text": "购物车"
+			},
+			{
+				"pagePath": "pages/user/index",
+				"text": "我的"
+			}
+		]
 	}
 }

@@ -1,6 +1,6 @@
 <template>
 	<view class="content">
-		<image class="logo" src="/static/logo.png"></image>
+		<view class="logo-mark">✓</view>
 		<view class="text-area">
 			<text class="title">{{ backendMsg }}</text>
 		</view>
@@ -9,38 +9,31 @@
 </template>
 
 <script>
+	import { fetchHello } from '@/services/hello.js'
+
 	export default {
 		data() {
 			return {
-				// 初始文字
 				backendMsg: '等待连接后端...'
 			}
 		},
 		onLoad() {
-			// 页面加载时自动调一次
-			this.getBackendData();
+			this.getBackendData()
 		},
 		methods: {
-			getBackendData() {
-				const that = this;
-				uni.request({
-					// 注意：如果你是在电脑浏览器运行，用 localhost 没问题
-					// 如果之后用手机真机调试，记得换成你电脑的局域网 IP
-					url: 'http://localhost:8080/api/hello', 
-					method: 'GET',
-					success: (res) => {
-						console.log('收到后端回复：', res.data);
-						that.backendMsg = res.data;
-						uni.showToast({
-							title: '连接成功！',
-							icon: 'success'
-						});
-					},
-					fail: (err) => {
-						console.error('连接失败：', err);
-						that.backendMsg = '连接失败，请检查后端是否启动';
+			async getBackendData() {
+				try {
+					const body = await fetchHello()
+					if (body && body.code === 0) {
+						this.backendMsg = body.data
+						uni.showToast({ title: '连接成功！', icon: 'success' })
+					} else {
+						this.backendMsg = (body && body.message) || '业务返回异常'
 					}
-				});
+				} catch (e) {
+					console.error('连接失败：', e)
+					this.backendMsg = '连接失败：请确认后端已启动，且 H5 开发端口与 manifest 代理一致'
+				}
 			}
 		}
 	}
@@ -54,11 +47,19 @@
 		justify-content: center;
 	}
 
-	.logo {
-		height: 200rpx;
-		width: 200rpx;
-		margin-top: 200rpx;
-		margin-bottom: 50rpx;
+	.logo-mark {
+		height: 160rpx;
+		width: 160rpx;
+		margin-top: 160rpx;
+		margin-bottom: 40rpx;
+		border-radius: 50%;
+		background: #1b4332;
+		color: #fff;
+		font-size: 72rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-weight: 300;
 	}
 
 	.text-area {

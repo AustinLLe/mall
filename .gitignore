@@ -1,0 +1,28 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+
+# Java / Maven
+**/target/
+
+# uni-app / HBuilderX
+**/unpackage/
+
+# Node
+**/node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# 本地临时（解析需求文档等）
+_temp_func.docx
+_temp_func.zip
+_docx_extract/
