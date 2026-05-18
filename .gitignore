@@ -1,28 +1,23 @@
-# OS / IDE
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.iml
+# Compiled class file
+*.class
 
-# Logs
+# Log file
 *.log
 
-# Java / Maven
-**/target/
+# BlueJ files
+*.ctxt
 
-# uni-app / HBuilderX
-**/unpackage/
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
 
-# Node
-**/node_modules/
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
 
-# Environment files
-.env
-.env.*
-!.env.example
-
-# 本地临时（解析需求文档等）
-_temp_func.docx
-_temp_func.zip
-_docx_extract/
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
