@@ -7,7 +7,9 @@
 						<text class="gallery-badge">{{ detail.scene === 'new' ? '新品馆' : '闲物集' }}</text>
 						<text v-if="detail.tag" class="gallery-badge light">{{ detail.tag }}</text>
 					</view>
-					<view class="gallery-cover">{{ detail.cover }}</view>
+					<view class="gallery-image">
+    					<image v-if="detail.image" :src="detail.image" mode="aspectFill"></image>
+					</view>
 					<view class="gallery-foot">
 						<text>{{ detail.location }}</text>
 						<text>信用 {{ detail.credit }}</text>
@@ -20,10 +22,17 @@
 						<text class="origin">¥{{ detail.originPrice }}</text>
 						<text class="discount">立省 {{ detail.originPrice - detail.price }}</text>
 					</view>
-					<text class="title">{{ detail.title }}</text>
+					<text class="title">{{ detail.goodsName }}</text>
 					<text class="subtitle">{{ detail.subtitle }}</text>
 					<view class="service-list">
 						<text v-for="item in detail.service" :key="item" class="service-pill">{{ item }}</text>
+					</view>
+				</view>
+
+				<view class="card time-card">
+					<view class="time-row">
+						<text class="time-label">发布时间</text>
+						<text class="time-text">{{ formatDate(detail.createTime) }}</text>
 					</view>
 				</view>
 
@@ -51,7 +60,7 @@
 
 				<view class="card story-card">
 					<text class="section-title">商品故事</text>
-					<text class="story-text">{{ detail.story }}</text>
+					<text class="story-text">{{ detail.goodsDesc }}</text>
 				</view>
 
 				<view class="card params-card">
@@ -98,8 +107,8 @@
 						class="recommend-card"
 						@click="openRecommend(item)"
 					>
-						<view class="recommend-cover">{{ item.cover }}</view>
-						<text class="recommend-title">{{ item.title }}</text>
+						<view class="recommend-image">{{ item.image}}</view>
+						<text class="recommend-title">{{ item.goodsName }}</text>
 						<text class="recommend-price">¥{{ item.price }}</text>
 					</view>
 				</scroll-view>
@@ -131,14 +140,14 @@
 
 	function fallbackDetail(query = {}) {
 		return {
-			id: query.id || query.title || 'fallback',
+			id: query.id || query.goodsName|| 'fallback',
 			scene: 'used',
 			category: '其他',
-			title: query.title || '商品详情',
+			goodsName: query.goodsName || '商品详情',
 			subtitle: '这里展示商品的卖点、配送、服务和交易说明。',
 			price: Number(query.price || 0),
 			originPrice: Number(query.price || 0) + 80,
-			cover: query.cover || '🛍',
+			image: query.image || '🛍',
 			tag: query.tag || '',
 			credit: query.credit || 95,
 			location: '同城可见',
@@ -146,14 +155,15 @@
 			delivery: '快递 / 面交',
 			service: ['支持沟通', '支持验货', '支持加购'],
 			highlights: ['页面结构已补齐', '后续可接接口', '支持多端展示'],
-			story: '当前商品来自前端演示数据，后续接后端后可替换为真实详情。',
+			goodsDesc: '当前商品来自前端演示数据，后续接后端后可替换为真实详情。',
 			params: [
 				['分类', '演示商品'],
 				['来源', '前端传参'],
 				['状态', '可购买'],
 				['备注', '待接入真实接口']
 			],
-			reviews: [{ user: '体验用户', text: '详情页结构已经比占位版完整很多。', score: '4.8' }]
+			reviews: [{ user: '体验用户', text: '详情页结构已经比占位版完整很多。', score: '4.8' }],
+			createTime: query.createTime
 		}
 	}
 
@@ -177,11 +187,12 @@
 			this.scrollHeight = windowHeight - bottomBar
 			const query = {
 				id: q && q.id ? decodeURIComponent(q.id) : '',
-				title: q && q.title ? decodeURIComponent(q.title) : '',
+				goodsName: q && q.goodsName ? decodeURIComponent(q.goodsName) : '',
 				price: q && q.price ? decodeURIComponent(q.price) : '',
-				cover: q && q.cover ? decodeURIComponent(q.cover) : '',
+				image: q && q.image ? decodeURIComponent(q.image) : '',
 				tag: q && q.tag ? decodeURIComponent(q.tag) : '',
-				credit: q && q.credit ? decodeURIComponent(q.credit) : ''
+				credit: q && q.credit ? decodeURIComponent(q.credit) : '',
+				createTime: q && q.createTime ? decodeURIComponent(q.createTime) : ''
 			}
 			this.detail = findGoodsById(query.id) || fallbackDetail(query)
 			this.refreshCartCount()
@@ -190,15 +201,25 @@
 			this.refreshCartCount()
 		},
 		methods: {
+			formatDate(timeStr) {
+        		if (!timeStr) return '';
+        		const date = new Date(timeStr);
+        		if (isNaN(date.getTime())) return timeStr;
+				const year = date.getFullYear();
+        		const month = date.getMonth() + 1; 
+        		const day = date.getDate();
+        		return `${year}-${month < 10 ? '0' + month : month}-${day < 10 ? '0' + day : day}`;
+    		},
+
 			refreshCartCount() {
 				this.cartCount = getCartCount()
 			},
 			addToCart() {
 				addCartItem({
 					id: this.detail.id,
-					title: this.detail.title,
+					goodsName: this.detail.goodsName,
 					price: this.detail.price,
-					cover: this.detail.cover,
+					image: this.detail.image,
 					tag: this.detail.tag,
 					credit: this.detail.credit,
 					qty: 1
@@ -267,15 +288,20 @@
 		background: rgba(255, 255, 255, 0.72);
 		color: $forest;
 	}
-	.gallery-cover {
+	.gallery-image {
 		margin-top: 20rpx;
-		height: 420rpx;
-		border-radius: 30rpx;
-		background: rgba(255, 255, 255, 0.66);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 160rpx;
+    	height: 420rpx;
+    	border-radius: 30rpx;
+    	background: rgba(255, 255, 255, 0.66);
+    	overflow: hidden; 
+    	position: relative;
+    	display: flex;
+    	align-items: center;
+    	justify-content: center;
+	}
+	.gallery-image image {
+    	width: 100%;
+    	height: 100%;
 	}
 	.gallery-foot {
 		margin-top: 18rpx;
@@ -297,6 +323,8 @@
 	.origin,
 	.discount,
 	.subtitle,
+	.time-label,
+	.time-text,
 	.promo-label,
 	.promo-text,
 	.selector-label,
@@ -351,6 +379,7 @@
 		background: #eef6f1;
 		color: $forest2;
 	}
+	.time-row,
 	.promo-row,
 	.selector-row,
 	.param-row {
@@ -365,6 +394,7 @@
 		padding-top: 18rpx;
 		border-top: 1rpx solid #f0f0f0;
 	}
+	.time-label,
 	.promo-label,
 	.selector-label,
 	.param-key {
@@ -372,6 +402,7 @@
 		flex-shrink: 0;
 	}
 	.promo-text,
+	.time-text,
 	.selector-value,
 	.param-value,
 	.story-text,
@@ -417,7 +448,7 @@
 		background: $paper;
 		box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
 	}
-	.recommend-cover {
+	.recommend-image {
 		height: 160rpx;
 		border-radius: 18rpx;
 		background: #eef2ef;

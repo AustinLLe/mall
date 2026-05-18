@@ -20,9 +20,11 @@
 				<view class="check" :class="{ on: item.checked }" @click="toggleChecked(item.id)">
 					{{ item.checked ? '✓' : '' }}
 				</view>
-				<view class="cover">{{ item.cover }}</view>
+				<view class="image">
+   					<image v-if="item.image" :src="item.image" mode="aspectFill"></image>
+				</view>
 				<view class="main">
-					<text class="title">{{ item.title }}</text>
+					<text class="title">{{ item.goodsName }}</text>
 					<view class="meta">
 						<text v-if="item.tag" class="tag">{{ item.tag }}</text>
 						<text v-if="item.credit" class="credit">信用 {{ item.credit }}</text>
@@ -52,7 +54,7 @@
 				<text class="sum-label">已选 {{ selectedCount }} 件</text>
 				<text class="sum-price">合计 ¥{{ totalPrice }}</text>
 			</view>
-			<button class="settle-btn" @click="checkout">提交订单</button>
+			<button class="settle-btn" @click="goCheckout">去结算</button>
 		</view>
 	</view>
 </template>
@@ -81,13 +83,13 @@
 			}
 		},
 		onShow() {
-			this.loadData()
-		},
+        	this.loadData()
+    	},
 		methods: {
 			loadData() {
-				this.items = getCartItems()
-				this.defaultAddress = getDefaultAddress()
-			},
+            	this.items = getCartItems()
+            	this.defaultAddress = getDefaultAddress()
+        	},
 			go() {
 				uni.switchTab({ url: '/pages/browse/browse' })
 			},
@@ -114,19 +116,16 @@
 				this.loadData()
 				uni.showToast({ title: '已删除', icon: 'none' })
 			},
-			checkout() {
-				if (!this.selectedItems.length) {
-					uni.showToast({ title: '请先选择商品', icon: 'none' })
-					return
-				}
-				if (!this.defaultAddress) {
-					uni.showToast({ title: '请先添加收货地址', icon: 'none' })
-					this.goAddress()
-					return
-				}
-				clearCheckedCartItems()
-				this.loadData()
-				uni.showToast({ title: '订单已提交（演示）', icon: 'success' })
+			goCheckout() {
+                if (!this.selectedItems.length) {
+                    uni.showToast({ title: '请先选择商品', icon: 'none' })
+                    return
+                }
+                if (!this.defaultAddress) {
+                    uni.showToast({ title: '请先添加收货地址', icon: 'none' })
+                    this.goAddress()
+                }
+				uni.navigateTo({ url: '/pages/order/orderConfirmation' })
 			}
 		}
 	}
@@ -204,16 +203,22 @@
 		background: #1b4332;
 		border-color: #1b4332;
 	}
-	.cover {
-		width: 132rpx;
-		height: 132rpx;
-		border-radius: 20rpx;
-		background: #eef2ef;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 72rpx;
-		flex-shrink: 0;
+	.image {
+    	width: 132rpx;
+    	height: 132rpx;
+    	border-radius: 20rpx;
+    	background: #eef2ef;
+    	display: flex;
+    	align-items: center;
+    	justify-content: center;
+    	font-size: 72rpx;
+    	flex-shrink: 0;
+    	overflow: hidden; 
+	}
+	.image image {
+    	width: 100%;
+    	height: 100%;
+    	display: block;
 	}
 	.main {
 		flex: 1;

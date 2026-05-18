@@ -25,12 +25,23 @@ CREATE DATABASE IF NOT EXISTS shop_db
   COLLATE utf8mb4_general_ci;
 ```
 
-2) 创建业务账号（可选）：
+2) 创建业务账号：
 
 ```sql
 CREATE USER 'shop_user'@'localhost' IDENTIFIED BY 'shop_pass_123';
 GRANT ALL PRIVILEGES ON shop_db.* TO 'shop_user'@'localhost';
 FLUSH PRIVILEGES;
+```
+
+3) 执行数据库初始化脚本
+数据库初始化脚本见 `shopping_back/shopping_back/doc/db.sql`
+打开终端并登录你的 MySQL：
+```bash
+mysql -u shop_user -p
+```
+登录成功后，直接运行以下命令（请将路径替换为你本地的绝对路径）：
+```sql
+source /你的项目绝对路径/shopping_back/shopping_back/doc/db.sql;
 ```
 
 ## 3. 后端环境变量配置

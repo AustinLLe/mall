@@ -3,11 +3,11 @@ export const goodsCatalog = [
 		id: 'new-headphone',
 		scene: 'new',
 		category: '数码',
-		title: 'AirWave Pro 降噪耳机',
+		goodsName: 'AirWave Pro 降噪耳机',
 		subtitle: '新品馆 · 官方直发 · 48h 内发货',
 		price: 699,
 		originPrice: 899,
-		cover: '🎧',
+		image: '🎧',
 		tag: '新品馆',
 		credit: 100,
 		location: '深圳',
@@ -15,7 +15,7 @@ export const goodsCatalog = [
 		delivery: '顺丰包邮',
 		service: ['7天无理由', '极速发货', '官方质保'],
 		highlights: ['主动降噪 45dB', '支持双设备切换', '续航 38 小时'],
-		story: '适合作为首页主推新品，用更完整的导购信息承接 H5 与小程序首屏点击。',
+		goodsDesc: '适合作为首页主推新品，用更完整的导购信息承接 H5 与小程序首屏点击。',
 		params: [
 			['颜色', '云雾白'],
 			['连接方式', '蓝牙 5.4'],
@@ -31,11 +31,11 @@ export const goodsCatalog = [
 		id: 'new-tablet',
 		scene: 'new',
 		category: '数码',
-		title: '轻舟平板 11 英寸',
+		goodsName: '轻舟平板 11 英寸',
 		subtitle: '学习娱乐双场景 · 支持手写笔',
 		price: 2299,
 		originPrice: 2599,
-		cover: '📱',
+		image: '📱',
 		tag: '学生价',
 		credit: 100,
 		location: '杭州',
@@ -43,7 +43,7 @@ export const goodsCatalog = [
 		delivery: '次日达',
 		service: ['学生优惠', '分期免息', '全国联保'],
 		highlights: ['2.5K 高清屏', '8300mAh 电池', '轻办公分屏'],
-		story: '新品馆里更适合展示参数、服务保障和分期信息。',
+		goodsDesc: '新品馆里更适合展示参数、服务保障和分期信息。',
 		params: [
 			['存储', '8GB + 256GB'],
 			['屏幕', '11 英寸'],
@@ -58,11 +58,11 @@ export const goodsCatalog = [
 		id: 'used-monitor',
 		scene: 'used',
 		category: '数码',
-		title: '27 寸显示器 2K',
+		goodsName: '27 寸显示器 2K',
 		subtitle: '闲物集 · 自提优先 · 成色 9 成新',
 		price: 680,
 		originPrice: 1099,
-		cover: '🖥',
+		image: '🖥',
 		tag: '同城自提',
 		credit: 97,
 		location: '广州大学城',
@@ -70,7 +70,7 @@ export const goodsCatalog = [
 		delivery: '同城面交',
 		service: ['支持验货', '支持讲价', '可送转接线'],
 		highlights: ['无坏点', '配原装支架', '适合宿舍桌搭'],
-		story: '毕业搬家出掉大件，保留包装盒，周末可自提。',
+		goodsDesc: '毕业搬家出掉大件，保留包装盒，周末可自提。',
 		params: [
 			['品牌', 'ViewTop'],
 			['分辨率', '2560x1440'],
@@ -85,11 +85,11 @@ export const goodsCatalog = [
 		id: 'used-book',
 		scene: 'used',
 		category: '图书',
-		title: '线性代数讲义套装',
+		goodsName: '线性代数讲义套装',
 		subtitle: '闲物集 · 学长整理笔记版',
 		price: 18,
 		originPrice: 69,
-		cover: '📘',
+		image: '📘',
 		tag: '教材',
 		credit: 99,
 		location: '武汉',
@@ -97,7 +97,7 @@ export const goodsCatalog = [
 		delivery: '邮寄 / 面交',
 		service: ['笔记完整', '可附重点页', '支持拼单'],
 		highlights: ['期末高频题标注', '章节索引齐全', '轻微划线'],
-		story: '这类闲置很适合首页单列展示，突出价格和内容价值。',
+		goodsDesc: '这类闲置很适合首页单列展示，突出价格和内容价值。',
 		params: [
 			['册数', '3 册'],
 			['适用', '大一 / 大二'],
@@ -112,11 +112,11 @@ export const goodsCatalog = [
 		id: 'used-chair',
 		scene: 'used',
 		category: '宿舍',
-		title: '人体工学椅',
+		goodsName: '人体工学椅',
 		subtitle: '宿舍好物 · 靠背可调 · 当面交易',
 		price: 420,
 		originPrice: 899,
-		cover: '🪑',
+		image: '🪑',
 		tag: '宿舍',
 		credit: 95,
 		location: '长沙',
@@ -124,7 +124,7 @@ export const goodsCatalog = [
 		delivery: '同城配送',
 		service: ['支持试坐', '满楼栋送达', '可拆装'],
 		highlights: ['腰托完整', '轮子顺滑', '坐垫无塌陷'],
-		story: '宿舍类商品适合加上尺寸和配送说明，减少沟通成本。',
+		goodsDesc: '宿舍类商品适合加上尺寸和配送说明，减少沟通成本。',
 		params: [
 			['颜色', '深灰'],
 			['材质', '网布'],
@@ -139,11 +139,11 @@ export const goodsCatalog = [
 		id: 'new-lamp',
 		scene: 'new',
 		category: '宿舍',
-		title: '护眼学习台灯',
+		goodsName: '护眼学习台灯',
 		subtitle: '新品馆 · 宿舍晚自习搭子',
 		price: 89,
 		originPrice: 129,
-		cover: '💡',
+		image: '💡',
 		tag: '宿舍',
 		credit: 100,
 		location: '上海',
@@ -151,7 +151,7 @@ export const goodsCatalog = [
 		delivery: '48 小时发货',
 		service: ['三档调光', '送灯泡', '支持礼盒'],
 		highlights: ['低蓝光', '触控调节', '桌夹两用'],
-		story: '小程序端更适合用轻量导购卡片突出即时下单。',
+		goodsDesc: '小程序端更适合用轻量导购卡片突出即时下单。',
 		params: [
 			['供电', 'USB'],
 			['光源', 'LED'],
@@ -231,16 +231,18 @@ export function findGoodsById(id) {
 export function buildGoodsDetailUrl(item = {}) {
 	return (
 		'/pages/goods/detail?id=' +
-		encodeURIComponent(item.id || item.title || 'goods') +
-		'&title=' +
-		encodeURIComponent(item.title || '商品') +
+		encodeURIComponent(item.id || item.goodsName || 'goods') +
+		'&goodsName=' +
+		encodeURIComponent(item.goodsName || '商品') +
 		'&price=' +
 		encodeURIComponent(item.price || 0) +
-		'&cover=' +
-		encodeURIComponent(item.cover || '🛍') +
+		'&image=' +
+		encodeURIComponent(item.image || '🛍') +
 		'&tag=' +
 		encodeURIComponent(item.tag || '') +
 		'&credit=' +
-		encodeURIComponent(item.credit || '')
+		encodeURIComponent(item.credit || '') +
+		'&createTime=' +
+		encodeURIComponent(item.createTime || '')
 	)
 }

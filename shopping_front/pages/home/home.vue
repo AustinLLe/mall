@@ -11,7 +11,7 @@
 						<view class="ghost-btn" @click="goPublish">发布闲置</view>
 					</view>
 				</view>
-				<view class="search" @click="scrollToGoods">
+				<view class="search" @click="goToSearch">
 					<text class="search-icon">⌕</text>
 					<text class="search-placeholder">搜索商品、店铺、话题灵感</text>
 				</view>
@@ -92,13 +92,15 @@
 						class="goods-card"
 						@click="openDetail(item)"
 					>
-						<view class="goods-cover">{{ item.cover }}</view>
+						<view class="goods-image">
+   							<image v-if="item.image" :src="item.image" mode="aspectFill"></image>
+						</view>
 						<view class="goods-main">
 							<view class="goods-topline">
 								<text class="goods-scene">{{ item.scene === 'new' ? '新品馆' : '闲物集' }}</text>
 								<text class="goods-tag">{{ item.tag }}</text>
 							</view>
-							<text class="goods-title">{{ item.title }}</text>
+							<text class="goods-title">{{ item.goodsName }}</text>
 							<text class="goods-subtitle">{{ item.subtitle }}</text>
 							<view class="goods-meta">
 								<text class="goods-price">¥{{ item.price }}</text>
@@ -120,13 +122,13 @@
 				<view class="spotlight">
 					<view class="spot-card" @click="openDetail(newGoods[0])">
 						<text class="spot-kicker">新品馆主推</text>
-						<text class="spot-title">{{ newGoods[0].title }}</text>
+						<text class="spot-title">{{ newGoods[0].goodsName }}</text>
 						<text class="spot-desc">{{ newGoods[0].highlights.join(' · ') }}</text>
 						<text class="spot-price">¥{{ newGoods[0].price }}</text>
 					</view>
 					<view class="spot-card alt" @click="openDetail(usedGoods[0])">
 						<text class="spot-kicker">闲物集捡漏</text>
-						<text class="spot-title">{{ usedGoods[0].title }}</text>
+						<text class="spot-title">{{ usedGoods[0].goodsName }}</text>
 						<text class="spot-desc">{{ usedGoods[0].story }}</text>
 						<text class="spot-price">¥{{ usedGoods[0].price }}</text>
 					</view>
@@ -142,10 +144,11 @@
 
 <script>
 	import { goodsCatalog, buildGoodsDetailUrl } from '../../data/catalog.js'
-
+	import { buildRequestUrl } from '../../config/env.js'
 	export default {
 		data() {
 			return {
+				GoodsList: [],
 				statusBarHeight: 24,
 				scrollHeight: 500,
 				activeScene: 'all',
@@ -169,22 +172,25 @@
 				]
 			},
 			categories() {
-				const values = Array.from(new Set(goodsCatalog.map((item) => item.category)))
+				const values = Array.from(new Set(this.GoodsList.map((item) => item.category)))
 				return ['全部'].concat(values)
 			},
 			newGoods() {
-				return goodsCatalog.filter((item) => item.scene === 'new')
+				return this.GoodsList.filter((item) => item.scene === 'new')
 			},
 			usedGoods() {
-				return goodsCatalog.filter((item) => item.scene === 'used')
+				return this.GoodsList.filter((item) => item.scene === 'used')
 			},
 			displayGoods() {
-				return goodsCatalog.filter((item) => {
+				return this.GoodsList.filter((item) => {
 					const sceneOk = this.activeScene === 'all' || item.scene === this.activeScene
 					const categoryOk = this.activeCategory === '全部' || item.category === this.activeCategory
 					return sceneOk && categoryOk
 				})
 			}
+		},
+		onShow() {
+    		this.getGoodsList(); 
 		},
 		onLoad() {
 			const sys = uni.getWindowInfo()
@@ -195,13 +201,44 @@
 			this.scrollHeight = windowHeight - navHeight - tabHeight
 		},
 		methods: {
+			async getGoodsList() {
+        		try {
+            		const res = await uni.request({
+						url: buildRequestUrl('/api/goods/list'),
+                		method: 'GET'
+            		});
+					let dbGoods = [];
+            		if (res.data.code === 0 || res.data.code === 200) {
+                		dbGoods = res.data.data;
+            		}
+					this.GoodsList = [...dbGoods, ...goodsCatalog];
+        		} catch (e) {
+					this.GoodsList = goodsCatalog;
+            		console.error("加载失败", e);
+    			}
+    		},
 			setScene(scene) {
 				this.activeScene = scene
 			},
-			scrollToGoods() {
+			goToSearch() {
+				uni.navigateTo({ url: '/pages/search/search' })
 			},
 			goPublish() {
-				uni.navigateTo({ url: '/pages/publish/publish' })
+				const token = uni.getStorageSync('auth_token');
+        		if (!token) {
+            		uni.showModal({
+                		title: '提示',
+                		content: '您尚未登录，请先登录后再发布商品',
+                		confirmText: '去登录',
+                		success: (res) => {
+                    		if (res.confirm) {
+                        		uni.navigateTo({ url: '/pages/auth/login' });
+                    		}
+                		}
+            		});
+        		} else {
+            		uni.navigateTo({ url: '/pages/publish/publish' });
+        		}
 			},
 			openDetail(item) {
 				uni.navigateTo({ url: buildGoodsDetailUrl(item) })
@@ -437,16 +474,21 @@
 		gap: 20rpx;
 		align-items: center;
 	}
-	.goods-cover {
-		height: 220rpx;
-		border-radius: 18rpx;
-		background: #eef2ef;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 76rpx;
+	.goods-image {
+		width: 100%;       
+    	height: 220rpx;
+    	border-radius: 18rpx;
+    	background: #eef2ef;
+    	overflow: hidden;  
+    	display: flex;
+    	align-items: center;
+    	justify-content: center;
 	}
-	.goods-grid.single .goods-cover {
+	.goods-image image {
+    	width: 100%;
+    	height: 100%;
+	}
+	.goods-grid.single .goods-image {
 		width: 220rpx;
 		height: 220rpx;
 		flex-shrink: 0;

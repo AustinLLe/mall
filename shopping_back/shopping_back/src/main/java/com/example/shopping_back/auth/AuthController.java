@@ -5,11 +5,13 @@ import com.example.shopping_back.auth.dto.AuthUserView;
 import com.example.shopping_back.auth.dto.LoginRequest;
 import com.example.shopping_back.auth.dto.LoginResponse;
 import com.example.shopping_back.auth.dto.RegisterRequest;
+import java.util.List;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,6 +39,11 @@ public class AuthController {
     public ApiResult<AuthUserView> me(@RequestHeader(value = "Authorization", required = false) String authorization) {
         String token = bearerToken(authorization);
         return ApiResult.ok(authService.me(token));
+    }
+
+    @GetMapping("/search-users")
+    public ApiResult<List<AuthUserView>> searchUsers(@RequestParam("keyword") String keyword) {
+        return ApiResult.ok(authService.searchUsers(keyword));
     }
 
     private static String bearerToken(String authorization) {

@@ -81,7 +81,25 @@
 			"style": {
 				"navigationBarTitleText": "联通测试"
 			}
-		}
+		},
+		{
+      		"path": "pages/search/search",
+      		"style": {
+        		"navigationBarTitleText": "搜索"
+      		}
+    	},
+		{
+  			"path": "pages/search/searchList",
+  			"style": {
+    			"navigationBarTitleText": "搜索结果"
+  			}
+		},
+		{
+            "path": "pages/order/orderConfirmation",
+            "style": {
+                "navigationBarTitleText": "确认订单"
+            }
+        }
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
