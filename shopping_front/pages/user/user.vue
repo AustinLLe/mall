@@ -14,7 +14,7 @@
 			</view>
 			<view v-else class="stats">
 				<view class="stat">
-					<text class="n">{{ user.creditScore != null ? user.creditScore : '--' }}</text>
+					<text class="n">{{ user.credit != null ? user.credit : '--' }}</text>
 					<text class="l">信用分</text>
 				</view>
 				<view class="stat">
@@ -76,7 +76,7 @@
 		computed: {
 			displayName() {
 				if (!this.loggedIn) return '访客'
-				return this.user.nickname || this.user.username || '用户'
+				return this.user.username || '用户'
 			},
 			subLine() {
 				if (!this.loggedIn) return '登录后同步订单、地址与信用'

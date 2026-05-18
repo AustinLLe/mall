@@ -21,14 +21,14 @@
 
 			<view v-if="activeTab === 'topics'" class="stack">
 				<view v-for="item in topicFeed" :key="item.id" class="card article">
-					<view class="article-cover">{{ item.cover }}</view>
+					<view class="article-image">{{ item.image }}</view>
 					<view class="article-main">
 						<view class="article-badges">
 							<text class="badge">{{ item.type }}</text>
 							<text class="heat">{{ item.heat }}</text>
 						</view>
-						<text class="article-title">{{ item.title }}</text>
-						<text class="article-desc">{{ item.desc }}</text>
+						<text class="article-title">{{ item.goodsName }}</text>
+						<text class="article-desc">{{ item.goodsDesc }}</text>
 						<view class="tags">
 							<text v-for="tag in item.tags" :key="tag" class="tag">{{ tag }}</text>
 						</view>
@@ -57,8 +57,8 @@
 							class="mini-goods"
 							@click="open(item)"
 						>
-							<view class="mini-cover">{{ item.cover }}</view>
-							<text class="mini-title">{{ item.title }}</text>
+							<view class="mini-image">{{ item.image }}</view>
+							<text class="mini-title">{{ item.goodsName }}</text>
 							<text class="mini-price">¥{{ item.price }}</text>
 						</view>
 					</scroll-view>
@@ -68,14 +68,14 @@
 			<view v-else class="stack">
 				<view v-for="item in showcase" :key="item.id" class="card showcase" @click="open(item)">
 					<view class="showcase-main">
-						<text class="showcase-title">{{ item.title }}</text>
-						<text class="showcase-desc">{{ item.story }}</text>
+						<text class="showcase-title">{{ item.goodsName }}</text>
+						<text class="showcase-desc">{{ item.goodsDesc }}</text>
 						<view class="showcase-meta">
 							<text class="showcase-price">¥{{ item.price }}</text>
 							<text class="showcase-tag">{{ item.tag }}</text>
 						</view>
 					</view>
-					<view class="showcase-cover">{{ item.cover }}</view>
+					<view class="showcase-image">{{ item.image }}</view>
 				</view>
 			</view>
 		</view>
@@ -187,7 +187,7 @@
 		flex-direction: row;
 		gap: 20rpx;
 	}
-	.article-cover {
+	.article-image {
 		width: 120rpx;
 		height: 120rpx;
 		border-radius: 24rpx;
@@ -279,7 +279,7 @@
 		width: 190rpx;
 		margin-right: 16rpx;
 	}
-	.mini-cover {
+	.mini-image {
 		height: 140rpx;
 		border-radius: 18rpx;
 		background: #eef2ef;
@@ -314,7 +314,7 @@
 		flex: 1;
 		min-width: 0;
 	}
-	.showcase-cover {
+	.showcase-image {
 		width: 120rpx;
 		height: 120rpx;
 		border-radius: 24rpx;

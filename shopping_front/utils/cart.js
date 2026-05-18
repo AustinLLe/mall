@@ -28,7 +28,7 @@ export function getCartItems() {
 }
 
 export function addCartItem(payload = {}) {
-	const title = (payload.title || '').trim()
+	const title = (payload.goodsName || '').trim()
 	if (!title) {
 		throw new Error('商品标题不能为空')
 	}
@@ -41,9 +41,9 @@ export function addCartItem(payload = {}) {
 	} else {
 		list.unshift({
 			id,
-			title,
+			goodsName: title,
 			price: normalizePrice(payload.price),
-			cover: payload.cover || '🛍',
+			image: payload.image || '🛍',
 			tag: payload.tag || '',
 			credit: payload.credit || '',
 			qty: normalizeQty(payload.qty),

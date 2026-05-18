@@ -38,7 +38,7 @@
 		</view>
 
 		<view v-if="list.length" class="list">
-			<view v-for="item in list" :key="item.id" class="card">
+			<view v-for="item in list" :key="item.id" class="card" @click="selectAddress(item)">
 				<view class="top">
 					<view class="person">
 						<text class="name">{{ item.name }}</text>
@@ -139,7 +139,11 @@
 					this.resetForm()
 				}
 				uni.showToast({ title: '已删除', icon: 'none' })
-			}
+			},
+			selectAddress(item) {
+        		uni.$emit('API_SELECT_ADDRESS', item);
+        		uni.navigateBack();
+    		}
 		}
 	}
 </script>

@@ -1,32 +1,49 @@
 package com.example.shopping_back.auth.model;
 
 public class StoredUser {
+    private Integer userId;
+    private String username;
+    private String passwordHash;
+    private String phone;
+    private Integer credit;
 
-    private final String username;
-    private final String passwordHash;
-    private final String nickname;
-    private final String phone;
+    public StoredUser() {
+    }
 
-    public StoredUser(String username, String passwordHash, String nickname, String phone) {
+    public StoredUser(String username, String passwordHash, String phone) {
         this.username = username;
         this.passwordHash = passwordHash;
-        this.nickname = nickname;
         this.phone = phone;
     }
 
+    public Integer getUserId() {
+        return userId;
+    }
+    public void setUserId(Integer userId) {
+        this.userId = userId;
+    }
     public String getUsername() {
         return username;
     }
-
+    public void setUsername(String username) {
+        this.username = username;
+    }
     public String getPasswordHash() {
         return passwordHash;
     }
-
-    public String getNickname() {
-        return nickname;
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
-
     public String getPhone() {
         return phone;
+    }
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+    public Integer getCredit() {
+        return credit;
+    }
+    public void setCredit(Integer credit) {
+        this.credit = credit;
     }
 }

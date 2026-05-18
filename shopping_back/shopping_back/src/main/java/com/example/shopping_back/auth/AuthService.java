@@ -5,11 +5,13 @@ import com.example.shopping_back.auth.dto.LoginRequest;
 import com.example.shopping_back.auth.dto.LoginResponse;
 import com.example.shopping_back.auth.dto.RegisterRequest;
 import com.example.shopping_back.auth.model.StoredUser;
+import com.example.shopping_back.auth.mapper.UserMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,33 +23,34 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AuthService {
 
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-    private final Map<String, StoredUser> usersByUsername = new ConcurrentHashMap<>();
+    private final UserMapper userMapper;
     private final Map<String, String> tokenToUsername = new ConcurrentHashMap<>();
 
-    public AuthService() {
-        StoredUser admin = new StoredUser(
-                "demo",
-                encoder.encode("demo123"),
-                "演示用户",
-                "13800138000"
-        );
-        usersByUsername.put(admin.getUsername(), admin);
+    public AuthService(UserMapper userMapper) {
+        this.userMapper = userMapper;
+        if (this.userMapper.findByUsername("demo") == null) {
+            StoredUser admin = new StoredUser(
+                    "demo",
+                    encoder.encode("demo123"),
+                    "13800138000"
+            );
+            this.userMapper.insertUser(admin);
+        }
     }
 
     public synchronized LoginResponse register(RegisterRequest req) {
         String u = req.getUsername().trim();
-        if (usersByUsername.containsKey(u)) {
+        if (userMapper.findByUsername(u) != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "用户名已存在");
         }
         String phone = req.getPhone() == null ? "" : req.getPhone().trim();
-        String nickname = u.length() > 8 ? u.substring(0, 8) : u;
-        StoredUser user = new StoredUser(u, encoder.encode(req.getPassword()), nickname, phone);
-        usersByUsername.put(u, user);
+        StoredUser user = new StoredUser(u, encoder.encode(req.getPassword()), phone);
+        userMapper.insertUser(user);
         return issueToken(user);
     }
 
     public LoginResponse login(LoginRequest req) {
-        StoredUser user = usersByUsername.get(req.getUsername().trim());
+        StoredUser user = userMapper.findByUsername(req.getUsername().trim());
         if (user == null || !encoder.matches(req.getPassword(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户名或密码错误");
         }
@@ -62,7 +65,7 @@ public class AuthService {
         if (username == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "登录已失效");
         }
-        StoredUser user = usersByUsername.get(username);
+        StoredUser user = userMapper.findByUsername(username);
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户不存在");
         }
@@ -81,6 +84,25 @@ public class AuthService {
         if (phone != null && phone.length() == 11) {
             masked = phone.substring(0, 3) + "****" + phone.substring(7);
         }
-        return new AuthUserView(user.getUsername(), user.getNickname(), masked, 100);
+        return new AuthUserView(
+            user.getUserId(),
+            user.getUsername(), 
+            masked, 
+            user.getCredit() != null ? user.getCredit() : 100);
     }
+
+    public List<AuthUserView> searchUsers(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+        List<StoredUser> users = userMapper.searchUsersByKeyword(keyword.trim());
+        List<AuthUserView> views = new java.util.ArrayList<>();
+        for (StoredUser user : users) {
+            String phone = user.getPhone();
+            String masked = (phone != null && phone.length() == 11) ? phone.substring(0, 3) + "****" + phone.substring(7) : "";
+            views.add(new AuthUserView(user.getUserId(), user.getUsername(), masked, user.getCredit()));
+        }
+        return views;
+    }
+
 }
