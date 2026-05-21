@@ -1,73 +1,52 @@
 <template>
-	<view class="page">
-		<view class="intro">
-			<text class="h1">创建账号</text>
-			<text class="h2">支持手机号/账户体系（当前为账号注册）</text>
-		</view>
-
+	<view class="safe-page auth-page">
 		<view class="card">
+			<text class="title">创建松果账号</text>
+			<text class="desc">注册后默认获得普通用户身份，可发布闲置、下单和评价。</text>
 			<view class="field">
-				<text class="label">用户名</text>
-				<input v-model="username" class="input" placeholder="3～32 位" />
+				<text class="label">账号</text>
+				<input v-model="username" class="input" placeholder="至少 3 位" />
+			</view>
+			<view class="field">
+				<text class="label">手机号</text>
+				<input v-model="phone" class="input" placeholder="用于模拟实名与联系" />
 			</view>
 			<view class="field">
 				<text class="label">密码</text>
 				<input v-model="password" class="input" password placeholder="至少 6 位" />
 			</view>
-			<view class="field">
-				<text class="label">确认密码</text>
-				<input v-model="password2" class="input" password placeholder="再输入一次" />
-			</view>
-			<view class="field">
-				<text class="label">手机号（可选）</text>
-				<input v-model="phone" class="input" type="number" maxlength="11" placeholder="选填，11 位" />
-			</view>
 			<button class="submit" :loading="loading" @click="submit">注册并登录</button>
-			<view class="foot">
-				<text class="link" @click="goLogin">已有账号？去登录</text>
+			<view class="links">
+				<text @click="goLogin">已有账号，去登录</text>
 			</view>
 		</view>
 	</view>
 </template>
 
 <script>
-	import { register } from '@/services/auth.js'
+	import { registerByPassword } from '@/services/auth.js'
 	import { setSession, pickErrorMessage } from '@/utils/auth.js'
 
 	export default {
 		data() {
-			return {
-				username: '',
-				password: '',
-				password2: '',
-				phone: '',
-				loading: false
-			}
+			return { username: '', phone: '', password: '', loading: false }
 		},
 		methods: {
 			goLogin() {
-				uni.navigateBack()
+				uni.navigateTo({ url: '/pages/auth/login' })
 			},
 			async submit() {
-				if (!this.username.trim() || this.password.length < 6) {
-					uni.showToast({ title: '用户名或密码不符合要求', icon: 'none' })
+				if (!this.username.trim() || !this.phone.trim() || !this.password) {
+					uni.showToast({ title: '请填写完整信息', icon: 'none' })
 					return
-				}
-				if (this.password !== this.password2) {
-					uni.showToast({ title: '两次密码不一致', icon: 'none' })
-					return
-				}
-				const payload = {
-					username: this.username.trim(),
-					password: this.password
-				}
-				const ph = this.phone.trim()
-				if (ph) {
-					payload.phone = ph
 				}
 				this.loading = true
 				try {
-					const body = await register(payload)
+					const body = await registerByPassword({
+						username: this.username.trim(),
+						phone: this.phone.trim(),
+						password: this.password
+					})
 					if (body.code !== 0) {
 						uni.showToast({ title: body.message || '注册失败', icon: 'none' })
 						return
@@ -75,9 +54,7 @@
 					const { token, user } = body.data
 					setSession(token, user)
 					uni.showToast({ title: '注册成功', icon: 'success' })
-					setTimeout(() => {
-						uni.switchTab({ url: '/pages/user/index' })
-					}, 400)
+					setTimeout(() => uni.switchTab({ url: '/pages/user/index' }), 400)
 				} catch (e) {
 					uni.showToast({ title: pickErrorMessage(e), icon: 'none' })
 				} finally {
@@ -89,64 +66,65 @@
 </script>
 
 <style lang="scss" scoped>
-	.page {
-		min-height: 100vh;
-		padding: 48rpx 40rpx 80rpx;
-	}
-	.intro {
-		margin-bottom: 40rpx;
-	}
-	.h1 {
-		font-size: 48rpx;
-		font-weight: 700;
-		color: #1b4332;
-		display: block;
-	}
-	.h2 {
-		font-size: 26rpx;
-		color: #777;
-		margin-top: 12rpx;
-		display: block;
+	.auth-page {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 48rpx 28rpx;
+		box-sizing: border-box;
 	}
 	.card {
+		width: 100%;
+		max-width: 620rpx;
 		background: #fff;
-		border-radius: 24rpx;
-		padding: 36rpx 32rpx 48rpx;
-		box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.06);
+		border-radius: 28rpx;
+		padding: 42rpx 34rpx;
+		box-shadow: 0 18rpx 42rpx rgba(15, 35, 26, 0.08);
+	}
+	.title {
+		display: block;
+		font-size: 42rpx;
+		font-weight: 900;
+		color: #17231d;
+	}
+	.desc {
+		display: block;
+		margin-top: 12rpx;
+		color: #667085;
+		font-size: 25rpx;
+		line-height: 1.6;
 	}
 	.field {
-		margin-bottom: 28rpx;
+		margin-top: 26rpx;
 	}
 	.label {
-		font-size: 24rpx;
-		color: #888;
 		display: block;
-		margin-bottom: 12rpx;
+		margin-bottom: 10rpx;
+		color: #4b5563;
+		font-size: 24rpx;
+		font-weight: 800;
 	}
 	.input {
-		height: 88rpx;
+		height: 86rpx;
 		border-radius: 16rpx;
-		background: #f5f4f1;
-		padding: 0 24rpx;
-		font-size: 30rpx;
+		background: #f8faf8;
+		padding: 0 22rpx;
+		font-size: 28rpx;
 	}
 	.submit {
-		margin-top: 16rpx;
-		height: 92rpx;
-		line-height: 92rpx;
+		margin-top: 30rpx;
+		height: 88rpx;
+		line-height: 88rpx;
 		border-radius: 16rpx;
-		background: #1b4332;
+		background: #1f5c43;
 		color: #fff;
-		font-size: 30rpx;
-		font-weight: 600;
+		font-weight: 900;
 		border: none;
 	}
-	.foot {
-		margin-top: 28rpx;
+	.links {
+		margin-top: 24rpx;
+		color: #1f5c43;
+		font-size: 25rpx;
 		text-align: center;
-	}
-	.link {
-		font-size: 26rpx;
-		color: #2d6a4f;
 	}
 </style>

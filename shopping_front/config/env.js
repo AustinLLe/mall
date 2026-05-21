@@ -10,7 +10,7 @@ const RUNTIME_API_BASE = ''
 // #endif
 
 // #ifndef H5
-const RUNTIME_API_BASE = 'http://10.136.46.7:8080'
+const RUNTIME_API_BASE = 'http://192.168.154.129:8080'
 // #endif
 
 export function buildRequestUrl(path) {

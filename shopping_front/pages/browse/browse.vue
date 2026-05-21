@@ -1,10 +1,13 @@
 <template>
-	<view class="page">
-		<view class="container">
+	<view class="safe-page">
+		<view class="content-wrap page">
 			<view class="hero">
-				<text class="hero-kicker">内容社区</text>
-				<text class="hero-title">话题、讨论帖和热门店铺</text>
-				<text class="hero-desc">首页负责商品浏览，逛逛负责内容种草、交易经验和店铺发现</text>
+				<view>
+					<text class="kicker">社区发现</text>
+					<text class="title">看清单、避坑经验，也发现有故事的闲置。</text>
+					<text class="desc">把淘宝式商品效率和闲鱼式社区氛围放在一起，让交易前的信息更透明。</text>
+				</view>
+				<view class="hero-action" @click="goPublish">发布我的经验</view>
 			</view>
 
 			<view class="tabs">
@@ -19,28 +22,28 @@
 				</view>
 			</view>
 
-			<view v-if="activeTab === 'topics'" class="stack">
-				<view v-for="item in topicFeed" :key="item.id" class="card article">
-					<view class="article-image">{{ item.image }}</view>
-					<view class="article-main">
-						<view class="article-badges">
+			<view v-if="activeTab === 'topics'" class="feed-grid">
+				<view v-for="item in topicFeed" :key="item.id" class="topic-card">
+					<view class="topic-cover">{{ item.cover }}</view>
+					<view class="topic-main">
+						<view class="topic-line">
 							<text class="badge">{{ item.type }}</text>
 							<text class="heat">{{ item.heat }}</text>
 						</view>
-						<text class="article-title">{{ item.goodsName }}</text>
-						<text class="article-desc">{{ item.goodsDesc }}</text>
+						<text class="topic-title">{{ item.title }}</text>
+						<text class="topic-desc">{{ item.desc }}</text>
 						<view class="tags">
 							<text v-for="tag in item.tags" :key="tag" class="tag">{{ tag }}</text>
 						</view>
-						<text class="article-author">作者：{{ item.author }}</text>
+						<text class="author">来自 {{ item.author }}</text>
 					</view>
 				</view>
 			</view>
 
-			<view v-else-if="activeTab === 'stores'" class="stack">
-				<view v-for="store in hotStores" :key="store.id" class="card store">
+			<view v-else-if="activeTab === 'stores'" class="store-grid">
+				<view v-for="store in hotStores" :key="store.id" class="store-card" @click="openStore(store)">
 					<view class="store-top">
-						<view class="store-info">
+						<view>
 							<text class="store-name">{{ store.name }}</text>
 							<text class="store-desc">{{ store.desc }}</text>
 						</view>
@@ -48,34 +51,35 @@
 					</view>
 					<view class="store-meta">
 						<text>评分 {{ store.score }}</text>
-						<text>粉丝 {{ store.fans }}</text>
+						<text>{{ store.fans }} 关注</text>
 					</view>
-					<scroll-view scroll-x class="goods-line" :show-scrollbar="false">
-						<view
-							v-for="item in recommendByStore(store.name)"
-							:key="item.id"
-							class="mini-goods"
-							@click="open(item)"
-						>
-							<view class="mini-image">{{ item.image }}</view>
-							<text class="mini-title">{{ item.goodsName }}</text>
+					<scroll-view scroll-x class="mini-line" :show-scrollbar="false">
+						<view v-for="item in recommendByStore(store.name)" :key="item.id" class="mini" @click.stop="openGoods(item)">
+							<view class="mini-cover">{{ item.cover }}</view>
+							<text class="mini-title">{{ item.title }}</text>
 							<text class="mini-price">¥{{ item.price }}</text>
 						</view>
 					</scroll-view>
 				</view>
 			</view>
 
-			<view v-else class="stack">
-				<view v-for="item in showcase" :key="item.id" class="card showcase" @click="open(item)">
-					<view class="showcase-main">
-						<text class="showcase-title">{{ item.goodsName }}</text>
-						<text class="showcase-desc">{{ item.goodsDesc }}</text>
-						<view class="showcase-meta">
-							<text class="showcase-price">¥{{ item.price }}</text>
-							<text class="showcase-tag">{{ item.tag }}</text>
+			<view v-else class="story-grid">
+				<view v-for="item in storyGoods" :key="item.id" class="story-card" @click="openGoods(item)">
+					<view class="story-cover">{{ item.cover }}</view>
+					<view class="story-main">
+						<view class="story-head">
+							<text class="badge orange">物品护照</text>
+							<text class="heat">{{ item.location }}</text>
+						</view>
+						<text class="story-title">{{ item.title }}</text>
+						<text class="story-desc">{{ item.story }}</text>
+						<view class="timeline">
+							<view v-for="node in item.timeline.slice(0, 3)" :key="node.date" class="node">
+								<text class="dot"></text>
+								<text class="node-text">{{ node.date }} · {{ node.title }}</text>
+							</view>
 						</view>
 					</view>
-					<view class="showcase-image">{{ item.image }}</view>
 				</view>
 			</view>
 		</view>
@@ -96,233 +100,269 @@
 		computed: {
 			tabs() {
 				return [
-					{ key: 'topics', label: '热门话题' },
-					{ key: 'stores', label: '热门店铺' },
-					{ key: 'showcase', label: '晒单广场' }
+					{ key: 'topics', label: '话题清单' },
+					{ key: 'stories', label: '二手故事' },
+					{ key: 'stores', label: '热门店铺' }
 				]
 			},
-			showcase() {
-				return goodsCatalog.slice(0, 4)
+			storyGoods() {
+				return goodsCatalog.filter((item) => item.timeline && item.timeline.length)
 			}
 		},
 		methods: {
 			recommendByStore(name) {
-				return goodsCatalog.filter((item) => item.shopName === name).slice(0, 3)
+				return goodsCatalog.filter((item) => item.shopName === name).slice(0, 4)
 			},
-			open(item) {
+			openGoods(item) {
 				uni.navigateTo({ url: buildGoodsDetailUrl(item) })
+			},
+			openStore(store) {
+				uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(store.name) })
+			},
+			goPublish() {
+				uni.navigateTo({ url: '/pages/publish/publish' })
 			}
 		}
 	}
 </script>
 
 <style lang="scss" scoped>
-	$page: #f5f4f1;
-	$paper: #ffffff;
-	$forest: #1b4332;
-	$forest2: #2d6a4f;
-	$muted: #6b7280;
-
 	.page {
-		min-height: 100vh;
-		background: $page;
-	}
-	.container {
-		padding: 24rpx 24rpx 50rpx;
+		padding: 28rpx;
 	}
 	.hero {
-		background: linear-gradient(135deg, #14382c, #2d6a4f);
-		color: #fff;
-		border-radius: 30rpx;
-		padding: 34rpx 28rpx;
+		display: flex;
+		justify-content: space-between;
+		gap: 24rpx;
+		align-items: flex-end;
+		background: #fff;
+		border: 1rpx solid #e4e9e5;
+		border-radius: 28rpx;
+		padding: 38rpx;
+		box-shadow: 0 14rpx 36rpx rgba(15, 35, 26, 0.06);
 	}
-	.hero-kicker,
-	.hero-desc {
+	.kicker,
+	.desc,
+	.heat,
+	.author,
+	.store-desc,
+	.store-meta,
+	.story-desc,
+	.node-text {
+		color: #667085;
+	}
+	.kicker {
 		font-size: 24rpx;
+		font-weight: 800;
+		color: #1f5c43;
 	}
-	.hero-title {
-		font-size: 38rpx;
-		font-weight: 700;
+	.title {
+		display: block;
 		margin-top: 12rpx;
-		line-height: 1.35;
+		font-size: 44rpx;
+		line-height: 1.2;
+		font-weight: 900;
+		color: #17231d;
+		max-width: 780rpx;
 	}
-	.hero-desc {
-		margin-top: 18rpx;
+	.desc {
+		display: block;
+		margin-top: 14rpx;
+		font-size: 26rpx;
 		line-height: 1.6;
-		opacity: 0.92;
+	}
+	.hero-action {
+		padding: 18rpx 28rpx;
+		border-radius: 16rpx;
+		background: #1f5c43;
+		color: #fff;
+		font-size: 26rpx;
+		font-weight: 800;
+		flex-shrink: 0;
 	}
 	.tabs {
 		display: flex;
-		flex-direction: row;
-		gap: 16rpx;
+		gap: 14rpx;
 		margin-top: 24rpx;
+		background: #e8f0eb;
+		border-radius: 18rpx;
+		padding: 6rpx;
+		width: fit-content;
 	}
 	.tab {
-		flex: 1;
-		background: #edf2ef;
-		color: $muted;
+		min-width: 150rpx;
 		text-align: center;
-		padding: 18rpx 16rpx;
-		border-radius: 18rpx;
+		padding: 16rpx 20rpx;
+		border-radius: 14rpx;
 		font-size: 25rpx;
+		color: #667085;
 	}
 	.tab.on {
-		background: $forest;
-		color: #fff;
+		background: #fff;
+		color: #1f5c43;
+		font-weight: 800;
 	}
-	.stack {
-		display: flex;
-		flex-direction: column;
+	.feed-grid,
+	.store-grid,
+	.story-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 20rpx;
 		margin-top: 24rpx;
 	}
-	.card {
-		background: $paper;
+	.topic-card,
+	.store-card,
+	.story-card {
+		background: #fff;
+		border: 1rpx solid #e4e9e5;
 		border-radius: 24rpx;
 		padding: 24rpx;
-		box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.05);
+		box-shadow: 0 12rpx 32rpx rgba(15, 35, 26, 0.05);
 	}
-	.article {
-		display: flex;
-		flex-direction: row;
-		gap: 20rpx;
-	}
-	.article-image {
-		width: 120rpx;
-		height: 120rpx;
-		border-radius: 24rpx;
-		background: #eef2ef;
+	.topic-cover,
+	.story-cover {
+		height: 160rpx;
+		border-radius: 20rpx;
+		background: #edf3ef;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 58rpx;
-		flex-shrink: 0;
+		font-size: 70rpx;
+		margin-bottom: 20rpx;
 	}
-	.article-main {
-		flex: 1;
-		min-width: 0;
-	}
-	.article-badges,
+	.topic-line,
 	.store-top,
 	.store-meta,
-	.showcase-meta {
+	.story-head {
 		display: flex;
-		flex-direction: row;
-		align-items: center;
 		justify-content: space-between;
-	}
-	.store-info {
-		display: flex;
-		flex-direction: column;
+		align-items: center;
+		gap: 12rpx;
 	}
 	.badge,
-	.store-badge,
 	.tag,
-	.showcase-tag {
+	.store-badge {
 		font-size: 22rpx;
-		padding: 6rpx 14rpx;
+		padding: 7rpx 14rpx;
 		border-radius: 999rpx;
+		background: #e8f3ed;
+		color: #1f5c43;
 	}
-	.badge,
-	.showcase-tag {
-		background: rgba(45, 106, 79, 0.12);
-		color: $forest2;
+	.badge.orange,
+	.store-badge {
+		background: #fff0e7;
+		color: #b95420;
 	}
-	.heat,
-	.article-author,
-	.store-meta text,
-	.store-desc,
-	.showcase-desc {
-		font-size: 23rpx;
-		color: $muted;
+	.heat {
+		font-size: 22rpx;
 	}
-	.article-title,
+	.topic-title,
 	.store-name,
-	.showcase-title {
-		font-size: 30rpx;
-		font-weight: 700;
-		color: #222;
-		margin-top: 12rpx;
+	.story-title {
+		display: block;
+		margin-top: 16rpx;
+		font-size: 31rpx;
 		line-height: 1.35;
+		font-weight: 900;
+		color: #17231d;
 	}
-	.article-desc,
+	.topic-desc,
 	.store-desc,
-	.showcase-desc {
+	.story-desc {
+		display: block;
 		margin-top: 12rpx;
+		font-size: 24rpx;
 		line-height: 1.6;
 	}
 	.tags {
 		display: flex;
-		flex-direction: row;
 		flex-wrap: wrap;
 		gap: 10rpx;
-		margin-top: 14rpx;
+		margin-top: 16rpx;
 	}
 	.tag {
-		background: #f3f4f6;
-		color: #6b7280;
+		background: #f4f6f4;
+		color: #667085;
 	}
-	.article-author {
-		margin-top: 14rpx;
+	.author {
+		display: block;
+		margin-top: 18rpx;
+		font-size: 23rpx;
 	}
-	.store-badge {
-		background: #fff1e8;
-		color: #c45c26;
+	.store-meta {
+		margin-top: 18rpx;
+		font-size: 24rpx;
 	}
-	.goods-line {
+	.mini-line {
 		white-space: nowrap;
-		margin-top: 20rpx;
+		margin-top: 22rpx;
 	}
-	.mini-goods {
+	.mini {
 		display: inline-flex;
 		flex-direction: column;
-		width: 190rpx;
-		margin-right: 16rpx;
+		width: 188rpx;
+		margin-right: 14rpx;
 	}
-	.mini-image {
-		height: 140rpx;
+	.mini-cover {
+		height: 130rpx;
 		border-radius: 18rpx;
-		background: #eef2ef;
+		background: #edf3ef;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 54rpx;
+		font-size: 52rpx;
 	}
 	.mini-title,
 	.mini-price {
-		margin-top: 10rpx;
+		display: block;
+		margin-top: 8rpx;
 	}
 	.mini-title {
-		font-size: 24rpx;
-		color: #222;
-		line-height: 1.4;
+		font-size: 23rpx;
+		color: #17231d;
 		white-space: normal;
+		line-height: 1.35;
 	}
-	.mini-price,
-	.showcase-price {
-		font-size: 28rpx;
-		font-weight: 700;
-		color: #c45c26;
+	.mini-price {
+		font-size: 27rpx;
+		font-weight: 900;
+		color: #d66a2c;
 	}
-	.showcase {
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-		gap: 18rpx;
+	.timeline {
+		margin-top: 18rpx;
 	}
-	.showcase-main {
-		flex: 1;
-		min-width: 0;
-	}
-	.showcase-image {
-		width: 120rpx;
-		height: 120rpx;
-		border-radius: 24rpx;
-		background: #eef2ef;
+	.node {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		font-size: 56rpx;
+		gap: 10rpx;
+		padding: 8rpx 0;
+	}
+	.dot {
+		width: 12rpx;
+		height: 12rpx;
+		border-radius: 50%;
+		background: #d66a2c;
 		flex-shrink: 0;
+	}
+	.node-text {
+		font-size: 23rpx;
+	}
+	@media screen and (max-width: 900px) {
+		.hero {
+			align-items: flex-start;
+			flex-direction: column;
+		}
+		.feed-grid,
+		.store-grid,
+		.story-grid {
+			grid-template-columns: 1fr;
+		}
+		.tabs {
+			width: auto;
+		}
+		.tab {
+			flex: 1;
+			min-width: 0;
+		}
 	}
 </style>

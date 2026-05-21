@@ -14,8 +14,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiResult<Void>> handleStatus(ResponseStatusException ex) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
-        int code = status.value();
-        return ResponseEntity.status(status).body(ApiResult.fail(code, ex.getReason()));
+        return ResponseEntity.status(status).body(ApiResult.fail(status.value(), ex.getReason()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -23,7 +22,13 @@ public class GlobalExceptionHandler {
         String msg = ex.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(err -> err.getField() + ": " + err.getDefaultMessage())
-                .orElse("参数错误");
+                .orElse("Validation failed");
         return ResponseEntity.badRequest().body(ApiResult.fail(400, msg));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResult<Void>> handleGeneric(Exception ex) {
+        String message = ex.getMessage() == null ? "Server error" : ex.getMessage();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResult.fail(500, message));
     }
 }
