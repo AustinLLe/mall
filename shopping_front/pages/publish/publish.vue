@@ -1,147 +1,205 @@
 <template>
-	<view class="safe-page">
-		<view class="content-wrap page">
-			<view class="page-head">
-				<view>
-					<text class="title">发布商品</text>
-					<text class="desc">支持新品店铺发布，也支持二手闲置的成色、故事和 AI 估价。</text>
-				</view>
-				<view class="ai-pill" @click="fillByAi">AI 生成建议</view>
-			</view>
+    <view class="safe-page">
+        <view class="content-wrap page">
+            <view class="page-head">
+                <view>
+                    <text class="title">发布商品</text>
+                    <text class="desc">支持新品店铺发布，也支持二手闲置的成色、故事和 AI 估价。</text>
+                </view>
+                <view class="ai-pill" @click="fillByAi">AI 生成建议</view>
+            </view>
 
-			<view class="layout">
-				<view class="form-card">
-					<view class="section">
-						<text class="section-title">商品类型</text>
-						<view class="segmented">
-							<view class="seg" :class="{ on: form.scene === 'new' }" @click="form.scene = 'new'">新品</view>
-							<view class="seg" :class="{ on: form.scene === 'used' }" @click="form.scene = 'used'">二手闲置</view>
-						</view>
-					</view>
+            <view class="layout">
+                <view class="form-card">
+                    <view class="section">
+                        <text class="section-title">商品类型</text>
+                        <view class="segmented">
+                            <view class="seg" :class="{ on: form.scene === 'new' }" @click="form.scene = 'new'">新品</view>
+                            <view class="seg" :class="{ on: form.scene === 'used' }" @click="form.scene = 'used'">二手闲置</view>
+                        </view>
+                    </view>
 
-					<view class="section">
-						<text class="section-title">图片</text>
-						<view class="upload-row">
-							<view v-for="(img, index) in form.images" :key="index" class="upload">{{ img }}</view>
-							<view class="upload add" @click="addImage">+</view>
-						</view>
-					</view>
+                    <view class="section">
+                        <text class="section-title">图片</text>
+                        <view class="upload-row">
+                            <view v-if="form.image" class="upload" @click="uploadImage">
+                                <image :src="form.image" mode="aspectFill" style="width: 100%; height: 100%; border-radius: 20rpx;"></image>
+                            </view>
+                            <view v-else class="upload add" @click="uploadImage">+</view>
+                        </view>
+                    </view>
 
-					<view class="grid">
-						<view class="field">
-							<text class="label">标题</text>
-							<input v-model="form.title" class="input" placeholder="例如：27 英寸 2K 显示器" />
-						</view>
-						<view class="field">
-							<text class="label">分类</text>
-							<input v-model="form.category" class="input" placeholder="数码影音 / 家居生活" />
-						</view>
-						<view class="field">
-							<text class="label">价格</text>
-							<input v-model="form.price" class="input" type="number" placeholder="请输入价格" />
-						</view>
-						<view class="field">
-							<text class="label">成色/状态</text>
-							<input v-model="form.condition" class="input" placeholder="全新 / 9 成新 / 有瑕疵" />
-						</view>
-					</view>
+                    <view class="grid">
+                        <view class="field">
+                            <text class="label">标题</text>
+                            <input v-model="form.goods_name" class="input" placeholder="例如：[北航] 考研数学资料" />
+                        </view>
+                        <view class="field">
+                            <text class="label">分类</text>
+                            <input v-model="form.category" class="input" placeholder="数码影音 / 学习资料" />
+                        </view>
+                        <view class="field">
+                            <text class="label">价格</text>
+                            <input v-model="form.price" class="input" type="digit" placeholder="0.00" />
+                        </view>
+                        <view class="field">
+                            <text class="label">成色/状态</text>
+                            <input v-model="form.condition" class="input" placeholder="全新 / 9成新 / 有瑕疵" />
+                        </view>
+                    </view>
 
-					<view class="field">
-						<text class="label">商品描述</text>
-						<textarea v-model="form.desc" class="textarea" placeholder="描述规格、购买时间、使用感受、瑕疵和售后约定" />
-					</view>
+                    <view class="field">
+                        <text class="label">商品描述</text>
+                        <textarea v-model="form.goods_desc" class="textarea" placeholder="详细描述：说明新旧程度、使用情况、转手原因等..." />
+                    </view>
 
-					<view class="field">
-						<text class="label">二手故事 / 新品卖点</text>
-						<textarea v-model="form.story" class="textarea small" placeholder="二手商品可以写它的前世今生，新品可以写核心卖点" />
-					</view>
+                    <view class="field">
+                        <text class="label">二手故事 / 新品卖点</text>
+                        <textarea v-model="form.story" class="textarea small" placeholder="二手商品可以写它的前世今生，新品可以写核心卖点..." />
+                    </view>
 
-					<view class="grid">
-						<view class="field">
-							<text class="label">所在地区</text>
-							<input v-model="form.location" class="input" placeholder="城市或学校" />
-						</view>
-						<view class="field">
-							<text class="label">最低可接受价</text>
-							<input v-model="form.floorPrice" class="input" type="number" placeholder="用于 AI 议价" />
-						</view>
-					</view>
+                    <view class="grid">
+                        <view class="field">
+                            <text class="label">所在位置</text>
+                            <input v-model="form.address" class="input" placeholder="城市或学校" />
+                        </view>
+                        <view class="field">
+                            <text class="label">最低可接受价</text>
+                            <input v-model="form.floor_price" class="input" type="digit" placeholder="用于 AI 议价保底" />
+                        </view>
+                    </view>
 
-					<view class="actions">
-						<view class="draft" @click="saveDraft">保存草稿</view>
-						<view class="submit" @click="submit">提交审核</view>
-					</view>
-				</view>
+                    <view class="actions">
+                        <button class="submit" :disabled="loading" @click="handlePublish">发布商品</button>
+                    </view>
+                </view>
 
-				<view class="side-card">
-					<text class="side-title">AI 发布助手</text>
-					<view v-for="item in aiSuggestions" :key="item.title" class="suggestion">
-						<text class="suggest-title">{{ item.title }}</text>
-						<text class="suggest-desc">{{ item.desc }}</text>
-					</view>
-					<view class="audit-box">
-						<text class="audit-title">审核规则</text>
-						<text class="audit-desc">发布后会模拟检测违禁词、图片合规和价格异常；通过后自动上架。</text>
-					</view>
-				</view>
-			</view>
-		</view>
-	</view>
+                <view class="side-card">
+                    <text class="side-title">AI 发布助手</text>
+                    <view v-for="item in aiSuggestions" :key="item.title" class="suggestion">
+                        <text class="suggest-title">{{ item.title }}</text>
+                        <text class="suggest-desc">{{ item.desc }}</text>
+                    </view>
+                    <view class="audit-box">
+                        <text class="audit-title">审核规则</text>
+                        <text class="audit-desc">发布后会模拟检测违禁词、图片合规和价格异常；通过后自动上架。</text>
+                    </view>
+                </view>
+            </view>
+        </view>
+    </view>
 </template>
 
 <script>
-	export default {
-		data() {
-			return {
-				form: {
-					scene: 'used',
-					images: ['📷'],
-					title: '',
-					category: '',
-					price: '',
-					condition: '',
-					desc: '',
-					story: '',
-					location: '',
-					floorPrice: ''
-				},
-				aiSuggestions: [
-					{ title: '标题建议', desc: '突出品牌、型号、成色和关键卖点，控制在 20 字左右。' },
-					{ title: '估价建议', desc: '参考同类成交价、成色、配件和信用分，给出合理区间。' },
-					{ title: '瑕疵说明', desc: '二手商品建议主动说明划痕、维修史和验货方式。' }
-				]
-			}
-		},
-		methods: {
-			addImage() {
-				this.form.images.push(['📷', '🧾', '🔍', '✨'][this.form.images.length % 4])
-			},
-			fillByAi() {
-				if (!this.form.title) this.form.title = '27 英寸 2K 显示器'
-				if (!this.form.category) this.form.category = '数码影音'
-				if (!this.form.price) this.form.price = '680'
-				if (!this.form.condition) this.form.condition = '9 成新'
-				if (!this.form.location) this.form.location = '广州大学城'
-				if (!this.form.floorPrice) this.form.floorPrice = '620'
-				this.form.desc = 'AI 建议：补充品牌型号、接口、购买时间、是否有坏点，并说明支持当面验货。'
-				this.form.story = '这台显示器陪我完成了毕业设计，现在桌面升级，希望交给下一位继续使用。'
-				uni.showToast({ title: '已生成发布建议', icon: 'success' })
-			},
-			saveDraft() {
-				uni.showToast({ title: '草稿已保存到本地', icon: 'none' })
-			},
-			submit() {
-				if (!this.form.title || !this.form.price) {
-					uni.showToast({ title: '请填写标题和价格', icon: 'none' })
-					return
-				}
-				uni.showToast({ title: '已提交审核', icon: 'success' })
-				setTimeout(() => {
-					uni.navigateTo({ url: '/pages/user/published' })
-				}, 500)
-			}
-		}
-	}
+    import { post } from '@/utils/request.js' 
+    import { buildRequestUrl } from '../../config/env.js'
+
+    export default {
+        data() {
+            return {
+                loading: false,
+                form: {
+                    goods_name: '',
+                    goods_desc: '',
+                    price: '',
+                    image: '',
+                    address: '北京航空航天大学(学院路校区)',
+                    scene: 'used',       
+                    category: '',        
+                    condition: '',       
+                    story: '',           
+                    floor_price: ''      
+                },
+                aiSuggestions: [
+                    { title: '标题建议', desc: '突出品牌、型号、成色和关键卖点，控制在 20 字左右。' },
+                    { title: '估价建议', desc: '参考同类成交价、成色、配件和信用分，给出合理区间。' },
+                    { title: '瑕疵说明', desc: '二手商品建议主动说明划痕、维修史和验货方式。' }
+                ]
+            }
+        },
+
+        methods: {
+            uploadImage() {
+                uni.chooseImage({
+                    count: 1,
+                    success: (res) => {
+                        const tempFilePath = res.tempFilePaths[0];
+                        uni.showLoading({ title: '上传中...' });
+            
+                        uni.uploadFile({
+                            url: buildRequestUrl('/api/upload/image'),
+                            filePath: tempFilePath,
+                            name: 'file', 
+                            success: (uploadRes) => {
+                                let data = uploadRes.data;
+                                if (typeof data === 'string') {
+                                    data = JSON.parse(data);
+                                }
+                                if (data.code === 200 || data.code === 0) {
+                                    this.form.image = data.data; 
+                                    uni.showToast({ title: '上传成功' });
+                                }
+                            },
+                            fail: () => {
+                                uni.showToast({ title: '网络连接失败', icon: 'none' });
+                            },
+                            complete: () => uni.hideLoading()
+                        });
+                    }
+                });
+            },
+
+            handlePublish() {
+                if (!this.form.goods_name || !this.form.price) {
+                    return uni.showToast({ title: '标题和价格不能为空', icon: 'none' });
+                }
+
+                uni.showLoading({ title: '发布中...', mask: true });
+                this.loading = true;
+
+                post('/api/goods/publish', {
+                    goodsName: this.form.goods_name,
+                    goodsDesc: this.form.goods_desc,
+                    price: parseFloat(this.form.price),
+                    address: this.form.address,
+                    image: this.form.image,
+                    scene: this.form.scene,                                                     
+                    category: this.form.category,                                               
+                    goodsCondition: this.form.condition,                                        
+                    story: this.form.story,                                                     
+                    floorPrice: this.form.floor_price ? parseFloat(this.form.floor_price) : null 
+                })
+                .then(res => {
+                    uni.showToast({ title: '提交审核成功', icon: 'success' });
+                    setTimeout(() => {
+                        uni.navigateBack();
+                    }, 1500);
+                })
+                .catch(err => {
+                    console.error('发布失败错误日志：', err);
+                    uni.showToast({ title: '发布失败，请重试', icon: 'none' });
+                })
+                .finally(() => {
+                    this.loading = false;
+                    uni.hideLoading();
+                });
+            },
+
+            // 预留的 AI 模拟快速填表函数，方便日常开发和演示测试
+            fillByAi() {
+                this.form.goods_name = '[北航] 27 英寸 2K 显示器';
+                this.form.category = '数码影音';
+                this.form.price = '680';
+                this.form.condition = '9 成新';
+                this.form.address = '北京航空航天大学(学院路校区)';
+                this.form.floor_price = '620';
+                this.form.goods_desc = '补充说明：接口齐全，屏幕无坏点，日常写代码和看论文体验极佳，寝室当面验货。';
+                this.form.story = '这台显示器陪我熬过了好几个写系统内核实验和论文的夜晚，现在准备升级桌面，转给需要的同学。';
+                this.form.image = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=500';
+                uni.showToast({ title: '已生成发布建议', icon: 'success' });
+            }
+        }
+    }
 </script>
 
 <style lang="scss" scoped>

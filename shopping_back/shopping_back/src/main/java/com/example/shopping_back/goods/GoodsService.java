@@ -18,7 +18,7 @@ public class GoodsService {
 
     public List<Goods> searchGoods(String keyword, String sortBy, String sortOrder) {
         if (sortBy == null || sortBy.isEmpty()) {
-                sortBy = "create_time";
+            sortBy = "create_time";
         } else if ("price".equals(sortBy)) {
             sortBy = "price"; 
         } else if ("createTime".equals(sortBy)) {
@@ -30,18 +30,24 @@ public class GoodsService {
         return goodsMapper.searchGoodsGlobal(keyword, sortBy, sortOrder);
     }
 
+    // 发布商品业务逻辑改造
     public Goods publish(PublishGoodsRequest request, Integer sellerId) {
         Goods goods = new Goods();
         goods.setSellerId(sellerId);
         goods.setGoodsName(request.getGoodsName());
         goods.setGoodsDesc(request.getGoodsDesc());
         goods.setPrice(request.getPrice());
-        goods.setScene("used");
+        goods.setScene(request.getScene()); 
         goods.setAddress(request.getAddress());
         goods.setImage(request.getImage());
-        goods.setStatus("0"); // 默认在售
+        goods.setStatus("0"); 
         goods.setCreateTime(new Date());
+        goods.setCategory(request.getCategory());               // 商品分类
+        goods.setGoodsCondition(request.getGoodsCondition());   // 成色/状态
+        goods.setStory(request.getStory());                     // 二手故事/核心卖点
+        goods.setFloorPrice(request.getFloorPrice());           // 最低接受价（AI议价保底线）
 
+        // 4. 执行持久化
         goodsMapper.insertGoods(goods);
         return goods;
     }
