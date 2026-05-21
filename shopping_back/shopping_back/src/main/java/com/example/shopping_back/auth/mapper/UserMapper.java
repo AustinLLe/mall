@@ -1,23 +1,40 @@
 package com.example.shopping_back.auth.mapper;
 
+import com.example.shopping_back.auth.model.StoredUser;
 import java.util.List;
-import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
-import com.example.shopping_back.auth.model.StoredUser;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface UserMapper {
-    @Insert("INSERT INTO users(username, password_hash, phone) " +
-            "VALUES(#{username}, #{passwordHash}, #{phone})")
+    @Insert("INSERT INTO users(username, password_hash, phone, role) " +
+            "VALUES(#{username}, #{passwordHash}, #{phone}, #{role})")
     @Options(useGeneratedKeys = true, keyProperty = "userId", keyColumn = "user_id")
     int insertUser(StoredUser user);
 
-    @Select("SELECT user_id AS userId, username, password_hash as passwordHash, phone, credit FROM users WHERE username = #{username}")
+    @Select("SELECT user_id AS userId, username, password_hash AS passwordHash, phone, credit, role, " +
+            "COALESCE(status, 'normal') AS status " +
+            "FROM users WHERE username = #{username}")
     StoredUser findByUsername(String username);
 
-    @Select("SELECT user_id as userId, username, phone, credit FROM users WHERE username LIKE CONCAT('%', #{keyword}, '%')")
+    @Select("SELECT user_id AS userId, username, phone, credit, role, COALESCE(status, 'normal') AS status " +
+            "FROM users WHERE username LIKE CONCAT('%', #{keyword}, '%')")
     List<StoredUser> searchUsersByKeyword(@Param("keyword") String keyword);
+
+    @Select("SELECT COUNT(*) FROM information_schema.COLUMNS " +
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = #{columnName}")
+    int countUserColumn(@Param("columnName") String columnName);
+
+    @Update("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'buyer' COMMENT 'buyer/seller/admin'")
+    void addRoleColumn();
+
+    @Update("ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'normal' COMMENT 'normal/disabled'")
+    void addStatusColumn();
+
+    @Update("UPDATE users SET role = #{role} WHERE username = #{username}")
+    int updateRoleByUsername(@Param("username") String username, @Param("role") String role);
 }

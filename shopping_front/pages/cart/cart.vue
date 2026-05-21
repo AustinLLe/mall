@@ -1,10 +1,28 @@
 <template>
 	<view class="safe-page cart-page">
+		<view class="topbar">
+			<view class="content-wrap topbar-inner">
+				<view class="brand" @click="navTo('/pages/home/home')">
+					<view class="brand-mark">S</view>
+					<view>
+						<text class="brand-name">松果集市</text>
+						<text class="brand-sub">可信的新旧商品流转平台</text>
+					</view>
+				</view>
+				<view class="web-nav">
+					<text class="nav-link" @click="navTo('/pages/home/home')">首页</text>
+					<text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
+					<text class="nav-link on">购物车</text>
+					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
+				</view>
+			</view>
+		</view>
 		<view class="content-wrap page">
 			<view class="page-head">
 				<view>
+					<text class="kicker">Cart</text>
 					<text class="title">购物车</text>
-					<text class="desc">按店铺合并结算，二手商品会保留信用与担保提示。</text>
+					<text class="desc">按店铺合并结算，保留信用分、担保交易和二手验货提示。</text>
 				</view>
 				<view class="head-action" @click="goBrowse">继续逛逛</view>
 			</view>
@@ -14,7 +32,7 @@
 					<view v-for="group in groups" :key="group.shopName" class="shop-card">
 						<view class="shop-head">
 							<text class="shop-name">{{ group.shopName }}</text>
-							<text class="shop-tip">平台担保 · 自动合并同店订单</text>
+							<text class="shop-tip">平台担保 · 同店订单自动合并</text>
 						</view>
 						<view v-for="item in group.items" :key="item.id" class="cart-item">
 							<view class="check" :class="{ on: item.checked }" @click="toggleChecked(item.id)">
@@ -61,7 +79,7 @@
 						<text>平台保障</text>
 						<text>担保交易</text>
 					</view>
-					<view class="coupon">系统会在确认订单页模拟选择最优优惠。</view>
+					<view class="coupon">确认订单页会模拟选择最优优惠，并保留二手交易验货提示。</view>
 					<view class="total">
 						<text>应付</text>
 						<text>¥{{ totalPrice }}</text>
@@ -71,9 +89,9 @@
 			</view>
 
 			<view v-else class="empty">
-				<view class="empty-icon">🛒</view>
+				<view class="empty-icon">S</view>
 				<text class="empty-title">购物车还是空的</text>
-				<text class="empty-desc">去看看新品严选，或淘一件有故事的闲置。</text>
+				<text class="empty-desc">去看看新品严选，或者淘一件有故事的闲置。</text>
 				<view class="empty-btn" @click="goBrowse">去逛逛</view>
 			</view>
 		</view>
@@ -114,6 +132,13 @@
 			goBrowse() {
 				uni.switchTab({ url: '/pages/browse/browse' })
 			},
+			navTo(url) {
+				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/user/index'].includes(url)) {
+					uni.switchTab({ url })
+					return
+				}
+				uni.reLaunch({ url })
+			},
 			toggleChecked(id) {
 				const current = this.items.find((item) => item.id === id)
 				if (!current) return
@@ -150,7 +175,90 @@
 
 <style lang="scss" scoped>
 	.page {
-		padding: 28rpx;
+		padding: 24px 22px 40px;
+	}
+	.topbar {
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		background: rgba(255,255,255,.88);
+		backdrop-filter: blur(22px);
+		border-bottom: 1px solid rgba(203, 213, 225, .55);
+		box-shadow: 0 10px 40px rgba(60, 64, 67, .06);
+	}
+	.topbar-inner {
+		display: grid;
+		grid-template-columns: 300px 320px minmax(0, 1fr);
+		align-items: center;
+		gap: 18px;
+		height: 82px;
+		padding: 0 22px;
+	}
+	.brand {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.brand-mark {
+		width: 40px;
+		height: 40px;
+		border-radius: 8px;
+		background: linear-gradient(135deg, #12372a, #1f5c43);
+		color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 19px;
+		font-weight: 900;
+	}
+	.brand-name,
+	.brand-sub {
+		display: block;
+	}
+	.brand-name {
+		font-size: 18px;
+		font-weight: 900;
+		color: #202124;
+	}
+	.brand-sub {
+		margin-top: 2px;
+		font-size: 12px;
+		color: #667085;
+	}
+	.web-nav {
+		display: flex;
+		justify-self: center;
+		align-items: center;
+		gap: 4px;
+		padding: 5px;
+		box-sizing: border-box;
+		height: 50px;
+		border-radius: 999px;
+		background: rgba(255,255,255,.72);
+		border: 1px solid rgba(203, 213, 225, .72);
+		box-shadow: 0 14px 38px rgba(60, 64, 67, .08);
+	}
+	.nav-link {
+		width: 82px;
+		height: 38px;
+		padding: 0;
+		border-radius: 999px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
+		line-height: 1;
+		text-align: center;
+		color: #5f6b85;
+		font-size: 13px;
+		font-weight: 750;
+	}
+	.nav-link.on,
+	.nav-link:hover {
+		background: #fff;
+		background: linear-gradient(135deg, #ffffff, #f5f7fa);
+		color: #12372a;
+		box-shadow: 0 10px 26px rgba(18, 55, 42, .14);
 	}
 	.page-head,
 	.shop-head,
@@ -161,81 +269,99 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 18rpx;
+		gap: 16px;
 	}
 	.page-head {
-		margin-bottom: 24rpx;
+		margin-bottom: 18px;
+	}
+	.kicker,
+	.title,
+	.desc,
+	.summary-title,
+	.empty-title,
+	.empty-desc,
+	.shop-name,
+	.shop-tip,
+	.item-title {
+		display: block;
+	}
+	.kicker {
+		color: #1f5c43;
+		font-size: 13px;
+		font-weight: 900;
 	}
 	.title,
 	.summary-title,
 	.empty-title {
-		display: block;
-		font-size: 40rpx;
+		font-size: 30px;
 		font-weight: 900;
 		color: #17231d;
+	}
+	.title {
+		margin-top: 5px;
 	}
 	.desc,
 	.shop-tip,
 	.empty-desc {
-		display: block;
-		margin-top: 8rpx;
-		font-size: 25rpx;
+		margin-top: 8px;
+		font-size: 14px;
 		color: #667085;
 	}
 	.head-action,
 	.checkout,
 	.empty-btn {
-		border-radius: 16rpx;
+		border-radius: 8px;
 		background: #1f5c43;
 		color: #fff;
-		font-size: 26rpx;
+		font-size: 14px;
 		font-weight: 900;
-		padding: 18rpx 28rpx;
+		padding: 12px 18px;
 	}
 	.cart-layout {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) 330px;
-		gap: 24rpx;
+		gap: 18px;
 		align-items: start;
 	}
 	.shop-list {
 		display: flex;
 		flex-direction: column;
-		gap: 20rpx;
+		gap: 14px;
 	}
 	.shop-card,
 	.summary,
 	.empty {
 		background: #fff;
-		border: 1rpx solid #e4e9e5;
-		border-radius: 24rpx;
-		box-shadow: 0 14rpx 36rpx rgba(15, 35, 26, 0.06);
+		border: 1px solid #e4e9e5;
+		border-radius: 8px;
+		box-shadow: 0 18px 55px rgba(17, 38, 28, 0.08);
 	}
 	.shop-card {
-		padding: 24rpx;
+		padding: 20px;
 	}
 	.shop-name {
-		font-size: 30rpx;
+		font-size: 18px;
 		font-weight: 900;
 		color: #17231d;
 	}
 	.cart-item {
 		display: flex;
-		gap: 18rpx;
-		padding: 22rpx 0;
-		border-top: 1rpx solid #eef1ee;
+		gap: 14px;
+		padding: 18px 0;
+		border-top: 1px solid #eef1ee;
 	}
 	.check {
-		width: 42rpx;
-		height: 42rpx;
+		width: 28px;
+		height: 28px;
 		border-radius: 50%;
-		border: 2rpx solid #cbd5d0;
-		margin-top: 48rpx;
+		border: 2px solid #cbd5d0;
+		margin-top: 42px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		color: #fff;
-		font-size: 24rpx;
+		font-size: 14px;
+		font-weight: 900;
 		flex-shrink: 0;
 	}
 	.check.on {
@@ -243,31 +369,41 @@
 		border-color: #1f5c43;
 	}
 	.cover {
-		width: 150rpx;
-		height: 150rpx;
-		border-radius: 20rpx;
-		background: #edf3ef;
+		width: 112px;
+		height: 112px;
+		border-radius: 8px;
+		background:
+			radial-gradient(circle at 50% 42%, rgba(255,255,255,.9), transparent 22%),
+			linear-gradient(135deg, #edf5f0 0%, #e4eee8 100%);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 70rpx;
+		font-size: 0;
 		flex-shrink: 0;
+	}
+	.cover::before {
+		content: "";
+		width: 58px;
+		height: 44px;
+		border-radius: 10px;
+		background: linear-gradient(135deg, #ffffff, #dfe8e3);
+		box-shadow: 0 14px 28px rgba(31, 92, 67, .14);
 	}
 	.item-main {
 		flex: 1;
 		min-width: 0;
 	}
 	.item-title {
-		font-size: 30rpx;
+		font-size: 18px;
 		font-weight: 900;
 		color: #17231d;
 		line-height: 1.35;
 	}
 	.scene-tag,
 	.tag {
-		font-size: 22rpx;
-		padding: 7rpx 13rpx;
-		border-radius: 999rpx;
+		font-size: 12px;
+		padding: 5px 9px;
+		border-radius: 999px;
 		flex-shrink: 0;
 	}
 	.scene-tag.new,
@@ -283,14 +419,14 @@
 	.meta {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 10rpx;
-		margin-top: 12rpx;
+		gap: 8px;
+		margin-top: 10px;
 	}
 	.bottom {
-		margin-top: 18rpx;
+		margin-top: 14px;
 	}
 	.price {
-		font-size: 34rpx;
+		font-size: 22px;
 		font-weight: 900;
 		color: #d66a2c;
 	}
@@ -298,47 +434,50 @@
 		display: flex;
 		align-items: center;
 		background: #f4f6f4;
-		border-radius: 999rpx;
+		border-radius: 999px;
 		overflow: hidden;
 	}
 	.op,
 	.num {
-		width: 58rpx;
-		height: 58rpx;
-		line-height: 58rpx;
+		width: 38px;
+		height: 38px;
+		line-height: 38px;
 		text-align: center;
-		font-size: 28rpx;
+		font-size: 16px;
 	}
 	.item-actions {
 		display: flex;
-		gap: 20rpx;
-		margin-top: 16rpx;
-		font-size: 24rpx;
+		gap: 16px;
+		margin-top: 12px;
+		font-size: 13px;
 		color: #667085;
 	}
 	.summary {
-		padding: 28rpx;
+		padding: 22px;
 		position: sticky;
-		top: 24rpx;
+		top: 18px;
+	}
+	.summary-title {
+		font-size: 22px;
 	}
 	.row {
-		font-size: 26rpx;
+		font-size: 14px;
 		color: #4b5563;
-		padding: 18rpx 0;
-		border-bottom: 1rpx solid #eef1ee;
+		padding: 14px 0;
+		border-bottom: 1px solid #eef1ee;
 	}
 	.coupon {
-		margin-top: 18rpx;
-		border-radius: 16rpx;
+		margin-top: 16px;
+		border-radius: 8px;
 		background: #fff0e7;
 		color: #b95420;
-		font-size: 24rpx;
-		line-height: 1.5;
-		padding: 18rpx;
+		font-size: 13px;
+		line-height: 1.55;
+		padding: 14px;
 	}
 	.total {
-		margin-top: 22rpx;
-		font-size: 32rpx;
+		margin-top: 18px;
+		font-size: 20px;
 		font-weight: 900;
 		color: #17231d;
 	}
@@ -346,22 +485,39 @@
 		color: #d66a2c;
 	}
 	.checkout {
-		margin-top: 24rpx;
+		margin-top: 18px;
 		text-align: center;
 	}
 	.empty {
 		text-align: center;
-		padding: 90rpx 32rpx;
+		padding: 72px 32px;
 	}
 	.empty-icon {
-		font-size: 110rpx;
-		margin-bottom: 18rpx;
+		width: 68px;
+		height: 68px;
+		border-radius: 8px;
+		margin: 0 auto 18px;
+		background: #12231a;
+		color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 28px;
+		font-weight: 900;
 	}
 	.empty-btn {
 		display: inline-flex;
-		margin-top: 30rpx;
+		margin-top: 24px;
 	}
 	@media screen and (max-width: 900px) {
+		.topbar-inner {
+			align-items: flex-start;
+			flex-direction: column;
+		}
+		.web-nav,
+		.brand-sub {
+			display: none;
+		}
 		.cart-layout {
 			grid-template-columns: 1fr;
 		}

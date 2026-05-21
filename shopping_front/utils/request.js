@@ -41,3 +41,11 @@ export function get(url, options = {}) {
 export function post(url, data, options = {}) {
 	return request({ ...options, url, method: 'POST', data })
 }
+
+export function put(url, data, options = {}) {
+	return request({ ...options, url, method: 'PUT', data })
+}
+
+export function del(url, options = {}) {
+	return request({ ...options, url, method: 'DELETE' })
+}

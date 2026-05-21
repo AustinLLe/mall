@@ -4,21 +4,17 @@ import com.example.shopping_back.auth.dto.AuthUserView;
 import com.example.shopping_back.auth.dto.LoginRequest;
 import com.example.shopping_back.auth.dto.LoginResponse;
 import com.example.shopping_back.auth.dto.RegisterRequest;
-import com.example.shopping_back.auth.model.StoredUser;
 import com.example.shopping_back.auth.mapper.UserMapper;
+import com.example.shopping_back.auth.model.StoredUser;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
-/**
- * 内存版用户与登录态，便于课程大作业先跑通前后端；后续可替换为 MySQL + JWT。
- */
 @Service
 public class AuthService {
 
@@ -28,23 +24,20 @@ public class AuthService {
 
     public AuthService(UserMapper userMapper) {
         this.userMapper = userMapper;
-        if (this.userMapper.findByUsername("demo") == null) {
-            StoredUser admin = new StoredUser(
-                    "demo",
-                    encoder.encode("demo123"),
-                    "13800138000"
-            );
-            this.userMapper.insertUser(admin);
-        }
+        ensureSchema();
+        ensureSeedUser("demo", "demo123", "13800138000", "buyer");
+        ensureSeedUser("seller", "seller123", "13700000000", "seller");
+        ensureSeedUser("admin", "admin123", "13900000000", "admin");
     }
 
     public synchronized LoginResponse register(RegisterRequest req) {
-        String u = req.getUsername().trim();
-        if (userMapper.findByUsername(u) != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "用户名已存在");
+        String username = req.getUsername().trim();
+        if (userMapper.findByUsername(username) != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
         }
         String phone = req.getPhone() == null ? "" : req.getPhone().trim();
-        StoredUser user = new StoredUser(u, encoder.encode(req.getPassword()), phone);
+        String role = normalizeRegisterRole(req.getRole());
+        StoredUser user = new StoredUser(username, encoder.encode(req.getPassword()), phone, role);
         userMapper.insertUser(user);
         return issueToken(user);
     }
@@ -52,43 +45,27 @@ public class AuthService {
     public LoginResponse login(LoginRequest req) {
         StoredUser user = userMapper.findByUsername(req.getUsername().trim());
         if (user == null || !encoder.matches(req.getPassword(), user.getPasswordHash())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户名或密码错误");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
+        }
+        if ("disabled".equalsIgnoreCase(user.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account disabled");
         }
         return issueToken(user);
     }
 
     public AuthUserView me(String token) {
         if (token == null || token.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "未登录");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
         }
         String username = tokenToUsername.get(token.trim());
         if (username == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "登录已失效");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login expired");
         }
         StoredUser user = userMapper.findByUsername(username);
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户不存在");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found");
         }
         return toView(user);
-    }
-
-    private LoginResponse issueToken(StoredUser user) {
-        String token = UUID.randomUUID().toString().replace("-", "");
-        tokenToUsername.put(token, user.getUsername());
-        return new LoginResponse(token, toView(user));
-    }
-
-    private static AuthUserView toView(StoredUser user) {
-        String phone = user.getPhone();
-        String masked = "";
-        if (phone != null && phone.length() == 11) {
-            masked = phone.substring(0, 3) + "****" + phone.substring(7);
-        }
-        return new AuthUserView(
-            user.getUserId(),
-            user.getUsername(), 
-            masked, 
-            user.getCredit() != null ? user.getCredit() : 100);
     }
 
     public List<AuthUserView> searchUsers(String keyword) {
@@ -98,11 +75,77 @@ public class AuthService {
         List<StoredUser> users = userMapper.searchUsersByKeyword(keyword.trim());
         List<AuthUserView> views = new java.util.ArrayList<>();
         for (StoredUser user : users) {
-            String phone = user.getPhone();
-            String masked = (phone != null && phone.length() == 11) ? phone.substring(0, 3) + "****" + phone.substring(7) : "";
-            views.add(new AuthUserView(user.getUserId(), user.getUsername(), masked, user.getCredit()));
+            views.add(toView(user));
         }
         return views;
     }
 
+    private LoginResponse issueToken(StoredUser user) {
+        String token = UUID.randomUUID().toString().replace("-", "");
+        tokenToUsername.put(token, user.getUsername());
+        return new LoginResponse(token, toView(user));
+    }
+
+    private void ensureSchema() {
+        if (userMapper.countUserColumn("role") == 0) {
+            userMapper.addRoleColumn();
+        }
+        if (userMapper.countUserColumn("status") == 0) {
+            userMapper.addStatusColumn();
+        }
+    }
+
+    private void ensureSeedUser(String username, String password, String phone, String role) {
+        StoredUser existing = userMapper.findByUsername(username);
+        if (existing == null) {
+            userMapper.insertUser(new StoredUser(username, encoder.encode(password), phone, role));
+            return;
+        }
+        if (!role.equals(normalizeRole(existing.getRole()))) {
+            userMapper.updateRoleByUsername(username, role);
+        }
+    }
+
+    private static AuthUserView toView(StoredUser user) {
+        String phone = user.getPhone();
+        String masked = "";
+        if (phone != null && phone.length() == 11) {
+            masked = phone.substring(0, 3) + "****" + phone.substring(7);
+        }
+        String role = normalizeRole(user.getRole());
+        return new AuthUserView(
+                user.getUserId(),
+                user.getUsername(),
+                masked,
+                user.getCredit() != null ? user.getCredit() : 100,
+                role,
+                roleLabel(role),
+                phone != null && phone.length() == 11,
+                user.getStatus() == null ? "normal" : user.getStatus());
+    }
+
+    private static String normalizeRegisterRole(String raw) {
+        String role = normalizeRole(raw);
+        if ("admin".equals(role)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admin account cannot be registered");
+        }
+        return role;
+    }
+
+    private static String normalizeRole(String raw) {
+        if ("seller".equals(raw) || "admin".equals(raw)) {
+            return raw;
+        }
+        return "buyer";
+    }
+
+    private static String roleLabel(String role) {
+        if ("seller".equals(role)) {
+            return "卖家";
+        }
+        if ("admin".equals(role)) {
+            return "管理员";
+        }
+        return "买家";
+    }
 }

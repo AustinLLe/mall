@@ -44,20 +44,28 @@ $uni-font-size-subtitle: 16px;
 $uni-color-paragraph: #4b5563;
 $uni-font-size-paragraph: 15px;
 
-$shop-page: #f4f6f4;
+$shop-page: #f4f7fb;
 $shop-paper: #ffffff;
 $shop-ink: #17231d;
 $shop-muted: #667085;
 $shop-line: #e4e9e5;
-$shop-green: #1f5c43;
-$shop-green-soft: #e8f3ed;
+$shop-green: #202124;
+$shop-green-soft: #f5f7fa;
 $shop-orange: #d66a2c;
 $shop-orange-soft: #fff0e7;
+$shop-blue: #2563eb;
+$shop-blue-soft: #eaf1ff;
+$shop-shadow: 0 18px 55px rgba(17, 38, 28, 0.08);
 
 page {
-	background: $shop-page;
+	background:
+		radial-gradient(circle at 18% 6%, rgba(66, 133, 244, 0.08), transparent 28%),
+		radial-gradient(circle at 78% 12%, rgba(251, 188, 5, 0.06), transparent 26%),
+		radial-gradient(circle at 50% 92%, rgba(52, 168, 83, 0.05), transparent 30%),
+		linear-gradient(180deg, #ffffff 0%, #f7f8fa 46%, #f1f4f7 100%);
 	color: $shop-ink;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+	-webkit-font-smoothing: antialiased;
 }
 
 button::after {
@@ -72,7 +80,48 @@ button::after {
 
 .content-wrap {
 	width: 100%;
-	max-width: 1180px;
+	max-width: 1200px;
 	margin: 0 auto;
+	box-sizing: border-box;
+}
+
+.web-card {
+	background: $shop-paper;
+	border: 1px solid $shop-line;
+	border-radius: 8px;
+	box-shadow: $shop-shadow;
+	box-sizing: border-box;
+}
+
+.web-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	background: $shop-green;
+	color: #fff;
+	font-weight: 800;
+	box-sizing: border-box;
+}
+
+.web-button-ghost {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	background: #fff;
+	color: $shop-green;
+	border: 1px solid #cfdcd4;
+	font-weight: 800;
+	box-sizing: border-box;
+}
+
+.web-chip {
+	display: inline-flex;
+	align-items: center;
+	border-radius: 999px;
+	background: $shop-green-soft;
+	color: $shop-green;
+	font-weight: 800;
 	box-sizing: border-box;
 }

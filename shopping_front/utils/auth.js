@@ -27,6 +27,25 @@ export function getCachedUser() {
 	}
 }
 
+export function roleHomePath(role) {
+	if (role === 'seller') return '/pages/seller/dashboard'
+	if (role === 'admin') return '/pages/admin/dashboard'
+	return '/pages/home/home'
+}
+
+export function goRoleHome(user, mode = 'navigateTo') {
+	const url = roleHomePath(user && user.role)
+	if (mode === 'redirectTo') {
+		uni.redirectTo({ url })
+		return
+	}
+	if (mode === 'reLaunch') {
+		uni.reLaunch({ url })
+		return
+	}
+	uni.navigateTo({ url })
+}
+
 export function pickErrorMessage(err) {
 	if (!err) return 'Request failed'
 	const body = err.body
