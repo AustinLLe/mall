@@ -28,7 +28,7 @@ export function getCartItems() {
 }
 
 export function addCartItem(payload = {}) {
-	const title = (payload.goodsName || '').trim()
+	const title = (payload.title || '').trim()
 	if (!title) {
 		throw new Error('商品标题不能为空')
 	}
@@ -41,13 +41,16 @@ export function addCartItem(payload = {}) {
 	} else {
 		list.unshift({
 			id,
-			goodsName: title,
+			title,
 			price: normalizePrice(payload.price),
-			image: payload.image || '🛍',
+			cover: payload.cover || '📦',
 			tag: payload.tag || '',
 			credit: payload.credit || '',
+			shopName: payload.shopName || '松果集市卖家',
+			scene: payload.scene || 'used',
 			qty: normalizeQty(payload.qty),
-			checked: true
+			checked: true,
+			valid: payload.valid !== false
 		})
 	}
 	writeCart(list)
@@ -80,4 +83,16 @@ export function clearCheckedCartItems() {
 
 export function getCartCount() {
 	return readCart().reduce((sum, item) => sum + normalizeQty(item.qty), 0)
+}
+
+export function groupCartByShop(items = []) {
+	const map = {}
+	items.forEach((item) => {
+		const key = item.shopName || '松果集市卖家'
+		if (!map[key]) {
+			map[key] = []
+		}
+		map[key].push(item)
+	})
+	return Object.keys(map).map((shopName) => ({ shopName, items: map[shopName] }))
 }

@@ -28,10 +28,10 @@ export function getCachedUser() {
 }
 
 export function pickErrorMessage(err) {
-	if (!err) return '请求失败'
-	const b = err.body
-	if (b && typeof b === 'object' && b.message) return b.message
-	if (typeof b === 'string' && b.length) return b
+	if (!err) return 'Request failed'
+	const body = err.body
+	if (body && typeof body === 'object' && body.message) return body.message
+	if (typeof body === 'string' && body.length) return body
 	if (err.errMsg) return err.errMsg
 	return String(err.message || err)
 }

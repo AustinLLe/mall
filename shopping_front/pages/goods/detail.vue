@@ -1,135 +1,131 @@
 <template>
-	<view class="page">
-		<scroll-view scroll-y class="scroll-shell" :style="{ height: scrollHeight + 'px' }">
-			<view class="container">
-				<view class="gallery">
-					<view class="gallery-badge-row">
-						<text class="gallery-badge">{{ detail.scene === 'new' ? '新品馆' : '闲物集' }}</text>
-						<text v-if="detail.tag" class="gallery-badge light">{{ detail.tag }}</text>
-					</view>
-					<view class="gallery-image">
-    					<image v-if="detail.image" :src="detail.image" mode="aspectFill"></image>
-					</view>
-					<view class="gallery-foot">
-						<text>{{ detail.location }}</text>
-						<text>信用 {{ detail.credit }}</text>
-					</view>
-				</view>
-
-				<view class="card price-card">
-					<view class="price-row">
-						<text class="price">¥{{ detail.price }}</text>
-						<text class="origin">¥{{ detail.originPrice }}</text>
-						<text class="discount">立省 {{ detail.originPrice - detail.price }}</text>
-					</view>
-					<text class="title">{{ detail.goodsName }}</text>
-					<text class="subtitle">{{ detail.subtitle }}</text>
-					<view class="service-list">
-						<text v-for="item in detail.service" :key="item" class="service-pill">{{ item }}</text>
-					</view>
-				</view>
-
-				<view class="card time-card">
-					<view class="time-row">
-						<text class="time-label">发布时间</text>
-						<text class="time-text">{{ formatDate(detail.createTime) }}</text>
-					</view>
-				</view>
-
-				<view class="card promo-card">
-					<view class="promo-row">
-						<text class="promo-label">活动</text>
-						<text class="promo-text">新人券、学生价、同城自提红包都可在这里承接</text>
-					</view>
-					<view class="promo-row">
-						<text class="promo-label">亮点</text>
-						<text class="promo-text">{{ detail.highlights.join(' · ') }}</text>
-					</view>
-				</view>
-
-				<view class="card selector-card">
-					<view class="selector-row">
-						<text class="selector-label">已选</text>
-						<text class="selector-value">{{ detail.tag || '默认款' }} / 1 件</text>
-					</view>
-					<view class="selector-row">
-						<text class="selector-label">配送</text>
-						<text class="selector-value">{{ detail.delivery }}</text>
-					</view>
-				</view>
-
-				<view class="card story-card">
-					<text class="section-title">商品故事</text>
-					<text class="story-text">{{ detail.goodsDesc }}</text>
-				</view>
-
-				<view class="card params-card">
-					<text class="section-title">参数与说明</text>
-					<view v-for="row in detail.params" :key="row[0]" class="param-row">
-						<text class="param-key">{{ row[0] }}</text>
-						<text class="param-value">{{ row[1] }}</text>
-					</view>
-				</view>
-
-				<view class="card review-card">
-					<view class="review-head">
-						<text class="section-title">买家评价</text>
-						<text class="review-summary">{{ detail.reviews.length }} 条精选</text>
-					</view>
-					<view v-for="review in detail.reviews" :key="review.user" class="review-item">
-						<view class="review-top">
-							<text class="review-user">{{ review.user }}</text>
-							<text class="review-score">评分 {{ review.score }}</text>
+	<view class="safe-page detail-page">
+		<scroll-view scroll-y class="scroll">
+			<view class="content-wrap main">
+				<view class="detail-layout">
+					<view class="gallery">
+						<view class="cover">{{ detail.cover }}</view>
+						<view class="gallery-foot">
+							<text>{{ detail.scene === 'new' ? '新品正品' : '二手闲置' }}</text>
+							<text>{{ detail.location }}</text>
 						</view>
-						<text class="review-text">{{ review.text }}</text>
 					</view>
-				</view>
 
-				<view class="card store-card">
-					<view class="store-top">
-						<view class="store-info">
-							<text class="section-title">{{ detail.shopName }}</text>
-							<text class="store-note">{{ detail.scene === 'new' ? '官方/品牌店铺' : '闲置卖家主页' }}</text>
+					<view class="summary">
+						<view class="tag-row">
+							<text class="scene-tag" :class="detail.scene">{{ detail.scene === 'new' ? '新品' : '二手' }}</text>
+							<text class="soft-tag">{{ detail.condition }}</text>
+							<text class="soft-tag">信用 {{ detail.credit }}</text>
 						</view>
-						<view class="store-score">信用 {{ detail.credit }}</view>
+						<view class="price-row">
+							<text class="price">¥{{ detail.price }}</text>
+							<text class="origin">¥{{ detail.originPrice }}</text>
+							<text class="save">省 ¥{{ detail.originPrice - detail.price }}</text>
+						</view>
+						<text class="title">{{ detail.title }}</text>
+						<text class="subtitle">{{ detail.subtitle }}</text>
+						<view class="service-list">
+							<text v-for="item in detail.service" :key="item" class="service">{{ item }}</text>
+						</view>
+						<view class="seller-card" @click="openStore">
+							<view>
+								<text class="seller-name">{{ detail.shopName }}</text>
+								<text class="seller-desc">{{ detail.scene === 'new' ? '官方/严选店铺' : '个人信用卖家' }} · {{ detail.location }}</text>
+							</view>
+							<text class="seller-score">{{ detail.credit }} 分</text>
+						</view>
+						<view class="ai-box">
+							<view>
+								<text class="ai-title">AI 交易助手</text>
+								<text class="ai-desc">{{ detail.aiTips.join(' · ') }}</text>
+							</view>
+							<view class="ai-btn" @click="goMessage">去问问</view>
+						</view>
 					</view>
-					<text class="store-desc">支持查看更多在售商品、历史交易评价和发货说明。</text>
 				</view>
 
-				<view class="section-head">
-					<text class="section-title">猜你喜欢</text>
-					<text class="review-summary">继续逛更多同类</text>
-				</view>
-				<scroll-view scroll-x class="recommend-line" :show-scrollbar="false">
-					<view
-						v-for="item in recommends"
-						:key="item.id"
-						class="recommend-card"
-						@click="openRecommend(item)"
-					>
-						<view class="recommend-image">{{ item.image}}</view>
-						<text class="recommend-title">{{ item.goodsName }}</text>
-						<text class="recommend-price">¥{{ item.price }}</text>
+				<view class="info-grid">
+					<view class="card">
+						<text class="card-title">商品亮点</text>
+						<view class="highlight-list">
+							<text v-for="item in detail.highlights" :key="item" class="highlight">✓ {{ item }}</text>
+						</view>
 					</view>
-				</scroll-view>
+					<view class="card">
+						<text class="card-title">配送与保障</text>
+						<text class="plain">{{ detail.delivery }}</text>
+						<text class="plain">资金流：买家付款 → 平台担保 → 确认收货 → 卖家收款。</text>
+					</view>
+				</view>
+
+				<view class="content-layout">
+					<view class="left">
+						<view class="card">
+							<text class="card-title">{{ detail.scene === 'used' ? '物品故事' : '商品说明' }}</text>
+							<text class="story">{{ detail.story }}</text>
+						</view>
+
+						<view v-if="detail.timeline && detail.timeline.length" class="card">
+							<text class="card-title">二手物品流浪时间线</text>
+							<view v-for="node in detail.timeline" :key="node.date" class="timeline-node">
+								<text class="dot"></text>
+								<view>
+									<text class="node-date">{{ node.date }}</text>
+									<text class="node-title">{{ node.title }}</text>
+									<text class="node-text">{{ node.text }}</text>
+								</view>
+							</view>
+						</view>
+
+						<view class="card">
+							<text class="card-title">参数信息</text>
+							<view class="params">
+								<view v-for="row in detail.params" :key="row[0]" class="param">
+									<text class="param-key">{{ row[0] }}</text>
+									<text class="param-value">{{ row[1] }}</text>
+								</view>
+							</view>
+						</view>
+
+						<view class="card">
+							<view class="review-head">
+								<text class="card-title">评价与信用</text>
+								<text class="review-count">{{ detail.reviews.length }} 条评价</text>
+							</view>
+							<view v-for="review in detail.reviews" :key="review.user" class="review">
+								<view class="review-top">
+									<text class="review-user">{{ review.user }}</text>
+									<text class="review-score">{{ review.score }} 分</text>
+								</view>
+								<text class="review-text">{{ review.text }}</text>
+								<view class="review-tags">
+									<text v-for="tag in review.tags" :key="tag" class="review-tag">{{ tag }}</text>
+								</view>
+							</view>
+						</view>
+					</view>
+
+					<view class="right">
+						<view class="card sticky-card">
+							<text class="card-title">猜你喜欢</text>
+							<view v-for="item in recommends" :key="item.id" class="recommend" @click="openRecommend(item)">
+								<view class="recommend-cover">{{ item.cover }}</view>
+								<view>
+									<text class="recommend-title">{{ item.title }}</text>
+									<text class="recommend-price">¥{{ item.price }}</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
 			</view>
 		</scroll-view>
 
 		<view class="bottom-bar">
-			<view class="mini-actions">
-				<view class="mini-action" @click="goHome">
-					<text class="mini-icon">⌂</text>
-					<text class="mini-text">首页</text>
-				</view>
-				<view class="mini-action" @click="goCart">
-					<text class="mini-icon">🛒</text>
-					<text class="mini-text">购物车 {{ cartCount }}</text>
-				</view>
-			</view>
-			<view class="cta-group">
-				<button class="ghost-btn" @click="addToCart">加入购物车</button>
-				<button class="buy-btn" @click="buyNow">立即购买</button>
-			</view>
+			<view class="mini-action" @click="goHome">首页</view>
+			<view class="mini-action" @click="goCart">购物车 {{ cartCount }}</view>
+			<view class="cta ghost" @click="addToCart">加入购物车</view>
+			<view class="cta buy" @click="buyNow">{{ detail.scene === 'used' ? '担保下单' : '立即购买' }}</view>
 		</view>
 	</view>
 </template>
@@ -138,40 +134,10 @@
 	import { goodsCatalog, findGoodsById, buildGoodsDetailUrl } from '../../data/catalog.js'
 	import { addCartItem, getCartCount } from '../../utils/cart.js'
 
-	function fallbackDetail(query = {}) {
-		return {
-			id: query.id || query.goodsName|| 'fallback',
-			scene: 'used',
-			category: '其他',
-			goodsName: query.goodsName || '商品详情',
-			subtitle: '这里展示商品的卖点、配送、服务和交易说明。',
-			price: Number(query.price || 0),
-			originPrice: Number(query.price || 0) + 80,
-			image: query.image || '🛍',
-			tag: query.tag || '',
-			credit: query.credit || 95,
-			location: '同城可见',
-			shopName: '轻市卖家',
-			delivery: '快递 / 面交',
-			service: ['支持沟通', '支持验货', '支持加购'],
-			highlights: ['页面结构已补齐', '后续可接接口', '支持多端展示'],
-			goodsDesc: '当前商品来自前端演示数据，后续接后端后可替换为真实详情。',
-			params: [
-				['分类', '演示商品'],
-				['来源', '前端传参'],
-				['状态', '可购买'],
-				['备注', '待接入真实接口']
-			],
-			reviews: [{ user: '体验用户', text: '详情页结构已经比占位版完整很多。', score: '4.8' }],
-			createTime: query.createTime
-		}
-	}
-
 	export default {
 		data() {
 			return {
-				scrollHeight: 500,
-				detail: fallbackDetail(),
+				detail: goodsCatalog[0],
 				cartCount: 0
 			}
 		},
@@ -181,47 +147,26 @@
 			}
 		},
 		onLoad(q) {
-			const sys = uni.getWindowInfo()
-			const windowHeight = sys.windowHeight || 667
-			const bottomBar = 120
-			this.scrollHeight = windowHeight - bottomBar
-			const query = {
-				id: q && q.id ? decodeURIComponent(q.id) : '',
-				goodsName: q && q.goodsName ? decodeURIComponent(q.goodsName) : '',
-				price: q && q.price ? decodeURIComponent(q.price) : '',
-				image: q && q.image ? decodeURIComponent(q.image) : '',
-				tag: q && q.tag ? decodeURIComponent(q.tag) : '',
-				credit: q && q.credit ? decodeURIComponent(q.credit) : '',
-				createTime: q && q.createTime ? decodeURIComponent(q.createTime) : ''
-			}
-			this.detail = findGoodsById(query.id) || fallbackDetail(query)
+			this.detail = findGoodsById(q && q.id ? decodeURIComponent(q.id) : '') || goodsCatalog[0]
 			this.refreshCartCount()
 		},
 		onShow() {
 			this.refreshCartCount()
 		},
 		methods: {
-			formatDate(timeStr) {
-        		if (!timeStr) return '';
-        		const date = new Date(timeStr);
-        		if (isNaN(date.getTime())) return timeStr;
-				const year = date.getFullYear();
-        		const month = date.getMonth() + 1; 
-        		const day = date.getDate();
-        		return `${year}-${month < 10 ? '0' + month : month}-${day < 10 ? '0' + day : day}`;
-    		},
-
 			refreshCartCount() {
 				this.cartCount = getCartCount()
 			},
 			addToCart() {
 				addCartItem({
 					id: this.detail.id,
-					goodsName: this.detail.goodsName,
+					title: this.detail.title,
 					price: this.detail.price,
-					image: this.detail.image,
+					cover: this.detail.cover,
 					tag: this.detail.tag,
 					credit: this.detail.credit,
+					shopName: this.detail.shopName,
+					scene: this.detail.scene,
 					qty: 1
 				})
 				this.refreshCartCount()
@@ -229,13 +174,19 @@
 			},
 			buyNow() {
 				this.addToCart()
-				uni.switchTab({ url: '/pages/cart/cart' })
+				uni.navigateTo({ url: '/pages/order/confirm' })
 			},
 			goHome() {
 				uni.switchTab({ url: '/pages/home/home' })
 			},
 			goCart() {
 				uni.switchTab({ url: '/pages/cart/cart' })
+			},
+			goMessage() {
+				uni.navigateTo({ url: '/pages/message/message?goods=' + encodeURIComponent(this.detail.title) })
+			},
+			openStore() {
+				uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(this.detail.shopName) })
 			},
 			openRecommend(item) {
 				uni.navigateTo({ url: buildGoodsDetailUrl(item) })
@@ -245,283 +196,396 @@
 </script>
 
 <style lang="scss" scoped>
-	$page: #f5f4f1;
-	$paper: #ffffff;
-	$forest: #1b4332;
-	$forest2: #2d6a4f;
-	$muted: #6b7280;
-
-	.page {
-		min-height: 100vh;
-		background: $page;
+	.detail-page {
+		padding-bottom: 128rpx;
 	}
-	.scroll-shell {
-		box-sizing: border-box;
+	.scroll {
+		height: calc(100vh - 120rpx);
 	}
-	.container {
-		padding: 0 0 40rpx;
+	.main {
+		padding: 28rpx;
+	}
+	.detail-layout {
+		display: grid;
+		grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+		gap: 24rpx;
+	}
+	.gallery,
+	.summary,
+	.card {
+		background: #fff;
+		border: 1rpx solid #e4e9e5;
+		border-radius: 26rpx;
+		box-shadow: 0 14rpx 36rpx rgba(15, 35, 26, 0.06);
 	}
 	.gallery {
-		padding: 26rpx 24rpx 32rpx;
-		background: linear-gradient(160deg, #dfe8e0, #f7faf7);
+		padding: 28rpx;
 	}
-	.gallery-badge-row,
-	.gallery-foot,
-	.price-row,
-	.review-head,
-	.review-top,
-	.store-top,
-	.section-head {
+	.cover {
+		height: 520rpx;
+		border-radius: 24rpx;
+		background: #edf3ef;
 		display: flex;
-		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		font-size: 170rpx;
+	}
+	.gallery-foot,
+	.tag-row,
+	.price-row,
+	.seller-card,
+	.ai-box,
+	.review-head,
+	.review-top {
+		display: flex;
 		align-items: center;
 		justify-content: space-between;
-	}
-	.gallery-badge {
-		font-size: 22rpx;
-		padding: 8rpx 16rpx;
-		border-radius: 999rpx;
-		background: $forest;
-		color: #fff;
-	}
-	.gallery-badge.light {
-		background: rgba(255, 255, 255, 0.72);
-		color: $forest;
-	}
-	.gallery-image {
-		margin-top: 20rpx;
-    	height: 420rpx;
-    	border-radius: 30rpx;
-    	background: rgba(255, 255, 255, 0.66);
-    	overflow: hidden; 
-    	position: relative;
-    	display: flex;
-    	align-items: center;
-    	justify-content: center;
-	}
-	.gallery-image image {
-    	width: 100%;
-    	height: 100%;
+		gap: 12rpx;
 	}
 	.gallery-foot {
 		margin-top: 18rpx;
 		font-size: 24rpx;
-		color: $muted;
+		color: #667085;
 	}
-	.card {
-		margin: 20rpx 24rpx 0;
-		padding: 28rpx 26rpx;
-		background: $paper;
-		border-radius: 26rpx;
-		box-shadow: 0 10rpx 34rpx rgba(0, 0, 0, 0.05);
+	.summary {
+		padding: 34rpx;
+	}
+	.tag-row {
+		justify-content: flex-start;
+		flex-wrap: wrap;
+	}
+	.scene-tag,
+	.soft-tag,
+	.service,
+	.save,
+	.review-tag {
+		font-size: 22rpx;
+		padding: 7rpx 14rpx;
+		border-radius: 999rpx;
+	}
+	.scene-tag.new {
+		background: #e8f3ed;
+		color: #1f5c43;
+	}
+	.scene-tag.used,
+	.save {
+		background: #fff0e7;
+		color: #b95420;
+	}
+	.soft-tag,
+	.review-tag {
+		background: #f4f6f4;
+		color: #667085;
+	}
+	.price-row {
+		justify-content: flex-start;
+		margin-top: 24rpx;
 	}
 	.price {
-		font-size: 46rpx;
-		font-weight: 700;
-		color: #c45c26;
-	}
-	.origin,
-	.discount,
-	.subtitle,
-	.time-label,
-	.time-text,
-	.promo-label,
-	.promo-text,
-	.selector-label,
-	.selector-value,
-	.story-text,
-	.param-key,
-	.param-value,
-	.review-summary,
-	.review-user,
-	.review-score,
-	.review-text,
-	.store-note,
-	.store-desc,
-	.recommend-title {
-		font-size: 24rpx;
-		color: $muted;
+		font-size: 54rpx;
+		font-weight: 900;
+		color: #d66a2c;
 	}
 	.origin {
+		font-size: 26rpx;
+		color: #9ca3af;
 		text-decoration: line-through;
 	}
-	.discount {
-		padding: 6rpx 12rpx;
-		border-radius: 999rpx;
-		background: #fff1e8;
-		color: #c45c26;
-	}
-	.title,
-	.section-title {
-		font-size: 34rpx;
-		font-weight: 700;
-		color: #222;
-		line-height: 1.4;
-	}
 	.title {
+		display: block;
 		margin-top: 18rpx;
+		font-size: 42rpx;
+		line-height: 1.25;
+		font-weight: 900;
+		color: #17231d;
 	}
 	.subtitle {
+		display: block;
 		margin-top: 12rpx;
+		font-size: 26rpx;
+		color: #667085;
 		line-height: 1.6;
 	}
 	.service-list {
 		display: flex;
-		flex-direction: row;
 		flex-wrap: wrap;
 		gap: 12rpx;
-		margin-top: 18rpx;
+		margin-top: 22rpx;
 	}
-	.service-pill {
-		font-size: 22rpx;
-		padding: 8rpx 16rpx;
-		border-radius: 999rpx;
-		background: #eef6f1;
-		color: $forest2;
+	.service {
+		background: #e8f3ed;
+		color: #1f5c43;
 	}
-	.time-row,
-	.promo-row,
-	.selector-row,
-	.param-row {
-		display: flex;
-		flex-direction: row;
-		align-items: flex-start;
+	.seller-card,
+	.ai-box {
+		margin-top: 24rpx;
+		padding: 22rpx;
+		border-radius: 20rpx;
+		background: #f8faf8;
 	}
-	.promo-row + .promo-row,
-	.selector-row + .selector-row,
-	.param-row + .param-row {
-		margin-top: 18rpx;
-		padding-top: 18rpx;
-		border-top: 1rpx solid #f0f0f0;
+	.seller-name,
+	.seller-desc,
+	.seller-score,
+	.ai-title,
+	.ai-desc {
+		display: block;
 	}
-	.time-label,
-	.promo-label,
-	.selector-label,
-	.param-key {
-		width: 112rpx;
+	.seller-name,
+	.ai-title {
+		font-size: 28rpx;
+		font-weight: 900;
+		color: #17231d;
+	}
+	.seller-desc,
+	.ai-desc {
+		margin-top: 6rpx;
+		font-size: 23rpx;
+		color: #667085;
+		line-height: 1.5;
+	}
+	.seller-score {
+		font-size: 26rpx;
+		font-weight: 900;
+		color: #1f5c43;
+	}
+	.ai-box {
+		background: #17231d;
+		color: #fff;
+	}
+	.ai-box .ai-title,
+	.ai-box .ai-desc {
+		color: #fff;
+	}
+	.ai-btn {
+		padding: 14rpx 20rpx;
+		border-radius: 14rpx;
+		background: #fff;
+		color: #1f5c43;
+		font-size: 24rpx;
+		font-weight: 900;
 		flex-shrink: 0;
 	}
-	.promo-text,
-	.time-text,
-	.selector-value,
-	.param-value,
-	.story-text,
-	.review-text,
-	.store-desc {
-		flex: 1;
+	.info-grid,
+	.content-layout {
+		display: grid;
+		gap: 24rpx;
+		margin-top: 24rpx;
+	}
+	.info-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.content-layout {
+		grid-template-columns: minmax(0, 1fr) 320px;
+	}
+	.card {
+		padding: 28rpx;
+	}
+	.card-title {
+		display: block;
+		font-size: 32rpx;
+		font-weight: 900;
+		color: #17231d;
+		margin-bottom: 18rpx;
+	}
+	.highlight-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12rpx;
+	}
+	.highlight,
+	.plain,
+	.story {
+		display: block;
+		font-size: 25rpx;
+		color: #4b5563;
 		line-height: 1.7;
 	}
-	.story-text {
-		margin-top: 16rpx;
+	.highlight {
+		background: #f4f6f4;
+		border-radius: 14rpx;
+		padding: 12rpx 16rpx;
 	}
-	.review-item + .review-item {
-		margin-top: 20rpx;
-		padding-top: 20rpx;
-		border-top: 1rpx solid #f0f0f0;
-	}
-	.review-score,
-	.store-score {
-		color: $forest2;
-	}
-	.store-info {
+	.timeline-node {
 		display: flex;
-		flex-direction: column;
+		gap: 16rpx;
+		padding: 18rpx 0;
+		border-top: 1rpx solid #eef1ee;
 	}
-	.store-note,
-	.store-desc {
+	.dot {
+		width: 16rpx;
+		height: 16rpx;
+		border-radius: 50%;
+		background: #d66a2c;
 		margin-top: 10rpx;
+		flex-shrink: 0;
 	}
-	.section-head {
-		margin: 28rpx 24rpx 0;
+	.node-date,
+	.node-title,
+	.node-text {
+		display: block;
 	}
-	.recommend-line {
-		white-space: nowrap;
-		padding: 18rpx 12rpx 0 24rpx;
+	.node-date {
+		font-size: 22rpx;
+		color: #667085;
 	}
-	.recommend-card {
-		display: inline-flex;
-		flex-direction: column;
-		width: 220rpx;
-		margin-right: 16rpx;
+	.node-title {
+		margin-top: 3rpx;
+		font-size: 27rpx;
+		font-weight: 900;
+		color: #17231d;
+	}
+	.node-text {
+		margin-top: 6rpx;
+		font-size: 24rpx;
+		color: #667085;
+		line-height: 1.6;
+	}
+	.params {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 14rpx;
+	}
+	.param {
+		background: #f8faf8;
+		border-radius: 16rpx;
 		padding: 18rpx;
-		border-radius: 22rpx;
-		background: $paper;
-		box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
 	}
-	.recommend-image {
-		height: 160rpx;
-		border-radius: 18rpx;
-		background: #eef2ef;
+	.param-key,
+	.param-value {
+		display: block;
+	}
+	.param-key {
+		font-size: 22rpx;
+		color: #667085;
+	}
+	.param-value {
+		margin-top: 8rpx;
+		font-size: 26rpx;
+		font-weight: 800;
+		color: #17231d;
+	}
+	.review {
+		padding: 18rpx 0;
+		border-top: 1rpx solid #eef1ee;
+	}
+	.review-count,
+	.review-score {
+		color: #1f5c43;
+		font-size: 24rpx;
+	}
+	.review-user {
+		font-size: 26rpx;
+		font-weight: 800;
+		color: #17231d;
+	}
+	.review-text {
+		display: block;
+		margin-top: 10rpx;
+		font-size: 25rpx;
+		color: #4b5563;
+		line-height: 1.6;
+	}
+	.review-tags {
+		display: flex;
+		gap: 10rpx;
+		margin-top: 12rpx;
+	}
+	.sticky-card {
+		position: sticky;
+		top: 24rpx;
+	}
+	.recommend {
+		display: flex;
+		gap: 14rpx;
+		padding: 16rpx 0;
+		border-top: 1rpx solid #eef1ee;
+	}
+	.recommend-cover {
+		width: 92rpx;
+		height: 92rpx;
+		border-radius: 16rpx;
+		background: #edf3ef;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 70rpx;
+		font-size: 42rpx;
+		flex-shrink: 0;
+	}
+	.recommend-title,
+	.recommend-price {
+		display: block;
 	}
 	.recommend-title {
-		margin-top: 12rpx;
-		white-space: normal;
+		font-size: 24rpx;
+		color: #17231d;
+		line-height: 1.35;
 	}
 	.recommend-price {
-		margin-top: 10rpx;
-		font-size: 30rpx;
-		font-weight: 700;
-		color: #c45c26;
+		margin-top: 8rpx;
+		font-size: 27rpx;
+		font-weight: 900;
+		color: #d66a2c;
 	}
 	.bottom-bar {
 		position: fixed;
 		left: 0;
 		right: 0;
 		bottom: 0;
+		z-index: 20;
 		display: flex;
-		flex-direction: row;
 		align-items: center;
-		padding: 18rpx 22rpx;
+		gap: 16rpx;
+		padding: 18rpx 28rpx calc(18rpx + env(safe-area-inset-bottom));
 		background: rgba(255, 255, 255, 0.96);
-		box-shadow: 0 -12rpx 30rpx rgba(0, 0, 0, 0.05);
+		box-shadow: 0 -12rpx 30rpx rgba(15, 35, 26, 0.08);
 	}
-	.mini-actions {
+	.mini-action,
+	.cta {
+		height: 78rpx;
+		border-radius: 16rpx;
 		display: flex;
-		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		font-size: 25rpx;
+		font-weight: 800;
 	}
 	.mini-action {
-		min-width: 110rpx;
-		text-align: center;
+		width: 130rpx;
+		background: #f4f6f4;
+		color: #667085;
 	}
-	.mini-icon,
-	.mini-text {
-		display: block;
-	}
-	.mini-icon {
-		font-size: 28rpx;
-	}
-	.mini-text {
-		margin-top: 6rpx;
-		font-size: 20rpx;
-		color: $muted;
-	}
-	.cta-group {
+	.cta {
 		flex: 1;
-		display: flex;
-		flex-direction: row;
-		gap: 16rpx;
-		margin-left: 16rpx;
 	}
-	.ghost-btn,
-	.buy-btn {
-		flex: 1;
-		margin: 0;
-		height: 88rpx;
-		line-height: 88rpx;
-		border-radius: 999rpx;
-		font-size: 28rpx;
-		border: none;
+	.cta.ghost {
+		background: #e8f3ed;
+		color: #1f5c43;
 	}
-	.ghost-btn {
-		background: #eef2ef;
-		color: $forest;
-	}
-	.buy-btn {
-		background: $forest;
+	.cta.buy {
+		background: #1f5c43;
 		color: #fff;
+	}
+	@media screen and (max-width: 900px) {
+		.detail-layout,
+		.info-grid,
+		.content-layout,
+		.params {
+			grid-template-columns: 1fr;
+		}
+		.right {
+			display: none;
+		}
+		.cover {
+			height: 420rpx;
+		}
+		.bottom-bar {
+			gap: 10rpx;
+			padding-left: 16rpx;
+			padding-right: 16rpx;
+		}
+		.mini-action {
+			width: 104rpx;
+			font-size: 22rpx;
+		}
 	}
 </style>

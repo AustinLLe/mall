@@ -33,7 +33,7 @@ export function saveAddress(payload = {}) {
 	const region = (payload.region || '').trim()
 	const detail = (payload.detail || '').trim()
 	if (!name || !phone || !region || !detail) {
-		throw new Error('请完整填写地址信息')
+		throw new Error('Address fields are required')
 	}
 	const next = {
 		id: payload.id || buildId(),
@@ -72,10 +72,7 @@ export function removeAddress(id) {
 }
 
 export function setDefaultAddress(id) {
-	const list = readAddressList().map((item) => ({
-		...item,
-		isDefault: item.id === id
-	}))
+	const list = readAddressList().map((item) => ({ ...item, isDefault: item.id === id }))
 	writeAddressList(list)
 	return list
 }
