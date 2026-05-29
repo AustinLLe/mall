@@ -9,7 +9,13 @@
 			<view class="card">
 				<text class="label">订单商品</text>
 				<view v-for="item in selectedItems" :key="item.id" class="item">
-					<text>{{ item.cover }} {{ item.title }} x{{ item.qty }}</text>
+					<view class="item-info">
+						<view class="cover" :class="{ 'has-image': isImageCover(item.cover) }">
+							<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+							<text v-else>{{ item.cover }}</text>
+						</view>
+						<text>{{ item.title }} x{{ item.qty }}</text>
+					</view>
 					<text>¥{{ item.price * item.qty }}</text>
 				</view>
 			</view>
@@ -34,6 +40,9 @@
 		},
 		onShow() { this.items = getCartItems(); this.address = getDefaultAddress() },
 		methods: {
+			isImageCover(cover) {
+				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
+			},
 			pay() { clearCheckedCartItems(); uni.navigateTo({ url: '/pages/order/pay-result' }) }
 		}
 	}
@@ -45,7 +54,10 @@
 	.label, .value { display: block; }
 	.label { font-size: 24rpx; color: #667085; margin-bottom: 10rpx; }
 	.value { font-size: 28rpx; color: #17231d; line-height: 1.6; }
-	.item { display: flex; justify-content: space-between; gap: 18rpx; padding: 12rpx 0; font-size: 26rpx; color: #17231d; }
+	.item { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; padding: 12rpx 0; font-size: 26rpx; color: #17231d; }
+	.item-info { display: flex; align-items: center; gap: 14rpx; min-width: 0; }
+	.cover { width: 72rpx; height: 72rpx; border-radius: 12rpx; background: #edf3ef; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+	.cover-img { width: 100%; height: 100%; display: block; }
 	.total { font-weight: 900; color: #d66a2c; }
 	.pay { margin-top: 24rpx; height: 88rpx; border-radius: 18rpx; background: #1f5c43; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 30rpx; font-weight: 900; }
 </style>

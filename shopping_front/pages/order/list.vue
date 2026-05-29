@@ -11,7 +11,10 @@
 					<text class="status">{{ order.status }}</text>
 				</view>
 				<view class="body">
-					<view class="cover">{{ order.cover }}</view>
+					<view class="cover" :class="{ 'has-image': isImageCover(order.cover) }">
+						<image v-if="isImageCover(order.cover)" class="cover-img" :src="order.cover" mode="aspectFill"></image>
+						<text v-else>{{ order.cover }}</text>
+					</view>
 					<view class="main">
 						<text class="name">{{ order.title }}</text>
 						<text class="meta">{{ order.type }} · {{ order.service }}</text>
@@ -29,15 +32,19 @@
 
 <script>
 	import { orderTabs } from '../../data/catalog.js'
+	import { fetchOrders } from '@/services/shop.js'
+
+	const fallbackOrders = [
+		{ id: 'o1', shop: '松果严选数码', status: '待收货', title: 'AirWave Pro 降噪耳机', cover: '/static/goods/airwave-pro.jpg', type: '新品', service: '平台担保', amount: 699 },
+		{ id: 'o2', shop: '阿洛的桌面仓库', status: '待评价', title: 'ViewTop 27 英寸 2K 显示器', cover: '/static/goods/viewtop-monitor.jpg', type: '二手', service: '同城验货', amount: 680 }
+	]
+
 	export default {
 		data() {
 			return {
 				tabs: orderTabs,
 				active: '全部',
-				orders: [
-					{ id: 'o1', shop: '松果严选数码', status: '待收货', title: 'AirWave Pro 降噪耳机', cover: '🎧', type: '新品', service: '平台担保', amount: 699 },
-					{ id: 'o2', shop: '阿洛的桌面仓库', status: '待评价', title: 'ViewTop 27 英寸 2K 显示器', cover: '🖥️', type: '二手', service: '同城验货', amount: 680 }
-				]
+				orders: fallbackOrders
 			}
 		},
 		computed: {
@@ -45,7 +52,23 @@
 				return this.active === '全部' ? this.orders : this.orders.filter((item) => item.status === this.active)
 			}
 		},
+		onShow() {
+			this.loadOrders()
+		},
 		methods: {
+			isImageCover(cover) {
+				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
+			},
+			async loadOrders() {
+				try {
+					const body = await fetchOrders()
+					if (body && body.code === 0 && Array.isArray(body.data)) {
+						this.orders = body.data
+					}
+				} catch (e) {
+					this.orders = fallbackOrders
+				}
+			},
 			goLogistics() {
 				uni.navigateTo({ url: '/pages/order/logistics' })
 			},
@@ -67,7 +90,9 @@
 	.shop, .name { font-size: 28rpx; font-weight: 900; color: #17231d; }
 	.status, .price { color: #d66a2c; font-weight: 900; }
 	.body { justify-content: flex-start; margin-top: 20rpx; }
-	.cover { width: 120rpx; height: 120rpx; border-radius: 18rpx; background: #edf3ef; display: flex; align-items: center; justify-content: center; font-size: 56rpx; }
+	.cover { width: 120rpx; height: 120rpx; border-radius: 18rpx; background: #edf3ef; display: flex; align-items: center; justify-content: center; font-size: 56rpx; overflow: hidden; }
+	.cover.has-image { background: #eef7f1; }
+	.cover-img { width: 100%; height: 100%; display: block; }
 	.main { flex: 1; min-width: 0; }
 	.name, .meta, .price { display: block; }
 	.meta { margin-top: 8rpx; color: #667085; font-size: 24rpx; }

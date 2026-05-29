@@ -15,16 +15,25 @@
 			</view>
 			<view class="consensus">
 				<text class="consensus-title">交易共识清单示例</text>
-				<text class="consensus-text">价格 650 元，平台担保下单；卖家承诺无坏点，买家收货 48 小时内完成验货。</text>
+				<text class="consensus-text">{{ assist.consensus }}</text>
+				<view class="checklist">
+					<text v-for="item in assist.checklist" :key="item" class="check-item">{{ item }}</text>
+				</view>
 			</view>
 		</view>
 	</view>
 </template>
 
 <script>
+	import { requestAiAssist } from '@/services/shop.js'
+
 	export default {
 		data() {
 			return {
+				assist: {
+					consensus: '价格 650 元，平台担保下单；卖家承诺无坏点，买家收货 48 小时内完成验货。',
+					checklist: ['确认商品实拍图', '确认是否支持平台担保', '确认瑕疵和售后约定']
+				},
 				list: [
 					{ icon: '🤖', title: 'AI 议价助手', sub: '建议先确认瑕疵、配件、发票和最低可接受价。', time: '刚刚' },
 					{ icon: '🖥️', title: '阿洛的桌面仓库', sub: '显示器支持同城验货，今晚 7 点后方便。', time: '10:24' },
@@ -32,7 +41,19 @@
 				]
 			}
 		},
+		onShow() {
+			this.loadAssist()
+		},
 		methods: {
+			async loadAssist() {
+				try {
+					const body = await requestAiAssist({ productId: 'used-monitor', question: '能便宜一点吗？有没有坏点？', offer: 620 })
+					if (body && body.code === 0 && body.data) {
+						this.assist = body.data
+						this.list[0].sub = body.data.answer
+					}
+				} catch (e) {}
+			},
 			open(item) {
 				uni.showToast({ title: item.title + ' 功能演示中', icon: 'none' })
 			}
@@ -57,4 +78,6 @@
 	.consensus-title, .consensus-text { display: block; }
 	.consensus-title { font-size: 28rpx; font-weight: 900; color: #b95420; }
 	.consensus-text { margin-top: 10rpx; font-size: 25rpx; color: #70401f; line-height: 1.6; }
+	.checklist { display: flex; flex-direction: column; gap: 8rpx; margin-top: 16rpx; }
+	.check-item { display: block; font-size: 24rpx; color: #70401f; }
 </style>

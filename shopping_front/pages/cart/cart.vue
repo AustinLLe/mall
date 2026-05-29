@@ -38,7 +38,10 @@
 							<view class="check" :class="{ on: item.checked }" @click="toggleChecked(item.id)">
 								{{ item.checked ? '✓' : '' }}
 							</view>
-							<view class="cover">{{ item.cover }}</view>
+							<view class="cover" :class="{ 'has-image': isImageCover(item.cover) }">
+								<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+								<text v-else>{{ item.cover }}</text>
+							</view>
 							<view class="item-main">
 								<view class="item-top">
 									<text class="item-title">{{ item.title }}</text>
@@ -126,6 +129,9 @@
 			this.loadData()
 		},
 		methods: {
+			isImageCover(cover) {
+				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
+			},
 			loadData() {
 				this.items = getCartItems()
 			},
@@ -380,6 +386,18 @@
 		justify-content: center;
 		font-size: 0;
 		flex-shrink: 0;
+		overflow: hidden;
+	}
+	.cover.has-image {
+		background: #eef7f1;
+	}
+	.cover.has-image::before {
+		display: none;
+	}
+	.cover-img {
+		width: 100%;
+		height: 100%;
+		display: block;
 	}
 	.cover::before {
 		content: "";

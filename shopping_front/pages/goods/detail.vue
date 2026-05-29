@@ -4,7 +4,10 @@
 			<view class="content-wrap main">
 				<view class="detail-layout">
 					<view class="gallery">
-						<view class="cover">{{ detail.cover }}</view>
+						<view class="cover" :class="{ 'has-image': isImageCover(detail.cover) }">
+							<image v-if="isImageCover(detail.cover)" class="cover-img" :src="detail.cover" mode="aspectFill"></image>
+							<text v-else>{{ detail.cover }}</text>
+						</view>
 						<view class="gallery-foot">
 							<text>{{ detail.scene === 'new' ? '新品正品' : '二手闲置' }}</text>
 							<text>{{ detail.location }}</text>
@@ -80,9 +83,9 @@
 						<view class="card">
 							<text class="card-title">参数信息</text>
 							<view class="params">
-								<view v-for="row in detail.params" :key="row[0]" class="param">
-									<text class="param-key">{{ row[0] }}</text>
-									<text class="param-value">{{ row[1] }}</text>
+								<view v-for="row in normalizedParams" :key="row.key" class="param">
+									<text class="param-key">{{ row.key }}</text>
+									<text class="param-value">{{ row.value }}</text>
 								</view>
 							</view>
 						</view>
@@ -109,7 +112,10 @@
 						<view class="card sticky-card">
 							<text class="card-title">猜你喜欢</text>
 							<view v-for="item in recommends" :key="item.id" class="recommend" @click="openRecommend(item)">
-								<view class="recommend-cover">{{ item.cover }}</view>
+								<view class="recommend-cover" :class="{ 'has-image': isImageCover(item.cover) }">
+									<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+									<text v-else>{{ item.cover }}</text>
+								</view>
 								<view>
 									<text class="recommend-title">{{ item.title }}</text>
 									<text class="recommend-price">¥{{ item.price }}</text>
@@ -122,11 +128,13 @@
 		</scroll-view>
 
 		<view class="bottom-bar">
-			<view class="mini-action" @click="goHome">首页</view>
-			<view class="mini-action" @click="goCart">购物车 {{ cartCount }}</view>
-			<view class="cta ghost" @click="favoriteCurrent">收藏</view>
-			<view class="cta ghost" @click="addToCart">加入购物车</view>
-			<view class="cta buy" @click="buyNow">{{ detail.scene === 'used' ? '担保下单' : '立即购买' }}</view>
+			<view class="bottom-bar-inner">
+				<view class="mini-action" @click="goHome">首页</view>
+				<view class="mini-action" @click="goCart">购物车 {{ cartCount }}</view>
+				<view class="cta ghost" @click="favoriteCurrent">收藏</view>
+				<view class="cta ghost" @click="addToCart">加入购物车</view>
+				<view class="cta buy" @click="buyNow">{{ detail.scene === 'used' ? '担保下单' : '立即购买' }}</view>
+			</view>
 		</view>
 	</view>
 </template>
@@ -135,6 +143,7 @@
 	import { goodsCatalog, findGoodsById, buildGoodsDetailUrl } from '../../data/catalog.js'
 	import { addCartItem, getCartCount } from '../../utils/cart.js'
 	import { addBuyerItem } from '@/services/center.js'
+	import { fetchProduct } from '@/services/shop.js'
 
 	export default {
 		data() {
@@ -144,19 +153,50 @@
 			}
 		},
 		computed: {
+			normalizedParams() {
+				return (this.detail.params || []).map((row) => {
+					if (Array.isArray(row)) return { key: row[0], value: row[1] }
+					return { key: row.key, value: row.value }
+				}).filter((row) => row.key)
+			},
 			recommends() {
-				return goodsCatalog.filter((item) => item.id !== this.detail.id).slice(0, 4)
+				const picked = []
+				const append = (items) => {
+					items.forEach((item) => {
+						if (item.id !== this.detail.id && !picked.some((current) => current.id === item.id)) picked.push(item)
+					})
+				}
+				append(goodsCatalog.filter((item) => item.category === this.detail.category))
+				append(goodsCatalog)
+				return picked.slice(0, 4)
 			}
 		},
 		onLoad(q) {
-			this.detail = findGoodsById(q && q.id ? decodeURIComponent(q.id) : '') || goodsCatalog[0]
+			const id = q && q.id ? decodeURIComponent(q.id) : ''
+			this.detail = findGoodsById(id) || goodsCatalog[0]
+			this.loadDetail(id)
 			this.refreshCartCount()
-			this.recordBrowse()
 		},
 		onShow() {
 			this.refreshCartCount()
 		},
 		methods: {
+			isImageCover(cover) {
+				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
+			},
+			async loadDetail(id) {
+				if (!id) {
+					this.recordBrowse()
+					return
+				}
+				try {
+					const body = await fetchProduct(id)
+					if (body && body.code === 0 && body.data && body.data.id === id) {
+						this.detail = body.data
+					}
+				} catch (e) {}
+				this.recordBrowse()
+			},
 			refreshCartCount() {
 				this.cartCount = getCartCount()
 			},
@@ -214,6 +254,7 @@
 <style lang="scss" scoped>
 	.detail-page {
 		padding-bottom: 128rpx;
+		background: linear-gradient(180deg, #f3f8f5 0%, #f6f7f8 260rpx, #f6f7f8 100%);
 	}
 	.scroll {
 		height: calc(100vh - 120rpx);
@@ -234,17 +275,29 @@
 		border-radius: 26rpx;
 		box-shadow: 0 14rpx 36rpx rgba(15, 35, 26, 0.06);
 	}
+	.summary {
+		background: linear-gradient(180deg, #ffffff 0%, #f5fbf7 100%);
+	}
 	.gallery {
 		padding: 28rpx;
 	}
 	.cover {
 		height: 520rpx;
 		border-radius: 24rpx;
-		background: #edf3ef;
+		background: radial-gradient(circle at 50% 42%, #ffffff 0%, #eef7f1 52%, #dcebe2 100%);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		font-size: 170rpx;
+		overflow: hidden;
+	}
+	.cover.has-image {
+		background: #eef7f1;
+	}
+	.cover-img {
+		width: 100%;
+		height: 100%;
+		display: block;
 	}
 	.gallery-foot,
 	.tag-row,
@@ -337,7 +390,8 @@
 		margin-top: 24rpx;
 		padding: 22rpx;
 		border-radius: 20rpx;
-		background: #f8faf8;
+		background: #eef7f1;
+		border: 1rpx solid #dcebe2;
 	}
 	.seller-name,
 	.seller-desc,
@@ -398,6 +452,8 @@
 	}
 	.card-title {
 		display: block;
+		padding-left: 16rpx;
+		border-left: 8rpx solid #2f6f50;
 		font-size: 32rpx;
 		font-weight: 900;
 		color: #17231d;
@@ -462,7 +518,8 @@
 		gap: 14rpx;
 	}
 	.param {
-		background: #f8faf8;
+		background: #f2faf5;
+		border: 1rpx solid #e2eee6;
 		border-radius: 16rpx;
 		padding: 18rpx;
 	}
@@ -520,12 +577,16 @@
 		width: 92rpx;
 		height: 92rpx;
 		border-radius: 16rpx;
-		background: #edf3ef;
+		background: #eef7f1;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		font-size: 42rpx;
 		flex-shrink: 0;
+		overflow: hidden;
+	}
+	.recommend-cover.has-image {
+		background: #eef7f1;
 	}
 	.recommend-title,
 	.recommend-price {
@@ -548,38 +609,47 @@
 		right: 0;
 		bottom: 0;
 		z-index: 20;
-		display: flex;
-		align-items: center;
-		gap: 16rpx;
 		padding: 18rpx 28rpx calc(18rpx + env(safe-area-inset-bottom));
-		background: rgba(255, 255, 255, 0.96);
-		box-shadow: 0 -12rpx 30rpx rgba(15, 35, 26, 0.08);
+		background: rgba(247, 250, 248, 0.88);
+		backdrop-filter: blur(18rpx);
+		box-shadow: 0 -18rpx 36rpx rgba(15, 35, 26, 0.1);
+	}
+	.bottom-bar-inner {
+		width: min(100%, 1680rpx);
+		margin: 0 auto;
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		align-items: center;
+		gap: 10rpx;
+		padding: 10rpx;
+		border: 1rpx solid #dfe9e3;
+		border-radius: 26rpx;
+		background: #ffffff;
+		box-shadow: 0 16rpx 48rpx rgba(15, 35, 26, 0.12);
 	}
 	.mini-action,
 	.cta {
 		height: 78rpx;
-		border-radius: 16rpx;
+		border-radius: 18rpx;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		font-size: 25rpx;
 		font-weight: 800;
+		white-space: nowrap;
 	}
 	.mini-action {
-		width: 130rpx;
-		background: #f4f6f4;
-		color: #667085;
-	}
-	.cta {
-		flex: 1;
+		background: #f1f7f3;
+		color: #1f5c43;
 	}
 	.cta.ghost {
 		background: #e8f3ed;
 		color: #1f5c43;
 	}
 	.cta.buy {
-		background: #1f5c43;
+		background: linear-gradient(135deg, #2f6f50, #1f5c43);
 		color: #fff;
+		box-shadow: 0 12rpx 28rpx rgba(31, 92, 67, 0.24);
 	}
 	@media screen and (max-width: 900px) {
 		.detail-layout,
@@ -595,12 +665,16 @@
 			height: 420rpx;
 		}
 		.bottom-bar {
-			gap: 10rpx;
-			padding-left: 16rpx;
-			padding-right: 16rpx;
+			padding-left: 14rpx;
+			padding-right: 14rpx;
 		}
-		.mini-action {
-			width: 104rpx;
+		.bottom-bar-inner {
+			gap: 10rpx;
+			padding: 8rpx;
+		}
+		.mini-action,
+		.cta {
+			height: 70rpx;
 			font-size: 22rpx;
 		}
 	}

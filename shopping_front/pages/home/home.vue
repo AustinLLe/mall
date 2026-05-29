@@ -3,7 +3,9 @@
 		<view class="topbar">
 			<view class="content-wrap topbar-inner">
 				<view class="brand" @click="setScene('all')">
-					<view class="brand-mark">S</view>
+					<view class="brand-mark">
+						<image class="brand-logo" src="/static/logo.png" mode="aspectFit"></image>
+					</view>
 					<view class="brand-copy">
 						<text class="brand-name">松果集市</text>
 						<text class="brand-sub">可信的新旧商品流转平台</text>
@@ -31,8 +33,8 @@
 				<view class="hero">
 					<view class="hero-copy">
 						<text class="eyebrow">New goods · Second life · Credit first</text>
-						<text class="hero-title">把新品购买和二手流转，放进一个更清爽的网页集市。</text>
-						<text class="hero-desc">用信用分、担保交易、验货清单和店铺评分降低交易成本。首页保持买家视角，登录后会自动切换到对应角色。</text>
+						<text class="hero-title">精选新品与优质闲置，一站式安心交易平台。</text>
+						<text class="hero-desc">买家可以放心选购与下单，卖家可以发布商品、管理订单，管理员负责审核商品与维护交易秩序。</text>
 						<view class="hero-actions">
 							<view class="primary-btn" @click="setScene('new')">看新品</view>
 							<view class="secondary-btn" @click="setScene('used')">淘二手</view>
@@ -50,7 +52,10 @@
 							</view>
 						</view>
 						<view class="focus-item" @click="openDetail(featured)">
-							<view class="focus-cover">{{ featured.cover }}</view>
+							<view class="focus-cover" :class="{ 'has-image': isImageCover(featured.cover) }">
+								<image v-if="isImageCover(featured.cover)" class="cover-img" :src="featured.cover" mode="aspectFill"></image>
+								<text v-else>{{ featured.cover }}</text>
+							</view>
 							<view>
 								<text class="focus-label">编辑推荐</text>
 								<text class="focus-title">{{ featured.title }}</text>
@@ -73,12 +78,19 @@
 						<text class="section-title">精选商品</text>
 						<text class="section-desc">按新旧、分类、信用与关键词筛选</text>
 					</view>
-					<view class="mode-switch">
-						<view v-for="tab in sceneTabs" :key="tab.key" class="mode-item" :class="{ on: activeScene === tab.key }" @click="setScene(tab.key)">
-							{{ tab.label }}
+					<view class="toolbar-group">
+						<view class="mode-switch">
+							<view v-for="tab in sceneTabs" :key="tab.key" class="mode-item" :class="{ on: activeScene === tab.key }" @click="setScene(tab.key)">
+								{{ tab.label }}
+							</view>
+						</view>
+						<view class="sort-switch">
+							<text v-for="item in sortTabs" :key="item.key" class="sort-item" :class="{ on: activeSort === item.key }" @click="activeSort = item.key">{{ item.label }}</text>
 						</view>
 					</view>
 				</view>
+
+				<view v-if="loadError" class="sync-tip">当前展示本地演示数据，后端恢复后会自动切换为接口数据。</view>
 
 				<scroll-view scroll-x class="category-line" :show-scrollbar="false">
 					<view v-for="category in categories" :key="category" class="category-chip" :class="{ on: activeCategory === category }" @click="activeCategory = category">
@@ -89,7 +101,10 @@
 				<view class="product-layout">
 					<view class="goods-grid">
 						<view v-for="item in displayGoods" :key="item.id" class="goods-card" @click="openDetail(item)">
-							<view class="cover" :class="visualClass(item)">{{ item.cover }}</view>
+							<view class="cover" :class="[visualClass(item), { 'has-image': isImageCover(item.cover) }]">
+								<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+								<text v-else>{{ item.cover }}</text>
+							</view>
 							<view class="goods-body">
 								<view class="goods-tags">
 									<text class="scene-tag" :class="item.scene">{{ item.scene === 'new' ? '新品' : '二手' }}</text>
@@ -146,14 +161,31 @@
 <script>
 	import { goodsCatalog, buildGoodsDetailUrl } from '../../data/catalog.js'
 	import { addBuyerItem } from '@/services/center.js'
+	import { fetchProducts } from '@/services/shop.js'
+
+	function mergeProducts(localList, remoteList) {
+		const merged = localList.slice()
+		remoteList.forEach((remote) => {
+			const index = merged.findIndex((item) => item.id === remote.id || item.title === remote.title)
+			if (index >= 0) {
+				merged.splice(index, 1, Object.assign({}, merged[index], remote))
+			} else {
+				merged.push(remote)
+			}
+		})
+		return merged
+	}
 
 	export default {
 		data() {
 			return {
 				statusBarHeight: 24,
 				activeScene: 'all',
+				activeSort: 'recommend',
 				activeCategory: '全部',
-				keyword: ''
+				keyword: '',
+				goodsList: goodsCatalog,
+				loadError: false
 			}
 		},
 		computed: {
@@ -164,8 +196,15 @@
 					{ key: 'used', label: '二手' }
 				]
 			},
+			sortTabs() {
+				return [
+					{ key: 'recommend', label: '推荐' },
+					{ key: 'credit', label: '信用优先' },
+					{ key: 'price', label: '价格优先' }
+				]
+			},
 			categories() {
-				return ['全部'].concat(Array.from(new Set(goodsCatalog.map((item) => item.category))))
+				return ['全部'].concat(Array.from(new Set(this.goodsList.map((item) => item.category))))
 			},
 			metrics() {
 				return [
@@ -190,30 +229,51 @@
 				]
 			},
 			featured() {
-				return goodsCatalog[0]
+				return this.goodsList[0] || goodsCatalog[0]
 			},
 			usedSpot() {
-				return goodsCatalog.find((item) => item.scene === 'used' && item.timeline.length) || goodsCatalog[0]
+				return this.goodsList.find((item) => item.scene === 'used' && item.timeline && item.timeline.length) || this.featured
 			},
 			displayGoods() {
 				const kw = this.keyword.trim().toLowerCase()
-				return goodsCatalog.filter((item) => {
+				const list = this.goodsList.filter((item) => {
 					const sceneOk = this.activeScene === 'all' || item.scene === this.activeScene
 					const categoryOk = this.activeCategory === '全部' || item.category === this.activeCategory
 					const keywordOk = !kw || [item.title, item.subtitle, item.category, item.shopName].join(' ').toLowerCase().includes(kw)
 					return sceneOk && categoryOk && keywordOk
 				})
+				if (this.activeSort === 'credit') return list.slice().sort((a, b) => (b.credit || 0) - (a.credit || 0))
+				if (this.activeSort === 'price') return list.slice().sort((a, b) => Number(a.price || 0) - Number(b.price || 0))
+				return list
 			}
 		},
 		onLoad() {
 			const sys = uni.getWindowInfo()
 			this.statusBarHeight = sys.statusBarHeight || 24
+			this.loadProducts()
 		},
 		methods: {
+			isImageCover(cover) {
+				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
+			},
+			async loadProducts() {
+				try {
+					const body = await fetchProducts({ scene: this.activeScene === 'all' ? '' : this.activeScene, keyword: this.keyword })
+					if (body && body.code === 0 && Array.isArray(body.data) && body.data.length) {
+						this.goodsList = mergeProducts(goodsCatalog, body.data)
+						this.loadError = false
+					}
+				} catch (e) {
+					this.goodsList = goodsCatalog
+					this.loadError = true
+				}
+			},
 			setScene(scene) {
 				this.activeScene = scene
+				this.loadProducts()
 			},
 			applySearch() {
+				this.loadProducts()
 				uni.showToast({ title: this.keyword ? '已筛选相关商品' : '请输入搜索关键词', icon: 'none' })
 			},
 			quickOpen(item) {
@@ -267,10 +327,10 @@
 	}
 	.topbar-inner {
 		display: grid;
-		grid-template-columns: 300px 320px minmax(0, 1fr);
+		grid-template-columns: 360px 320px minmax(0, 1fr);
 		align-items: center;
 		gap: 18px;
-		height: 82px;
+		height: 96px;
 		padding: 0 22px;
 	}
 	.brand {
@@ -280,16 +340,18 @@
 		flex-shrink: 0;
 	}
 	.brand-mark {
-		width: 42px;
-		height: 42px;
+		width: 64px;
+		height: 64px;
 		border-radius: 8px;
-		background: linear-gradient(135deg, #12372a, #1f5c43);
-		color: #fff;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 20px;
-		font-weight: 900;
+		overflow: hidden;
+		flex-shrink: 0;
+	}
+	.brand-logo {
+		width: 100%;
+		height: 100%;
 	}
 	.brand-copy,
 	.hero-title,
@@ -316,13 +378,24 @@
 		display: block;
 	}
 	.brand-name {
-		font-size: 20px;
+		display: block;
+		font-size: 28px;
+		line-height: 1.1;
 		font-weight: 900;
 		color: #202124;
 	}
+	.toolbar-group {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
 	.brand-sub {
-		margin-top: 2px;
-		font-size: 12px;
+		display: block;
+		margin-top: 8px;
+		font-size: 14px;
+		line-height: 1.25;
 		color: #667085;
 	}
 	.web-nav {
@@ -338,6 +411,43 @@
 		border: 1px solid rgba(203, 213, 225, .72);
 		box-shadow: 0 14px 38px rgba(60, 64, 67, .08);
 		flex-shrink: 0;
+	}
+	.sort-switch {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 5px;
+		border-radius: 999px;
+		background: #e8f0eb;
+		border: 1px solid #dfe6e2;
+	}
+	.sort-item {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 86px;
+		height: 38px;
+		padding: 0;
+		border-radius: 999px;
+		font-size: 13px;
+		font-weight: 850;
+		color: #667085;
+		white-space: nowrap;
+	}
+	.sort-item.on {
+		background: #fff;
+		color: #12372a;
+		box-shadow: 0 6px 18px rgba(17, 38, 28, 0.08);
+	}
+	.sync-tip {
+		margin-top: 14px;
+		padding: 12px 16px;
+		border-radius: 8px;
+		background: #fff8ed;
+		border: 1px solid #ffe0b8;
+		color: #9a5b15;
+		font-size: 13px;
+		font-weight: 750;
 	}
 	.nav-link {
 		width: 82px;
@@ -578,6 +688,21 @@
 		border-bottom-width: 8px;
 		box-shadow: inset 0 -8px 0 rgba(255,255,255,.18), 0 10px 26px rgba(0,0,0,.18);
 	}
+	.focus-cover.has-image,
+	.cover.has-image {
+		background: #eef7f1;
+		overflow: hidden;
+	}
+	.focus-cover.has-image::before,
+	.cover.has-image::before,
+	.cover.has-image::after {
+		display: none;
+	}
+	.cover-img {
+		width: 100%;
+		height: 100%;
+		display: block;
+	}
 	.focus-label {
 		font-size: 12px;
 		opacity: 0.72;
@@ -662,14 +787,19 @@
 	.mode-switch {
 		display: flex;
 		background: #e8f0eb;
-		border-radius: 8px;
-		padding: 4px;
+		border-radius: 999px;
+		padding: 5px;
+		border: 1px solid #dfe6e2;
 	}
 	.mode-item {
-		min-width: 74px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 86px;
+		height: 38px;
 		text-align: center;
-		padding: 10px 14px;
-		border-radius: 6px;
+		padding: 0;
+		border-radius: 999px;
 		font-size: 13px;
 		color: #667085;
 	}
@@ -703,17 +833,20 @@
 		grid-template-columns: minmax(0, 1fr) 310px;
 		gap: 18px;
 		margin-top: 18px;
+		align-items: start;
 	}
 	.goods-grid {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 14px;
+		align-items: start;
 	}
 	.goods-card {
 		overflow: hidden;
+		align-self: start;
 	}
 	.cover {
-		height: 170px;
+		height: 150px;
 		background:
 			radial-gradient(circle at 50% 42%, rgba(255,255,255,.88), transparent 20%),
 			linear-gradient(135deg, #edf5f0 0%, #e4eee8 100%);
@@ -777,7 +910,7 @@
 			linear-gradient(135deg, #f3f7f4 0%, #f7efe6 100%);
 	}
 	.goods-body {
-		padding: 18px;
+		padding: 16px;
 	}
 	.goods-tags {
 		display: flex;
