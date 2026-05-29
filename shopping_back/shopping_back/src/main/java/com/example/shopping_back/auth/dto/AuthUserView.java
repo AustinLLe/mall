@@ -6,12 +6,21 @@ public class AuthUserView {
     private final String username;
     private final String phoneMasked;
     private final Integer credit;
+    private final String role;
+    private final String roleLabel;
+    private final Boolean realNameVerified;
+    private final String status;
 
-    public AuthUserView(Integer userId, String username, String phoneMasked, Integer credit) {
+    public AuthUserView(Integer userId, String username, String phoneMasked, Integer credit,
+                        String role, String roleLabel, Boolean realNameVerified, String status) {
         this.userId = userId;
         this.username = username;
         this.phoneMasked = phoneMasked;
         this.credit = credit;
+        this.role = role;
+        this.roleLabel = roleLabel;
+        this.realNameVerified = realNameVerified;
+        this.status = status;
     }
 
     public Integer getUserId() {
@@ -28,5 +37,21 @@ public class AuthUserView {
 
     public Integer getCredit() {
         return credit;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public String getRoleLabel() {
+        return roleLabel;
+    }
+
+    public Boolean getRealNameVerified() {
+        return realNameVerified;
+    }
+
+    public String getStatus() {
+        return status;
     }
 }

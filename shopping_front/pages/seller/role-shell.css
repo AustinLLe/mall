@@ -1,0 +1,256 @@
+.role-page {
+  min-height: 100vh;
+  background: #eef3ef;
+  display: flex;
+  color: #10231a;
+}
+.sidebar {
+  width: 284px;
+  min-height: 100vh;
+  background: #123629;
+  color: #fff;
+  padding: 28px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  background: #fff;
+  color: #123629;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 22px;
+}
+.brand-title,
+.brand-sub,
+.nav-item text,
+.account-name,
+.account-meta,
+.eyebrow,
+.title,
+.hero-title,
+.hero-copy,
+.stat-value,
+.stat-label,
+.section-title,
+.line,
+.muted {
+  display: block;
+}
+.brand-title {
+  font-size: 18px;
+  font-weight: 900;
+}
+.brand-sub {
+  margin-top: 3px;
+  font-size: 12px;
+  opacity: .68;
+}
+.nav {
+  margin-top: 42px;
+}
+.nav-item {
+  padding: 14px 16px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  color: rgba(255,255,255,.72);
+  cursor: pointer;
+  font-weight: 800;
+}
+.nav-item.active {
+  background: rgba(255,255,255,.14);
+  color: #fff;
+}
+.account {
+  margin-top: auto;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255,255,255,.12);
+}
+.account-name {
+  font-weight: 900;
+  font-size: 17px;
+}
+.account-meta {
+  margin-top: 5px;
+  font-size: 13px;
+  opacity: .68;
+}
+.logout,
+.primary {
+  border-radius: 8px;
+  font-weight: 900;
+}
+.logout {
+  width: 100%;
+  height: 40px;
+  line-height: 40px;
+  margin-top: 16px;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+}
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 34px;
+  box-sizing: border-box;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.eyebrow {
+  color: #1f5c43;
+  font-size: 13px;
+  font-weight: 900;
+}
+.title {
+  margin-top: 6px;
+  font-size: 34px;
+  font-weight: 900;
+}
+.primary {
+  width: 132px;
+  height: 44px;
+  line-height: 44px;
+  background: #1f5c43;
+  color: #fff;
+}
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, .8fr);
+  gap: 20px;
+}
+.card {
+  background: #fff;
+  border: 1px solid #dfe7e1;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(17,38,28,.08);
+  box-sizing: border-box;
+}
+.hero {
+  background: linear-gradient(135deg, #123629, #1f5c43);
+  color: #fff;
+}
+.hero-title {
+  font-size: 30px;
+  font-weight: 900;
+}
+.hero-copy {
+  margin-top: 10px;
+  max-width: 660px;
+  font-size: 15px;
+  line-height: 1.7;
+  opacity: .82;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+.stat {
+  padding: 18px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.12);
+}
+.stat-value {
+  font-size: 28px;
+  font-weight: 900;
+}
+.stat-label {
+  margin-top: 6px;
+  font-size: 13px;
+  opacity: .76;
+}
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.section-title {
+  font-size: 20px;
+  font-weight: 900;
+}
+.section-action {
+  color: #1f5c43;
+  font-size: 14px;
+  font-weight: 900;
+}
+.line,
+.table-row,
+.profile-line {
+  padding: 16px 0;
+  border-bottom: 1px solid #edf1ee;
+}
+.line:last-child,
+.table-row:last-child,
+.profile-line:last-child {
+  border-bottom: 0;
+}
+.table-row,
+.profile-line {
+  display: grid;
+  grid-template-columns: 1fr 160px 140px;
+  gap: 12px;
+  align-items: center;
+  color: #667085;
+  font-size: 14px;
+}
+.row-title {
+  color: #10231a;
+  font-weight: 900;
+}
+.profile-line {
+  grid-template-columns: 140px 1fr;
+}
+.muted {
+  margin-top: 12px;
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.bar {
+  margin-top: 22px;
+  height: 12px;
+  border-radius: 999px;
+  background: #edf3ef;
+  overflow: hidden;
+}
+.fill {
+  width: 88%;
+  height: 100%;
+  border-radius: 999px;
+  background: #1f5c43;
+}
+@media screen and (max-width: 980px) {
+  .role-page {
+    display: block;
+  }
+  .sidebar {
+    width: auto;
+    min-height: auto;
+  }
+  .main {
+    padding: 18px;
+  }
+  .content-grid,
+  .stats {
+    grid-template-columns: 1fr;
+  }
+  .table-row {
+    grid-template-columns: 1fr;
+  }
+}

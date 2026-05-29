@@ -8,6 +8,7 @@
 					<text class="desc">{{ store.desc }}</text>
 					<view class="meta"><text>评分 {{ store.score }}</text><text>{{ store.fans }} 关注</text><text>{{ store.badge }}</text></view>
 				</view>
+				<button class="follow-btn" @click="followCurrent">关注店铺</button>
 			</view>
 			<view class="grid">
 				<view v-for="item in goods" :key="item.id" class="goods" @click="open(item)">
@@ -21,21 +22,33 @@
 </template>
 <script>
 	import { hotStores, findStoreByName, productsByStore, buildGoodsDetailUrl } from '../../data/catalog.js'
+	import { addBuyerItem } from '@/services/center.js'
 	export default {
 		data() { return { store: hotStores[0] } },
 		computed: { goods() { return productsByStore(this.store.name) } },
 		onLoad(q) { this.store = findStoreByName(q && q.name ? decodeURIComponent(q.name) : '') || hotStores[0] },
-		methods: { open(item) { uni.navigateTo({ url: buildGoodsDetailUrl(item) }) } }
+		methods: {
+			open(item) { uni.navigateTo({ url: buildGoodsDetailUrl(item) }) },
+			async followCurrent() {
+				try {
+					await addBuyerItem('follow', { storeName: this.store.name })
+					uni.showToast({ title: '已关注店铺', icon: 'success' })
+				} catch (e) {
+					uni.showToast({ title: '请先登录买家账号', icon: 'none' })
+				}
+			}
+		}
 	}
 </script>
 <style lang="scss" scoped>
 	.page { padding: 28rpx; }
-	.store-head { display: flex; gap: 22rpx; background: #fff; border-radius: 26rpx; padding: 30rpx; border: 1rpx solid #e4e9e5; }
+	.store-head { display: flex; gap: 22rpx; background: #fff; border-radius: 26rpx; padding: 30rpx; border: 1rpx solid #e4e9e5; align-items: center; }
 	.avatar { width: 100rpx; height: 100rpx; border-radius: 26rpx; background: #1f5c43; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 900; }
 	.name, .desc { display: block; }
 	.name { font-size: 38rpx; font-weight: 900; color: #17231d; }
 	.desc { margin-top: 8rpx; font-size: 25rpx; color: #667085; line-height: 1.6; }
 	.meta { display: flex; gap: 12rpx; flex-wrap: wrap; margin-top: 14rpx; color: #1f5c43; font-size: 24rpx; }
+	.follow-btn { margin-left: auto; width: 160rpx; height: 70rpx; line-height: 70rpx; border-radius: 14rpx; background: #12372a; color: #fff; font-size: 24rpx; font-weight: 900; }
 	.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18rpx; margin-top: 22rpx; }
 	.goods { background: #fff; border-radius: 22rpx; padding: 20rpx; border: 1rpx solid #e4e9e5; }
 	.cover { height: 160rpx; border-radius: 18rpx; background: #edf3ef; display: flex; align-items: center; justify-content: center; font-size: 64rpx; }

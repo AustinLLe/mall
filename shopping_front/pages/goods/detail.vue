@@ -124,6 +124,7 @@
 		<view class="bottom-bar">
 			<view class="mini-action" @click="goHome">首页</view>
 			<view class="mini-action" @click="goCart">购物车 {{ cartCount }}</view>
+			<view class="cta ghost" @click="favoriteCurrent">收藏</view>
 			<view class="cta ghost" @click="addToCart">加入购物车</view>
 			<view class="cta buy" @click="buyNow">{{ detail.scene === 'used' ? '担保下单' : '立即购买' }}</view>
 		</view>
@@ -133,6 +134,7 @@
 <script>
 	import { goodsCatalog, findGoodsById, buildGoodsDetailUrl } from '../../data/catalog.js'
 	import { addCartItem, getCartCount } from '../../utils/cart.js'
+	import { addBuyerItem } from '@/services/center.js'
 
 	export default {
 		data() {
@@ -149,6 +151,7 @@
 		onLoad(q) {
 			this.detail = findGoodsById(q && q.id ? decodeURIComponent(q.id) : '') || goodsCatalog[0]
 			this.refreshCartCount()
+			this.recordBrowse()
 		},
 		onShow() {
 			this.refreshCartCount()
@@ -156,6 +159,19 @@
 		methods: {
 			refreshCartCount() {
 				this.cartCount = getCartCount()
+			},
+			async recordBrowse() {
+				try {
+					await addBuyerItem('history', { itemId: this.detail.id, title: this.detail.title, storeName: this.detail.shopName })
+				} catch (e) {}
+			},
+			async favoriteCurrent() {
+				try {
+					await addBuyerItem('favorite', { itemId: this.detail.id, title: this.detail.title, storeName: this.detail.shopName })
+					uni.showToast({ title: '已收藏', icon: 'success' })
+				} catch (e) {
+					uni.showToast({ title: '请先登录买家账号', icon: 'none' })
+				}
 			},
 			addToCart() {
 				addCartItem({

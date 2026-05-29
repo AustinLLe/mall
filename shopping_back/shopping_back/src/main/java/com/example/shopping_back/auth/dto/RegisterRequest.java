@@ -7,16 +7,18 @@ import jakarta.validation.constraints.Size;
 public class RegisterRequest {
 
     @NotBlank(message = "用户名不能为空")
-    @Size(min = 3, max = 32, message = "用户名为 3～32 位")
+    @Size(min = 3, max = 32, message = "用户名为 3-32 位")
     private String username;
 
     @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 64, message = "密码长度为 6～64 位")
+    @Size(min = 6, max = 64, message = "密码长度为 6-64 位")
     private String password;
 
-    /** 可选，预留手机号注册 */
     @Pattern(regexp = "^$|^1\\d{10}$", message = "手机号格式不正确")
     private String phone;
+
+    /** buyer or seller. Admin accounts are seeded by the system only. */
+    private String role;
 
     public String getUsername() {
         return username;
@@ -40,5 +42,13 @@ public class RegisterRequest {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 }

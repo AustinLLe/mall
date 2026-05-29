@@ -1,39 +1,47 @@
 <template>
 	<view class="safe-page home-page">
-		<view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+		<view class="topbar">
 			<view class="content-wrap topbar-inner">
 				<view class="brand" @click="setScene('all')">
-					<text class="brand-mark">松果</text>
+					<view class="brand-mark">S</view>
 					<view class="brand-copy">
 						<text class="brand-name">松果集市</text>
-						<text class="brand-sub">买新品，也淘有故事的闲置</text>
+						<text class="brand-sub">可信的新旧商品流转平台</text>
 					</view>
 				</view>
-				<view class="search">
-					<text class="search-icon">⌕</text>
-					<input v-model="keyword" class="search-input" placeholder="搜索商品、店铺、求购意图" confirm-type="search" @confirm="applySearch" />
-					<view class="search-action" @click="applySearch">搜索</view>
+				<view class="web-nav">
+					<text class="nav-link on" @click="navTo('/pages/home/home')">首页</text>
+					<text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
+					<text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
+					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
 				</view>
-				<view class="publish-btn" @click="goPublish">发布闲置</view>
+				<view class="top-actions">
+					<view class="search">
+						<text class="search-icon">⌕</text>
+						<input v-model="keyword" class="search-input" placeholder="搜索商品、店铺、关键词" confirm-type="search" @confirm="applySearch" />
+						<view class="search-action" @click="applySearch">搜索</view>
+					</view>
+					<view class="publish-btn" @click="goPublish">发布闲置</view>
+				</view>
 			</view>
 		</view>
 
 		<scroll-view scroll-y class="scroll-shell">
 			<view class="content-wrap main">
 				<view class="hero">
-					<view class="hero-main">
-						<text class="eyebrow">安全交易 · 信用可见 · AI 辅助议价</text>
-						<text class="hero-title">在一个平台里，放心买新，也轻松淘旧。</text>
-						<text class="hero-desc">新品购物有标准保障，二手交易有信用分、验货清单、物品流转故事和平台担保。</text>
+					<view class="hero-copy">
+						<text class="eyebrow">New goods · Second life · Credit first</text>
+						<text class="hero-title">把新品购买和二手流转，放进一个更清爽的网页集市。</text>
+						<text class="hero-desc">用信用分、担保交易、验货清单和店铺评分降低交易成本。首页保持买家视角，登录后会自动切换到对应角色。</text>
 						<view class="hero-actions">
-							<view class="primary-btn" @click="setScene('new')">逛新品</view>
+							<view class="primary-btn" @click="setScene('new')">看新品</view>
 							<view class="secondary-btn" @click="setScene('used')">淘二手</view>
 						</view>
 					</view>
-					<view class="hero-panel">
-						<view class="panel-head">
+					<view class="hero-board">
+						<view class="board-head">
 							<text>今日可信交易</text>
-							<text class="panel-badge">模拟数据</text>
+							<text class="board-pill">Demo</text>
 						</view>
 						<view class="metric-grid">
 							<view v-for="metric in metrics" :key="metric.label" class="metric">
@@ -41,9 +49,13 @@
 								<text class="metric-label">{{ metric.label }}</text>
 							</view>
 						</view>
-						<view class="ai-card">
-							<text class="ai-title">AI 议价助手</text>
-							<text class="ai-text">帮买家询问瑕疵、建议报价，并生成交易共识清单。</text>
+						<view class="focus-item" @click="openDetail(featured)">
+							<view class="focus-cover">{{ featured.cover }}</view>
+							<view>
+								<text class="focus-label">编辑推荐</text>
+								<text class="focus-title">{{ featured.title }}</text>
+								<text class="focus-price">¥{{ featured.price }}</text>
+							</view>
 						</view>
 					</view>
 				</view>
@@ -59,37 +71,25 @@
 				<view class="section-row">
 					<view>
 						<text class="section-title">精选商品</text>
-						<text class="section-desc">按新品、二手、分类与信用筛选</text>
+						<text class="section-desc">按新旧、分类、信用与关键词筛选</text>
 					</view>
 					<view class="mode-switch">
-						<view
-							v-for="tab in sceneTabs"
-							:key="tab.key"
-							class="mode-item"
-							:class="{ on: activeScene === tab.key }"
-							@click="setScene(tab.key)"
-						>
+						<view v-for="tab in sceneTabs" :key="tab.key" class="mode-item" :class="{ on: activeScene === tab.key }" @click="setScene(tab.key)">
 							{{ tab.label }}
 						</view>
 					</view>
 				</view>
 
 				<scroll-view scroll-x class="category-line" :show-scrollbar="false">
-					<view
-						v-for="category in categories"
-						:key="category"
-						class="category-chip"
-						:class="{ on: activeCategory === category }"
-						@click="activeCategory = category"
-					>
+					<view v-for="category in categories" :key="category" class="category-chip" :class="{ on: activeCategory === category }" @click="activeCategory = category">
 						{{ category }}
 					</view>
 				</scroll-view>
 
-				<view class="layout">
+				<view class="product-layout">
 					<view class="goods-grid">
 						<view v-for="item in displayGoods" :key="item.id" class="goods-card" @click="openDetail(item)">
-							<view class="cover">{{ item.cover }}</view>
+							<view class="cover" :class="visualClass(item)">{{ item.cover }}</view>
 							<view class="goods-body">
 								<view class="goods-tags">
 									<text class="scene-tag" :class="item.scene">{{ item.scene === 'new' ? '新品' : '二手' }}</text>
@@ -104,6 +104,10 @@
 								<view class="goods-foot">
 									<text>信用 {{ item.credit }}</text>
 									<text>{{ item.location }}</text>
+								</view>
+								<view class="goods-actions">
+									<text class="mini-link" @click.stop="favoriteItem(item)">收藏</text>
+									<text class="mini-link" @click.stop="openStore(item)">进店</text>
 								</view>
 							</view>
 						</view>
@@ -120,8 +124,8 @@
 								</view>
 							</view>
 						</view>
-						<view class="side-card story">
-							<text class="side-title">二手流浪时间线</text>
+						<view class="side-card">
+							<text class="side-title">物品时间线</text>
 							<text class="story-title">{{ usedSpot.title }}</text>
 							<view v-for="node in usedSpot.timeline" :key="node.date" class="timeline-node">
 								<text class="dot"></text>
@@ -130,7 +134,7 @@
 									<text class="node-text">{{ node.title }}</text>
 								</view>
 							</view>
-							<view class="story-link" @click="openDetail(usedSpot)">查看物品护照</view>
+							<view class="story-link" @click="openDetail(usedSpot)">查看详情</view>
 						</view>
 					</view>
 				</view>
@@ -141,6 +145,7 @@
 
 <script>
 	import { goodsCatalog, buildGoodsDetailUrl } from '../../data/catalog.js'
+	import { addBuyerItem } from '@/services/center.js'
 
 	export default {
 		data() {
@@ -155,8 +160,8 @@
 			sceneTabs() {
 				return [
 					{ key: 'all', label: '全部' },
-					{ key: 'new', label: '买新品' },
-					{ key: 'used', label: '淘二手' }
+					{ key: 'new', label: '新品' },
+					{ key: 'used', label: '二手' }
 				]
 			},
 			categories() {
@@ -171,18 +176,21 @@
 			},
 			quickLinks() {
 				return [
-					{ icon: '🛒', title: '新品严选', desc: '正品保障', scene: 'new' },
-					{ icon: '♻️', title: '闲置好物', desc: '信用可见', scene: 'used' },
-					{ icon: '🤖', title: 'AI 议价', desc: '自动问答', path: '/pages/message/message' },
-					{ icon: '📦', title: '发布商品', desc: 'AI 估价', path: '/pages/publish/publish' }
+					{ icon: '✓', title: '新品严选', desc: '正品与售后', scene: 'new' },
+					{ icon: '↻', title: '闲置好物', desc: '信用可见', scene: 'used' },
+					{ icon: 'AI', title: '议价助手', desc: '生成验货清单', path: '/pages/message/message' },
+					{ icon: '+', title: '发布商品', desc: '快速上架', path: '/pages/publish/publish' }
 				]
 			},
 			guardrails() {
 				return [
-					{ icon: '✓', title: '平台担保', desc: '买家确认收货后卖家收款' },
-					{ icon: '★', title: '信用评分', desc: '成交率、评价和纠纷记录综合计算' },
-					{ icon: '↺', title: '售后协商', desc: '退款、证据上传和平台介入流程' }
+					{ icon: '1', title: '平台担保', desc: '买家确认收货后，卖家再收到款项。' },
+					{ icon: '2', title: '信用评分', desc: '成交率、评价和纠纷记录综合计算。' },
+					{ icon: '3', title: '售后协商', desc: '支持证据上传、退款沟通和平台介入。' }
 				]
+			},
+			featured() {
+				return goodsCatalog[0]
 			},
 			usedSpot() {
 				return goodsCatalog.find((item) => item.scene === 'used' && item.timeline.length) || goodsCatalog[0]
@@ -218,8 +226,27 @@
 			goPublish() {
 				uni.navigateTo({ url: '/pages/publish/publish' })
 			},
+			navTo(url) {
+				uni.switchTab({ url })
+			},
+			visualClass(item) {
+				if (item.category === '数码影音') return 'digital'
+				if (item.category === '图书文创') return 'book'
+				return 'life'
+			},
 			openDetail(item) {
 				uni.navigateTo({ url: buildGoodsDetailUrl(item) })
+			},
+			async favoriteItem(item) {
+				try {
+					await addBuyerItem('favorite', { itemId: item.id, title: item.title, storeName: item.shopName })
+					uni.showToast({ title: '已收藏', icon: 'success' })
+				} catch (e) {
+					uni.showToast({ title: '请先登录买家账号', icon: 'none' })
+				}
+			},
+			openStore(item) {
+				uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(item.shopName) })
 			}
 		}
 	}
@@ -227,73 +254,146 @@
 
 <style lang="scss" scoped>
 	.home-page {
-		padding-bottom: 40rpx;
+		padding-bottom: 36px;
 	}
 	.topbar {
 		position: sticky;
 		top: 0;
 		z-index: 10;
-		background: rgba(244, 246, 244, 0.96);
-		border-bottom: 1rpx solid #e4e9e5;
+		background: rgba(255, 255, 255, .88);
+		backdrop-filter: blur(22px);
+		border-bottom: 1px solid rgba(203, 213, 225, .55);
+		box-shadow: 0 10px 40px rgba(60, 64, 67, .06);
 	}
 	.topbar-inner {
-		display: flex;
+		display: grid;
+		grid-template-columns: 300px 320px minmax(0, 1fr);
 		align-items: center;
-		gap: 24rpx;
-		padding: 18rpx 28rpx;
+		gap: 18px;
+		height: 82px;
+		padding: 0 22px;
 	}
 	.brand {
 		display: flex;
 		align-items: center;
-		gap: 14rpx;
+		gap: 12px;
 		flex-shrink: 0;
 	}
 	.brand-mark {
-		width: 72rpx;
-		height: 72rpx;
-		border-radius: 20rpx;
-		background: #1f5c43;
+		width: 42px;
+		height: 42px;
+		border-radius: 8px;
+		background: linear-gradient(135deg, #12372a, #1f5c43);
 		color: #fff;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 24rpx;
-		font-weight: 700;
+		font-size: 20px;
+		font-weight: 900;
 	}
-	.brand-copy {
-		display: flex;
-		flex-direction: column;
+	.brand-copy,
+	.hero-title,
+	.hero-desc,
+	.eyebrow,
+	.board-head,
+	.metric-value,
+	.metric-label,
+	.focus-label,
+	.focus-title,
+	.focus-price,
+	.quick-title,
+	.quick-desc,
+	.section-title,
+	.section-desc,
+	.goods-title,
+	.goods-sub,
+	.side-title,
+	.guard-title,
+	.guard-desc,
+	.story-title,
+	.node-date,
+	.node-text {
+		display: block;
 	}
 	.brand-name {
-		font-size: 34rpx;
-		font-weight: 800;
-		color: #163528;
+		font-size: 20px;
+		font-weight: 900;
+		color: #202124;
 	}
 	.brand-sub {
-		font-size: 22rpx;
+		margin-top: 2px;
+		font-size: 12px;
 		color: #667085;
-		margin-top: 4rpx;
 	}
-	.search {
-		flex: 1;
-		height: 76rpx;
-		border-radius: 18rpx;
-		background: #fff;
+	.web-nav {
+		justify-self: center;
 		display: flex;
 		align-items: center;
-		padding: 0 14rpx 0 24rpx;
-		box-shadow: 0 8rpx 24rpx rgba(15, 35, 26, 0.06);
+		gap: 4px;
+		padding: 5px;
+		box-sizing: border-box;
+		height: 50px;
+		border-radius: 999px;
+		background: rgba(255,255,255,.72);
+		border: 1px solid rgba(203, 213, 225, .72);
+		box-shadow: 0 14px 38px rgba(60, 64, 67, .08);
+		flex-shrink: 0;
+	}
+	.nav-link {
+		width: 82px;
+		height: 38px;
+		padding: 0;
+		border-radius: 999px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
+		line-height: 1;
+		text-align: center;
+		font-size: 13px;
+		font-weight: 750;
+		color: #5f6b85;
+		transition: all .22s ease;
+	}
+	.nav-link.on,
+	.nav-link:hover {
+		background: linear-gradient(135deg, #ffffff, #f5f7fa);
+		color: #12372a;
+		box-shadow: 0 10px 26px rgba(18, 55, 42, .14);
+	}
+	.top-actions {
+		justify-self: end;
+		display: flex;
+		align-items: center;
+		gap: 12px;
 		min-width: 0;
 	}
+	.search {
+		width: clamp(220px, 20vw, 300px);
+		height: 44px;
+		border-radius: 12px;
+		background: rgba(255,255,255,.82);
+		border: 1px solid rgba(203, 213, 225, .78);
+		display: flex;
+		align-items: center;
+		padding: 0 8px 0 14px;
+		min-width: 0;
+		box-shadow: 0 12px 30px rgba(60, 64, 67, .06);
+		transition: box-shadow .22s ease, border-color .22s ease;
+	}
+	.search:focus-within {
+		border-color: rgba(66, 133, 244, .32);
+		box-shadow: 0 16px 38px rgba(60, 64, 67, .1);
+	}
 	.search-icon {
-		font-size: 30rpx;
+		font-size: 22px;
 		color: #667085;
-		margin-right: 12rpx;
+		margin-right: 8px;
 	}
 	.search-input {
 		flex: 1;
-		font-size: 26rpx;
 		min-width: 0;
+		font-size: 14px;
 	}
 	.search-action,
 	.publish-btn,
@@ -303,280 +403,396 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border-radius: 16rpx;
-		font-size: 26rpx;
-		font-weight: 700;
+		border-radius: 8px;
+		font-size: 14px;
+		font-weight: 900;
 	}
 	.search-action {
-		width: 104rpx;
-		height: 56rpx;
-		background: #1f5c43;
+		width: 70px;
+		height: 34px;
+		background: #12372a;
 		color: #fff;
 	}
 	.publish-btn {
-		height: 76rpx;
-		padding: 0 26rpx;
-		background: #fff0e7;
-		color: #b95420;
+		height: 44px;
+		padding: 0 18px;
+		background: #12372a;
+		color: #fff;
 		flex-shrink: 0;
+		box-shadow: 0 14px 34px rgba(18, 55, 42, .16);
 	}
 	.scroll-shell {
-		height: calc(100vh - 104rpx);
+		height: calc(100vh - 74px);
 	}
 	.main {
-		padding: 28rpx;
+		padding: 24px 22px;
+		animation: softIn .45s ease both;
 	}
 	.hero {
 		display: grid;
-		grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.8fr);
-		gap: 24rpx;
+		grid-template-columns: minmax(0, 1.45fr) minmax(360px, .85fr);
+		gap: 20px;
 	}
-	.hero-main,
-	.hero-panel,
+	.hero-copy,
+	.hero-board,
 	.quick-card,
 	.goods-card,
 	.side-card {
 		background: #fff;
-		border: 1rpx solid #e4e9e5;
-		box-shadow: 0 14rpx 36rpx rgba(15, 35, 26, 0.06);
+		border: 1px solid #e4e9e5;
+		border-radius: 8px;
+		box-shadow: 0 16px 48px rgba(17, 38, 28, 0.065);
+		transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
 	}
-	.hero-main {
-		border-radius: 28rpx;
-		padding: 54rpx;
-		background: linear-gradient(135deg, #fdfefe, #edf7f1);
+	.hero-copy {
+		padding: 48px 50px;
+		background:
+			radial-gradient(circle at 85% 12%, rgba(66, 133, 244, .08), transparent 30%),
+			radial-gradient(circle at 18% 80%, rgba(52, 168, 83, .05), transparent 32%),
+			linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
 	}
 	.eyebrow {
-		font-size: 24rpx;
+		font-size: 13px;
 		color: #1f5c43;
-		font-weight: 700;
+		font-weight: 900;
 	}
 	.hero-title {
-		display: block;
-		margin-top: 20rpx;
-		font-size: 58rpx;
-		line-height: 1.15;
-		font-weight: 800;
-		color: #163528;
-		max-width: 760rpx;
+		margin-top: 16px;
+		max-width: 760px;
+		font-size: 36px;
+		line-height: 1.22;
+		font-weight: 850;
+		color: #202124;
 	}
 	.hero-desc {
-		display: block;
-		margin-top: 22rpx;
-		font-size: 28rpx;
-		line-height: 1.7;
+		margin-top: 18px;
+		max-width: 720px;
+		font-size: 15px;
+		line-height: 1.8;
 		color: #4b5563;
-		max-width: 760rpx;
 	}
 	.hero-actions {
 		display: flex;
-		gap: 18rpx;
-		margin-top: 34rpx;
+		gap: 12px;
+		margin-top: 28px;
 	}
 	.primary-btn,
 	.secondary-btn {
-		height: 78rpx;
-		padding: 0 34rpx;
+		height: 44px;
+		padding: 0 24px;
 	}
 	.primary-btn {
-		background: #1f5c43;
+		background: #12372a;
 		color: #fff;
+		box-shadow: 0 16px 34px rgba(60, 64, 67, .14);
 	}
 	.secondary-btn {
 		background: #fff;
-		color: #1f5c43;
-		border: 1rpx solid #cfe1d6;
+		color: #12372a;
+		border: 1px solid rgba(95, 99, 104, .22);
 	}
-	.hero-panel {
-		border-radius: 28rpx;
-		padding: 30rpx;
+	.hero-board {
+		padding: 24px;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		min-height: 270px;
 	}
-	.panel-head,
-	.section-row,
+	.board-head,
 	.price-row,
 	.goods-foot {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 	}
-	.panel-head {
-		font-size: 30rpx;
-		font-weight: 800;
-		color: #163528;
+	.board-head {
+		font-size: 18px;
+		font-weight: 900;
+		color: #17231d;
 	}
-	.panel-badge {
-		font-size: 22rpx;
-		color: #d66a2c;
+	.board-pill {
+		padding: 5px 9px;
+		border-radius: 999px;
 		background: #fff0e7;
-		padding: 8rpx 14rpx;
-		border-radius: 999rpx;
+		color: #b95420;
+		font-size: 12px;
 	}
 	.metric-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		gap: 14rpx;
-		margin-top: 24rpx;
+		gap: 10px;
+		margin-top: 18px;
 	}
 	.metric {
-		background: #f4f6f4;
-		border-radius: 18rpx;
-		padding: 20rpx 10rpx;
+		background: linear-gradient(180deg, #f7faf8, #eef5f0);
+		border-radius: 8px;
+		padding: 14px 8px;
 		text-align: center;
 	}
 	.metric-value {
-		display: block;
-		font-size: 32rpx;
-		font-weight: 800;
+		font-size: 22px;
+		font-weight: 900;
 		color: #1f5c43;
 	}
 	.metric-label {
-		display: block;
-		margin-top: 6rpx;
-		font-size: 22rpx;
+		margin-top: 4px;
+		font-size: 12px;
 		color: #667085;
 	}
-	.ai-card {
-		margin-top: 22rpx;
-		border-radius: 20rpx;
-		padding: 24rpx;
-		background: #163528;
+	.focus-item {
+		margin-top: 18px;
+		padding: 18px;
+		border-radius: 8px;
+		background:
+			radial-gradient(circle at 16% 20%, rgba(255,255,255,.16), transparent 26%),
+			linear-gradient(135deg, #12372a 0%, #1f5c43 100%);
 		color: #fff;
+		display: flex;
+		gap: 14px;
+		align-items: center;
+		box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+		transition: transform .22s ease;
 	}
-	.ai-title {
-		display: block;
-		font-size: 30rpx;
-		font-weight: 800;
+	.focus-item:hover {
+		transform: translateY(-2px);
 	}
-	.ai-text {
-		display: block;
-		margin-top: 12rpx;
-		font-size: 24rpx;
-		line-height: 1.6;
-		opacity: 0.9;
+	.focus-cover {
+		width: 76px;
+		height: 76px;
+		border-radius: 8px;
+		background:
+			radial-gradient(circle at 34% 28%, rgba(255,255,255,.34), transparent 24%),
+			linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.06));
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0;
+		flex-shrink: 0;
+	}
+	.focus-cover::before {
+		content: "";
+		width: 42px;
+		height: 34px;
+		border-radius: 18px;
+		border: 5px solid rgba(255,255,255,.72);
+		border-bottom-width: 8px;
+		box-shadow: inset 0 -8px 0 rgba(255,255,255,.18), 0 10px 26px rgba(0,0,0,.18);
+	}
+	.focus-label {
+		font-size: 12px;
+		opacity: 0.72;
+	}
+	.focus-title {
+		margin-top: 6px;
+		font-size: 17px;
+		font-weight: 900;
+	}
+	.focus-price {
+		margin-top: 8px;
+		font-size: 20px;
+		font-weight: 900;
+		color: #f3c98b;
 	}
 	.quick-grid {
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
-		gap: 18rpx;
-		margin-top: 24rpx;
+		gap: 12px;
+		margin-top: 16px;
 	}
 	.quick-card {
-		border-radius: 22rpx;
-		padding: 24rpx;
+		padding: 18px;
+		animation: softIn .5s ease both;
 	}
-	.quick-icon,
-	.quick-title,
-	.quick-desc {
-		display: block;
+	.quick-card:nth-child(2) {
+		animation-delay: .04s;
+	}
+	.quick-card:nth-child(3) {
+		animation-delay: .08s;
+	}
+	.quick-card:nth-child(4) {
+		animation-delay: .12s;
+	}
+	.quick-card:hover,
+	.goods-card:hover,
+	.side-card:hover {
+		transform: translateY(-3px);
+		box-shadow: 0 24px 70px rgba(17, 38, 28, 0.11);
+		border-color: rgba(31, 92, 67, .18);
 	}
 	.quick-icon {
-		font-size: 44rpx;
+		width: 34px;
+		height: 34px;
+		border-radius: 8px;
+		background: linear-gradient(135deg, #f5f7fa, #ffffff);
+		color: #12372a;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 15px;
+		font-weight: 900;
 	}
 	.quick-title {
-		margin-top: 12rpx;
-		font-size: 28rpx;
-		font-weight: 800;
+		margin-top: 13px;
+		font-size: 16px;
+		font-weight: 850;
 		color: #17231d;
 	}
 	.quick-desc {
-		margin-top: 6rpx;
-		font-size: 23rpx;
+		margin-top: 5px;
+		font-size: 13px;
 		color: #667085;
 	}
 	.section-row {
-		margin-top: 38rpx;
-		gap: 18rpx;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		margin-top: 30px;
 	}
 	.section-title {
-		display: block;
-		font-size: 36rpx;
-		font-weight: 800;
+		font-size: 25px;
+		font-weight: 850;
 		color: #17231d;
 	}
 	.section-desc {
-		display: block;
-		margin-top: 6rpx;
-		font-size: 24rpx;
+		margin-top: 6px;
+		font-size: 14px;
 		color: #667085;
 	}
 	.mode-switch {
 		display: flex;
 		background: #e8f0eb;
-		border-radius: 18rpx;
-		padding: 6rpx;
+		border-radius: 8px;
+		padding: 4px;
 	}
 	.mode-item {
-		min-width: 112rpx;
+		min-width: 74px;
 		text-align: center;
-		padding: 14rpx 18rpx;
-		border-radius: 14rpx;
-		font-size: 25rpx;
+		padding: 10px 14px;
+		border-radius: 6px;
+		font-size: 13px;
 		color: #667085;
 	}
 	.mode-item.on {
 		background: #fff;
-		color: #1f5c43;
-		font-weight: 800;
-		box-shadow: 0 6rpx 18rpx rgba(15, 35, 26, 0.06);
+		color: #12372a;
+		font-weight: 900;
+		box-shadow: 0 6px 18px rgba(17, 38, 28, 0.08);
 	}
 	.category-line {
 		white-space: nowrap;
-		margin-top: 20rpx;
+		margin-top: 16px;
 	}
 	.category-chip {
 		display: inline-flex;
-		padding: 14rpx 24rpx;
-		margin-right: 12rpx;
-		border-radius: 999rpx;
+		padding: 9px 15px;
+		margin-right: 10px;
+		border-radius: 999px;
 		background: #fff;
 		color: #667085;
-		font-size: 24rpx;
-		border: 1rpx solid #e4e9e5;
+		font-size: 13px;
+		border: 1px solid #e4e9e5;
 	}
 	.category-chip.on {
-		background: #1f5c43;
+		background: #12372a;
 		color: #fff;
-		border-color: #1f5c43;
+		border-color: transparent;
 	}
-	.layout {
+	.product-layout {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 320px;
-		gap: 24rpx;
-		margin-top: 22rpx;
+		grid-template-columns: minmax(0, 1fr) 310px;
+		gap: 18px;
+		margin-top: 18px;
 	}
 	.goods-grid {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 20rpx;
+		gap: 14px;
 	}
 	.goods-card {
-		border-radius: 22rpx;
 		overflow: hidden;
 	}
 	.cover {
-		height: 220rpx;
-		background: #edf3ef;
+		height: 170px;
+		background:
+			radial-gradient(circle at 50% 42%, rgba(255,255,255,.88), transparent 20%),
+			linear-gradient(135deg, #edf5f0 0%, #e4eee8 100%);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 88rpx;
+		font-size: 0;
+		position: relative;
+	}
+	.cover::before {
+		content: "";
+		width: 76px;
+		height: 58px;
+		border-radius: 14px;
+		background: linear-gradient(135deg, #ffffff, #dfe8e3);
+		box-shadow: 0 18px 40px rgba(31, 92, 67, .14);
+	}
+	.cover::after {
+		content: "";
+		position: absolute;
+		width: 42px;
+		height: 6px;
+		border-radius: 999px;
+		background: rgba(18, 55, 42, .18);
+		bottom: 42px;
+	}
+	.cover.digital::before {
+		width: 86px;
+		height: 54px;
+		border-radius: 10px;
+		background: linear-gradient(135deg, #dff2ff, #b9d9ea);
+		border: 5px solid #3c5260;
+	}
+	.cover.book::before {
+		width: 66px;
+		height: 76px;
+		border-radius: 8px 14px 14px 8px;
+		background: linear-gradient(90deg, #d9eadf 0 34%, #f7d278 34% 68%, #dbeafe 68%);
+		box-shadow: 12px 12px 0 rgba(18, 55, 42, .08), 0 18px 40px rgba(31, 92, 67, .12);
+	}
+	.cover.life::before {
+		width: 64px;
+		height: 78px;
+		border-radius: 18px 18px 10px 10px;
+		background: linear-gradient(135deg, #f6e6ce, #b98f72);
+		clip-path: polygon(18% 0, 82% 0, 72% 42%, 86% 100%, 68% 100%, 55% 54%, 45% 54%, 32% 100%, 14% 100%, 28% 42%);
+	}
+	.cover.digital {
+		background:
+			radial-gradient(circle at 50% 42%, rgba(255,255,255,.9), transparent 20%),
+			linear-gradient(135deg, #edf5f0 0%, #eaf1ff 100%);
+	}
+	.cover.book {
+		background:
+			radial-gradient(circle at 50% 42%, rgba(255,255,255,.9), transparent 20%),
+			linear-gradient(135deg, #fff6ec 0%, #edf3ef 100%);
+	}
+	.cover.life {
+		background:
+			radial-gradient(circle at 50% 42%, rgba(255,255,255,.9), transparent 20%),
+			linear-gradient(135deg, #f3f7f4 0%, #f7efe6 100%);
 	}
 	.goods-body {
-		padding: 22rpx;
+		padding: 18px;
 	}
 	.goods-tags {
 		display: flex;
-		gap: 10rpx;
+		gap: 8px;
 		flex-wrap: wrap;
 	}
 	.scene-tag,
 	.light-tag {
-		font-size: 21rpx;
-		padding: 6rpx 12rpx;
-		border-radius: 999rpx;
+		font-size: 12px;
+		padding: 5px 9px;
+		border-radius: 999px;
 	}
 	.scene-tag.new {
-		background: #e8f3ed;
-		color: #1f5c43;
+		background: #f5f7fa;
+		color: #12372a;
 	}
 	.scene-tag.used {
 		background: #fff0e7;
@@ -587,159 +803,158 @@
 		color: #667085;
 	}
 	.goods-title {
-		display: block;
-		margin-top: 14rpx;
-		font-size: 29rpx;
-		font-weight: 800;
+		margin-top: 12px;
+		font-size: 16px;
+		font-weight: 850;
 		color: #17231d;
 		line-height: 1.35;
 	}
 	.goods-sub {
-		display: block;
-		margin-top: 8rpx;
-		font-size: 23rpx;
+		margin-top: 7px;
+		font-size: 13px;
 		color: #667085;
 		line-height: 1.5;
 	}
 	.price-row {
-		margin-top: 16rpx;
 		justify-content: flex-start;
-		gap: 12rpx;
+		gap: 10px;
+		margin-top: 14px;
 	}
 	.price {
-		font-size: 34rpx;
+		font-size: 20px;
 		font-weight: 900;
 		color: #d66a2c;
 	}
 	.origin {
-		font-size: 22rpx;
+		font-size: 13px;
 		color: #9ca3af;
 		text-decoration: line-through;
 	}
 	.goods-foot {
-		margin-top: 14rpx;
-		font-size: 22rpx;
+		margin-top: 12px;
+		font-size: 12px;
 		color: #667085;
+	}
+	.goods-actions {
+		display: flex;
+		gap: 10px;
+		margin-top: 12px;
+	}
+	.mini-link {
+		padding: 7px 12px;
+		border-radius: 999px;
+		background: #e8f3ed;
+		color: #12372a;
+		font-size: 12px;
+		font-weight: 900;
 	}
 	.side {
 		display: flex;
 		flex-direction: column;
-		gap: 20rpx;
+		gap: 14px;
 	}
 	.side-card {
-		border-radius: 22rpx;
-		padding: 24rpx;
+		padding: 20px;
 	}
 	.side-title {
-		display: block;
-		font-size: 30rpx;
-		font-weight: 800;
+		font-size: 18px;
+		font-weight: 900;
 		color: #17231d;
-		margin-bottom: 18rpx;
+		margin-bottom: 14px;
 	}
 	.guard {
 		display: flex;
-		gap: 14rpx;
-		padding: 16rpx 0;
-		border-top: 1rpx solid #eef1ee;
+		gap: 12px;
+		padding: 13px 0;
+		border-top: 1px solid #eef1ee;
 	}
 	.guard-icon {
-		width: 42rpx;
-		height: 42rpx;
-		border-radius: 50%;
-		background: #e8f3ed;
-		color: #1f5c43;
+		width: 30px;
+		height: 30px;
+		border-radius: 8px;
+		background: #f5f7fa;
+		color: #12372a;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 24rpx;
-		font-weight: 800;
+		font-size: 13px;
+		font-weight: 900;
 		flex-shrink: 0;
 	}
-	.guard-title,
-	.guard-desc,
-	.story-title,
-	.node-date,
-	.node-text {
-		display: block;
-	}
 	.guard-title {
-		font-size: 26rpx;
-		font-weight: 800;
+		font-size: 14px;
+		font-weight: 900;
 		color: #17231d;
 	}
 	.guard-desc {
-		margin-top: 4rpx;
-		font-size: 22rpx;
+		margin-top: 4px;
+		font-size: 12px;
 		color: #667085;
-		line-height: 1.5;
+		line-height: 1.55;
 	}
 	.story-title {
-		font-size: 28rpx;
-		font-weight: 800;
-		color: #1f5c43;
-		margin-bottom: 16rpx;
+		font-size: 15px;
+		font-weight: 900;
+		color: #12372a;
+		margin-bottom: 12px;
 	}
 	.timeline-node {
 		display: flex;
-		gap: 12rpx;
-		padding: 12rpx 0;
+		gap: 10px;
+		padding: 9px 0;
 	}
 	.dot {
-		width: 14rpx;
-		height: 14rpx;
+		width: 8px;
+		height: 8px;
 		border-radius: 50%;
 		background: #d66a2c;
-		margin-top: 10rpx;
+		margin-top: 8px;
 		flex-shrink: 0;
 	}
 	.node-date {
-		font-size: 21rpx;
+		font-size: 12px;
 		color: #667085;
 	}
 	.node-text {
-		margin-top: 2rpx;
-		font-size: 24rpx;
+		margin-top: 2px;
+		font-size: 13px;
 		color: #17231d;
 	}
 	.story-link {
-		margin-top: 18rpx;
-		height: 64rpx;
-		background: #e8f3ed;
-		color: #1f5c43;
+		margin-top: 14px;
+		height: 38px;
+		background: #f5f7fa;
+		color: #202124;
 	}
-
-	@media screen and (max-width: 900px) {
+	@media screen and (max-width: 960px) {
 		.topbar-inner,
 		.hero,
-		.layout,
+		.product-layout,
 		.quick-grid,
 		.goods-grid {
 			display: flex;
 			flex-direction: column;
 		}
 		.brand-sub,
+		.web-nav,
 		.publish-btn,
 		.side {
 			display: none;
 		}
-		.hero-main {
-			padding: 38rpx 30rpx;
+		.hero-copy {
+			padding: 32px 24px;
 		}
 		.hero-title {
-			font-size: 44rpx;
+			font-size: 34px;
 		}
-		.quick-grid {
-			gap: 14rpx;
+		.section-row {
+			align-items: flex-start;
+			flex-direction: column;
 		}
 		.quick-card,
 		.goods-card {
 			width: 100%;
 			box-sizing: border-box;
-		}
-		.section-row {
-			align-items: flex-start;
-			flex-direction: column;
 		}
 	}
 </style>
