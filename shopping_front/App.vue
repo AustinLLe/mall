@@ -1,6 +1,18 @@
 <script>
 	export default {
-		onLaunch() {},
+		onLaunch() {
+			// #ifdef MP-WEIXIN
+			const tabIcons = [
+				['static/tabbar/home.png', 'static/tabbar/home-active.png'],
+				['static/tabbar/browse.png', 'static/tabbar/browse-active.png'],
+				['static/tabbar/cart.png', 'static/tabbar/cart-active.png'],
+				['static/tabbar/user.png', 'static/tabbar/user-active.png']
+			]
+			tabIcons.forEach(([iconPath, selectedIconPath], index) => {
+				uni.setTabBarItem({ index, iconPath, selectedIconPath })
+			})
+			// #endif
+		},
 		onShow() {},
 		onHide() {}
 	}

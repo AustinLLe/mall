@@ -1,9 +1,43 @@
+import { goodsCatalog } from '../data/catalog.js'
+
 const CART_KEY = 'shopping_cart_items'
+
+function isImageCover(cover) {
+	return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
+}
+
+function findCatalogItem(item = {}) {
+	const id = String(item.id || '').trim()
+	const title = String(item.title || '').trim()
+	if (!id && !title) return null
+	return goodsCatalog.find((goods) => {
+		return goods.id === id || goods.title === title || goods.title === id || (title && title.includes(goods.title)) || (title && goods.title.includes(title))
+	}) || null
+}
+
+function normalizeCartItem(item = {}) {
+	const source = findCatalogItem(item)
+	if (!source) return item
+	const next = Object.assign({}, item)
+	if (!isImageCover(next.cover) && source.cover) next.cover = source.cover
+	if (!next.id || next.id === next.title) next.id = source.id
+	if (!next.title) next.title = source.title
+	if (!next.tag) next.tag = source.tag || ''
+	if (!next.credit) next.credit = source.credit || ''
+	if (!next.shopName) next.shopName = source.shopName || '松果集市卖家'
+	if (!next.scene) next.scene = source.scene || 'used'
+	return next
+}
 
 function readCart() {
 	try {
 		const list = uni.getStorageSync(CART_KEY)
-		return Array.isArray(list) ? list : []
+		if (!Array.isArray(list)) return []
+		const normalized = list.map((item) => normalizeCartItem(item))
+		if (JSON.stringify(normalized) !== JSON.stringify(list)) {
+			writeCart(normalized)
+		}
+		return normalized
 	} catch (e) {
 		return []
 	}
@@ -32,7 +66,8 @@ export function addCartItem(payload = {}) {
 	if (!title) {
 		throw new Error('商品标题不能为空')
 	}
-	const id = (payload.id || title).trim()
+	const source = findCatalogItem(payload)
+	const id = (payload.id || (source && source.id) || title).trim()
 	const list = readCart()
 	const found = list.find((item) => item.id === id)
 	if (found) {
@@ -41,13 +76,13 @@ export function addCartItem(payload = {}) {
 	} else {
 		list.unshift({
 			id,
-			title,
+			title: title || (source && source.title) || '',
 			price: normalizePrice(payload.price),
-			cover: payload.cover || '📦',
-			tag: payload.tag || '',
-			credit: payload.credit || '',
-			shopName: payload.shopName || '松果集市卖家',
-			scene: payload.scene || 'used',
+			cover: payload.cover || (source && source.cover) || '📦',
+			tag: payload.tag || (source && source.tag) || '',
+			credit: payload.credit || (source && source.credit) || '',
+			shopName: payload.shopName || (source && source.shopName) || '松果集市卖家',
+			scene: payload.scene || (source && source.scene) || 'used',
 			qty: normalizeQty(payload.qty),
 			checked: true,
 			valid: payload.valid !== false

@@ -149,6 +149,14 @@
 			}
 		},
 		{
+			"path": "pages/topic/detail",
+			"style": {
+				"navigationBarTitleText": "发现详情",
+				"navigationBarBackgroundColor": "#f4f6f4",
+				"backgroundColor": "#f4f6f4"
+			}
+		},
+		{
 			"path": "pages/admin/audit",
 			"style": {
 				"navigationBarTitleText": "审核",
@@ -171,7 +179,7 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "Dev"
+				"navigationBarTitleText": "平台状态"
 			}
 		},
 		{

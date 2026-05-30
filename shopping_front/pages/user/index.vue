@@ -3,7 +3,9 @@
     <view class="topbar">
       <view class="me-wrap topbar-inner">
         <view class="brand" @click="navTo('/pages/home/home')">
-          <view class="brand-mark">S</view>
+          <view class="brand-mark">
+            <image class="brand-logo" src="/static/logo.png" mode="aspectFit"></image>
+          </view>
           <view>
             <text class="brand-name">松果集市</text>
             <text class="brand-sub">可信的新旧商品流转平台</text>
@@ -40,7 +42,7 @@
       <view class="profile-card">
         <view class="avatar">{{ avatar }}</view>
         <view class="profile-main">
-          <text class="name">{{ user.username || 'demo' }}</text>
+          <text class="name">{{ user.username || '松果用户' }}</text>
           <text class="meta">{{ center.phoneMasked || user.phoneMasked || '&#26410;&#32465;&#23450;&#25163;&#26426;' }} · {{ verifiedText }}</text>
           <view class="chips">
             <text class="chip">&#20080;&#23478;</text>
@@ -284,7 +286,7 @@ export default {
           uni.showToast({ title: '\u5df2\u63d0\u4ea4\u5ba1\u6838', icon: 'success' })
         }
       } catch (e) {
-        uni.showToast({ title: '\u63d0\u4ea4\u5931\u8d25\uff0c\u68c0\u67e5\u540e\u7aef', icon: 'none' })
+          uni.showToast({ title: '\u63d0\u4ea4\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5', icon: 'none' })
       } finally {
         this.submittingRealName = false
       }
@@ -304,7 +306,7 @@ export default {
           uni.showToast({ title: '\u5df2\u53d6\u6d88\u8ba4\u8bc1', icon: 'none' })
         }
       } catch (e) {
-        uni.showToast({ title: '\u53d6\u6d88\u5931\u8d25\uff0c\u68c0\u67e5\u540e\u7aef', icon: 'none' })
+        uni.showToast({ title: '\u53d6\u6d88\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5', icon: 'none' })
       } finally {
         this.cancelingRealName = false
       }
@@ -389,13 +391,15 @@ export default {
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #12372a, #1f5c43);
-  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 19px;
-  font-weight: 900;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.brand-logo {
+  width: 100%;
+  height: 100%;
 }
 .brand-name,
 .brand-sub {

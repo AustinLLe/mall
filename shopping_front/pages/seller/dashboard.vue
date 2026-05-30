@@ -217,7 +217,7 @@ export default {
           uni.showToast({ title: '已提交审核', icon: 'success' })
         }
       } catch (e) {
-        uni.showToast({ title: '提交失败，检查后端', icon: 'none' })
+        uni.showToast({ title: '提交失败，请稍后重试', icon: 'none' })
       } finally {
         this.submittingRealName = false
       }
@@ -237,7 +237,7 @@ export default {
           uni.showToast({ title: '已取消认证', icon: 'none' })
         }
       } catch (e) {
-        uni.showToast({ title: '取消失败，检查后端', icon: 'none' })
+        uni.showToast({ title: '取消失败，请稍后重试', icon: 'none' })
       } finally {
         this.cancelingRealName = false
       }

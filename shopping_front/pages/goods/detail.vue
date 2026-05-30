@@ -35,7 +35,10 @@
 								<text class="seller-name">{{ detail.shopName }}</text>
 								<text class="seller-desc">{{ detail.scene === 'new' ? '官方/严选店铺' : '个人信用卖家' }} · {{ detail.location }}</text>
 							</view>
-							<text class="seller-score">{{ detail.credit }} 分</text>
+							<view class="seller-actions">
+								<text class="seller-score">{{ detail.credit }} 分</text>
+								<text class="follow-store" @click.stop="followStore">关注店铺</text>
+							</view>
 						</view>
 						<view class="ai-box">
 							<view>
@@ -244,6 +247,14 @@
 			openStore() {
 				uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(this.detail.shopName) })
 			},
+			async followStore() {
+				try {
+					await addBuyerItem('follow', { itemId: this.detail.id, title: this.detail.shopName, storeName: this.detail.shopName })
+					uni.showToast({ title: '已关注店铺', icon: 'success' })
+				} catch (e) {
+					uni.showToast({ title: '请先登录买家账号', icon: 'none' })
+				}
+			},
 			openRecommend(item) {
 				uni.navigateTo({ url: buildGoodsDetailUrl(item) })
 			}
@@ -396,9 +407,17 @@
 	.seller-name,
 	.seller-desc,
 	.seller-score,
+	.follow-store,
 	.ai-title,
 	.ai-desc {
 		display: block;
+	}
+	.seller-actions {
+		display: flex;
+		align-items: flex-end;
+		flex-direction: column;
+		gap: 10rpx;
+		flex-shrink: 0;
 	}
 	.seller-name,
 	.ai-title {
@@ -417,6 +436,15 @@
 		font-size: 26rpx;
 		font-weight: 900;
 		color: #1f5c43;
+	}
+	.follow-store {
+		padding: 10rpx 18rpx;
+		border-radius: 999rpx;
+		background: #1f5c43;
+		color: #fff;
+		font-size: 22rpx;
+		font-weight: 900;
+		white-space: nowrap;
 	}
 	.ai-box {
 		background: #17231d;

@@ -3,7 +3,9 @@
 		<view class="topbar">
 			<view class="content-wrap topbar-inner">
 				<view class="brand" @click="navTo('/pages/home/home')">
-					<view class="brand-mark">S</view>
+					<view class="brand-mark">
+						<image class="brand-logo" src="/static/logo.png" mode="aspectFit"></image>
+					</view>
 					<view>
 						<text class="brand-name">松果集市</text>
 						<text class="brand-sub">可信的新旧商品流转平台</text>
@@ -38,9 +40,9 @@
 							<view class="check" :class="{ on: item.checked }" @click="toggleChecked(item.id)">
 								{{ item.checked ? '✓' : '' }}
 							</view>
-							<view class="cover" :class="{ 'has-image': isImageCover(item.cover) }">
-								<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
-								<text v-else>{{ item.cover }}</text>
+							<view class="cover" :class="{ 'has-image': isImageCover(resolvedCover(item)) }">
+								<image v-if="isImageCover(resolvedCover(item))" class="cover-img" :src="resolvedCover(item)" mode="aspectFill"></image>
+								<text v-else>{{ resolvedCover(item) }}</text>
 							</view>
 							<view class="item-main">
 								<view class="item-top">
@@ -92,7 +94,7 @@
 			</view>
 
 			<view v-else class="empty">
-				<view class="empty-icon">S</view>
+				<image class="empty-icon logo-empty" src="/static/logo.png" mode="aspectFit"></image>
 				<text class="empty-title">购物车还是空的</text>
 				<text class="empty-desc">去看看新品严选，或者淘一件有故事的闲置。</text>
 				<view class="empty-btn" @click="goBrowse">去逛逛</view>
@@ -103,6 +105,7 @@
 
 <script>
 	import { getCartItems, updateCartItem, removeCartItem, groupCartByShop } from '@/utils/cart.js'
+	import { goodsCatalog } from '../../data/catalog.js'
 
 	export default {
 		data() {
@@ -132,8 +135,28 @@
 			isImageCover(cover) {
 				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
 			},
+			resolvedCover(item) {
+				if (this.isImageCover(item.cover)) return item.cover
+				const id = String(item.id || '').trim()
+				const title = String(item.title || '').trim()
+				const source = goodsCatalog.find((g) => g.id === id || g.title === title || g.title === id || (title && title.includes(g.title)) || (title && g.title.includes(title)))
+				return (source && source.cover) ? source.cover : item.cover
+			},
 			loadData() {
-				this.items = getCartItems()
+				const list = getCartItems()
+				list.forEach((item) => {
+					const isImg = typeof item.cover === 'string' && (item.cover.startsWith('/static/') || item.cover.startsWith('http'))
+					if (!isImg) {
+						const id = String(item.id || '').trim()
+						const title = String(item.title || '').trim()
+						const source = goodsCatalog.find((g) => g.id === id || g.title === title || g.title === id || (title && title.includes(g.title)) || (title && g.title.includes(title)))
+						if (source && source.cover) {
+							updateCartItem(item.id, { cover: source.cover })
+							item.cover = source.cover
+						}
+					}
+				})
+				this.items = list
 			},
 			goBrowse() {
 				uni.switchTab({ url: '/pages/browse/browse' })
@@ -209,13 +232,15 @@
 		width: 40px;
 		height: 40px;
 		border-radius: 8px;
-		background: linear-gradient(135deg, #12372a, #1f5c43);
-		color: #fff;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 19px;
-		font-weight: 900;
+		overflow: hidden;
+		flex-shrink: 0;
+	}
+	.brand-logo {
+		width: 100%;
+		height: 100%;
 	}
 	.brand-name,
 	.brand-sub {
@@ -515,13 +540,7 @@
 		height: 68px;
 		border-radius: 8px;
 		margin: 0 auto 18px;
-		background: #12231a;
-		color: #fff;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 28px;
-		font-weight: 900;
+		display: block;
 	}
 	.empty-btn {
 		display: inline-flex;

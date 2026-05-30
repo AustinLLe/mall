@@ -3,7 +3,9 @@
     <view class="topbar">
       <view class="content-wrap topbar-inner">
         <view class="brand" @click="navTo('/pages/home/home')">
-          <view class="brand-mark">S</view>
+          <view class="brand-mark">
+            <image class="brand-logo" src="/static/logo.png" mode="aspectFit"></image>
+          </view>
           <view>
             <text class="brand-name">松果集市</text>
             <text class="brand-sub">可信的新旧商品流转平台</text>
@@ -23,8 +25,8 @@
       <view class="intro">
         <view>
           <text class="kicker">Discover</text>
-          <text class="title">更轻的发现页，保留有用的信息。</text>
-          <text class="desc">清单、二手故事、信用店铺放在同一个浏览面里，减少大卡片堆叠，适合网页端快速扫读。</text>
+          <text class="title">发现值得收藏的清单、故事和信用店铺。</text>
+          <text class="desc">这里汇总选购建议、真实物品履历和高信用店铺，帮你更快判断商品是否适合自己。</text>
         </view>
         <view class="intro-side">
           <text class="side-label">今日内容</text>
@@ -34,7 +36,7 @@
       </view>
 
       <view class="browse-layout">
-        <view class="main-feed">
+        <view class="main-feed js-browse-main">
           <view class="tabs">
             <view v-for="tab in tabs" :key="tab.key" class="tab" :class="{ on: activeTab === tab.key }" @click="activeTab = tab.key">
               {{ tab.label }}
@@ -42,8 +44,10 @@
           </view>
 
           <view v-if="activeTab === 'topics'" class="feed-list">
-              <view v-for="item in topicFeed" :key="item.id" class="article-card">
-              <view class="article-cover topic-visual"></view>
+              <view v-for="item in topicFeed" :key="item.id" class="article-card" @click="openTopic(item)">
+              <view class="article-cover topic-visual has-image">
+                <image class="cover-img" :src="topicCover(item)" mode="aspectFill" @error="markTopicCoverFailed(item)"></image>
+              </view>
               <view class="article-main">
                 <view class="article-line">
                   <text class="badge">{{ item.type }}</text>
@@ -60,7 +64,9 @@
 
           <view v-else-if="activeTab === 'stores'" class="feed-list">
             <view v-for="store in hotStores" :key="store.id" class="article-card" @click="openStore(store)">
-              <view class="store-avatar">{{ store.name.slice(0, 1) }}</view>
+              <view class="store-avatar has-image">
+                <image class="cover-img" :src="storeCover(store)" mode="aspectFill" @error="markStoreCoverFailed(store)"></image>
+              </view>
               <view class="article-main">
                 <view class="article-line">
                   <text class="badge orange">{{ store.badge }}</text>
@@ -75,7 +81,9 @@
 
           <view v-else class="feed-list">
             <view v-for="item in storyGoods" :key="item.id" class="article-card" @click="openGoods(item)">
-              <view class="article-cover soft story-visual"></view>
+              <view class="article-cover soft story-visual has-image">
+                <image class="cover-img" :src="item.cover" mode="aspectFill"></image>
+              </view>
               <view class="article-main">
                 <view class="article-line">
                   <text class="badge orange">物品履历</text>
@@ -91,7 +99,7 @@
           </view>
         </view>
 
-        <view class="aside">
+        <view class="aside js-browse-aside">
           <view class="aside-card">
             <text class="aside-title">热门标签</text>
             <view class="tag-cloud">
@@ -105,6 +113,14 @@
               <text class="store-score">{{ store.score }} · {{ store.badge }}</text>
             </view>
           </view>
+          <view class="aside-card mission-card">
+            <text class="aside-title">逛逛任务</text>
+            <view v-for="(item, index) in visibleMissions" :key="item + '-' + index" class="mission-line">
+              <text class="mission-index">{{ index + 1 }}</text>
+              <text class="mission-text">{{ item }}</text>
+            </view>
+          </view>
+          <view v-if="browseAsideSpacer > 0" class="aside-spacer" :style="{ height: browseAsideSpacer + 'px' }"></view>
         </view>
       </view>
     </view>
@@ -112,7 +128,7 @@
 </template>
 
 <script>
-  import { goodsCatalog, topicFeed, hotStores, buildGoodsDetailUrl } from '../../data/catalog.js'
+  import { goodsCatalog, topicFeed, hotStores, buildGoodsDetailUrl, buildTopicDetailUrl, getTopicCover, getStoreCover } from '../../data/catalog.js'
 
   export default {
     data() {
@@ -120,7 +136,11 @@
         statusBarHeight: 24,
         activeTab: 'topics',
         topicFeed,
-        hotStores
+        hotStores,
+        failedTopicCovers: {},
+        failedStoreCovers: {},
+        browseMissionCount: 3,
+        browseAsideSpacer: 0
       }
     },
     computed: {
@@ -136,11 +156,29 @@
       },
       hotTags() {
         return ['宿舍桌搭', '二手数码', '同城自提', '交易保障', '新品', '验货清单']
+      },
+      missionPool() {
+        if (this.activeTab === 'stories') {
+          return ['先看物品履历与时间线', '优先选择支持当面验货的商品', '收藏 2 个可对比故事商品', '确认交付方式与售后协商', '查看同城距离再决定下单']
+        }
+        if (this.activeTab === 'stores') {
+          return ['对比 3 家店铺评分与服务标签', '优先浏览公告写得清楚的店铺', '关注 1 家信用店铺便于后续上新提醒', '进店后先看在售商品数量', '检查是否支持担保交易']
+        }
+        return ['按预算筛出 3 件候选商品', '查看每件商品的保障与信用信息', '优先收藏可当面验货的清单商品', '对比同类商品参数和价格', '下单前先看店铺评分与近期评价']
+      },
+      visibleMissions() {
+        return this.missionPool.slice(0, this.browseMissionCount)
+      }
+    },
+    watch: {
+      activeTab() {
+        this.$nextTick(() => this.syncBrowseAsideLength())
       }
     },
     onLoad() {
       const sys = uni.getWindowInfo()
       this.statusBarHeight = sys.statusBarHeight || 24
+      this.$nextTick(() => this.syncBrowseAsideLength())
     },
     methods: {
       navTo(url) {
@@ -149,8 +187,41 @@
       openGoods(item) {
         uni.navigateTo({ url: buildGoodsDetailUrl(item) })
       },
+      openTopic(item) {
+        uni.navigateTo({ url: buildTopicDetailUrl(item) })
+      },
       openStore(store) {
         uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(store.name) })
+      },
+      topicCover(item) {
+        return this.failedTopicCovers[item.id] ? item.fallbackCover : getTopicCover(item)
+      },
+      storeCover(store) {
+        return this.failedStoreCovers[store.id] ? store.fallbackCover : getStoreCover(store)
+      },
+      markTopicCoverFailed(item) {
+        this.failedTopicCovers[item.id] = true
+      },
+      markStoreCoverFailed(store) {
+        this.failedStoreCovers[store.id] = true
+      },
+      syncBrowseAsideLength() {
+        const query = uni.createSelectorQuery().in(this)
+        query.select('.js-browse-main').boundingClientRect()
+        query.select('.js-browse-aside').boundingClientRect()
+        query.exec((res) => {
+          if (!Array.isArray(res) || !res[0] || !res[1]) return
+          const diff = Math.max(0, Math.round((res[0].height || 0) - (res[1].height || 0)))
+          if (diff <= 8) {
+            this.browseMissionCount = 3
+            this.browseAsideSpacer = 0
+            return
+          }
+          const estimateCount = Math.ceil(diff / 72)
+          this.browseMissionCount = Math.max(2, Math.min(6, estimateCount))
+          const residual = diff - this.browseMissionCount * 58
+          this.browseAsideSpacer = Math.max(0, residual)
+        })
       },
       goPublish() {
         uni.navigateTo({ url: '/pages/publish/publish' })
@@ -190,13 +261,15 @@
     width: 40px;
     height: 40px;
     border-radius: 8px;
-    background: linear-gradient(135deg, #12372a, #1f5c43);
-    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 19px;
-    font-weight: 900;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .brand-logo {
+    width: 100%;
+    height: 100%;
   }
   .brand-name,
   .brand-sub,
@@ -382,6 +455,9 @@
     transform: translateY(-2px);
     box-shadow: 0 22px 62px rgba(17, 38, 28, .095);
   }
+  .article-card {
+    cursor: pointer;
+  }
   .article-cover,
   .store-avatar {
     height: 128px;
@@ -403,6 +479,15 @@
       radial-gradient(circle at 28% 28%, #ffffff 0 18%, transparent 19%),
       linear-gradient(135deg, #d9eadf, #eaf1ff);
     box-shadow: 0 18px 40px rgba(31, 92, 67, .13);
+  }
+  .article-cover.has-image::before,
+  .store-avatar.has-image::before {
+    display: none;
+  }
+  .cover-img {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
   .topic-visual::before {
     border-radius: 22px 10px 22px 10px;
@@ -492,6 +577,7 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
+    margin-top: 52px;
   }
   .aside-card {
     padding: 18px;
@@ -527,6 +613,42 @@
     margin-top: 5px;
     color: #667085;
     font-size: 12px;
+  }
+  .mission-card {
+    padding-bottom: 12px;
+  }
+  .mission-line {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    padding: 10px 0;
+    border-top: 1px solid #eef1ee;
+  }
+  .mission-line:first-of-type {
+    margin-top: 8px;
+  }
+  .mission-index {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    background: #f4f8f5;
+    color: #12372a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 900;
+  }
+  .mission-text {
+    color: #475467;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  .aside-spacer {
+    width: 100%;
+    border-radius: 8px;
+    background: transparent;
   }
   @media screen and (max-width: 900px) {
     .topbar-inner,

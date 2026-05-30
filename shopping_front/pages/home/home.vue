@@ -43,7 +43,7 @@
 					<view class="hero-board">
 						<view class="board-head">
 							<text>今日可信交易</text>
-							<text class="board-pill">Demo</text>
+							<text class="board-pill">今日推荐</text>
 						</view>
 						<view class="metric-grid">
 							<view v-for="metric in metrics" :key="metric.label" class="metric">
@@ -90,7 +90,7 @@
 					</view>
 				</view>
 
-				<view v-if="loadError" class="sync-tip">当前展示本地演示数据，后端恢复后会自动切换为接口数据。</view>
+				<view v-if="loadError" class="sync-tip">当前先为你展示精选商品，稍后会自动刷新更多库存。</view>
 
 				<scroll-view scroll-x class="category-line" :show-scrollbar="false">
 					<view v-for="category in categories" :key="category" class="category-chip" :class="{ on: activeCategory === category }" @click="activeCategory = category">
@@ -99,7 +99,7 @@
 				</scroll-view>
 
 				<view class="product-layout">
-					<view class="goods-grid">
+					<view class="goods-grid js-home-grid">
 						<view v-for="item in displayGoods" :key="item.id" class="goods-card" @click="openDetail(item)">
 							<view class="cover" :class="[visualClass(item), { 'has-image': isImageCover(item.cover) }]">
 								<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
@@ -128,7 +128,7 @@
 						</view>
 					</view>
 
-					<view class="side">
+					<view class="side js-home-side">
 						<view class="side-card">
 							<text class="side-title">交易保障</text>
 							<view v-for="item in guardrails" :key="item.title" class="guard">
@@ -151,6 +151,20 @@
 							</view>
 							<view class="story-link" @click="openDetail(usedSpot)">查看详情</view>
 						</view>
+						<view class="side-card recommend-card" v-if="sideRecommendations.length">
+							<text class="side-title">猜你喜欢</text>
+							<view v-for="item in sideRecommendations" :key="item.id" class="recommend-item" @click="openDetail(item)">
+								<view class="recommend-cover" :class="{ 'has-image': isImageCover(item.cover) }">
+									<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+									<text v-else>{{ item.cover }}</text>
+								</view>
+								<view>
+									<text class="recommend-title">{{ item.title }}</text>
+									<text class="recommend-price">¥{{ item.price }}</text>
+								</view>
+							</view>
+						</view>
+						<view v-if="homeSideSpacer > 0" class="side-spacer" :style="{ height: homeSideSpacer + 'px' }"></view>
 					</view>
 				</view>
 			</view>
@@ -185,7 +199,9 @@
 				activeCategory: '全部',
 				keyword: '',
 				goodsList: goodsCatalog,
-				loadError: false
+				loadError: false,
+				homeRecommendCount: 0,
+				homeSideSpacer: 0
 			}
 		},
 		computed: {
@@ -245,12 +261,32 @@
 				if (this.activeSort === 'credit') return list.slice().sort((a, b) => (b.credit || 0) - (a.credit || 0))
 				if (this.activeSort === 'price') return list.slice().sort((a, b) => Number(a.price || 0) - Number(b.price || 0))
 				return list
+			},
+			sideRecommendations() {
+				const picked = []
+				const append = (items) => {
+					items.forEach((item) => {
+						if (item.id !== this.featured.id && item.id !== this.usedSpot.id && !picked.some((current) => current.id === item.id)) {
+							picked.push(item)
+						}
+					})
+				}
+				append(this.displayGoods)
+				append(this.goodsList)
+				append(goodsCatalog)
+				return picked.slice(0, this.homeRecommendCount)
+			}
+		},
+		watch: {
+			displayGoods() {
+				this.$nextTick(() => this.syncHomeSideLength())
 			}
 		},
 		onLoad() {
 			const sys = uni.getWindowInfo()
 			this.statusBarHeight = sys.statusBarHeight || 24
 			this.loadProducts()
+			this.$nextTick(() => this.syncHomeSideLength())
 		},
 		methods: {
 			isImageCover(cover) {
@@ -266,7 +302,38 @@
 				} catch (e) {
 					this.goodsList = goodsCatalog
 					this.loadError = true
+				} finally {
+					this.$nextTick(() => this.syncHomeSideLength())
 				}
+			},
+			syncHomeSideLength() {
+				// Reset to 0 first so we measure the baseline without the recommend card.
+				this.homeRecommendCount = 0
+				this.homeSideSpacer = 0
+				this.$nextTick(() => {
+					const query = uni.createSelectorQuery().in(this)
+					query.select('.js-home-grid').boundingClientRect()
+					query.select('.js-home-side').boundingClientRect()
+					query.exec((res) => {
+						if (!Array.isArray(res) || !res[0] || !res[1]) return
+						const diff = Math.round((res[0].height || 0) - (res[1].height || 0))
+						if (diff <= 0) return
+						// Constants (px):
+						// CARD_OVERHEAD = gap(14) + padTop(20) + padBottom(14) + title(18+10=28) + firstItemMarginTop(4) = 80
+						// ITEM_H        = padTop(10) + cover(62) + padBottom(10) = 82
+						const CARD_OVERHEAD = 80
+						const ITEM_H = 82
+						if (diff < CARD_OVERHEAD + ITEM_H) {
+							// Not enough room for even one item — use only spacer
+							this.homeRecommendCount = 0
+							this.homeSideSpacer = diff
+						} else {
+							const count = Math.min(2, Math.floor((diff - CARD_OVERHEAD) / ITEM_H))
+							this.homeRecommendCount = count
+							this.homeSideSpacer = Math.max(0, diff - CARD_OVERHEAD - count * ITEM_H)
+						}
+					})
+				})
 			},
 			setScene(scene) {
 				this.activeScene = scene
@@ -993,12 +1060,12 @@
 		font-size: 18px;
 		font-weight: 900;
 		color: #17231d;
-		margin-bottom: 14px;
+		margin-bottom: 10px;
 	}
 	.guard {
 		display: flex;
 		gap: 12px;
-		padding: 13px 0;
+		padding: 9px 0;
 		border-top: 1px solid #eef1ee;
 	}
 	.guard-icon {
@@ -1029,12 +1096,12 @@
 		font-size: 15px;
 		font-weight: 900;
 		color: #12372a;
-		margin-bottom: 12px;
+		margin-bottom: 8px;
 	}
 	.timeline-node {
 		display: flex;
 		gap: 10px;
-		padding: 9px 0;
+		padding: 7px 0;
 	}
 	.dot {
 		width: 8px;
@@ -1054,10 +1121,57 @@
 		color: #17231d;
 	}
 	.story-link {
-		margin-top: 14px;
+		margin-top: 10px;
 		height: 38px;
 		background: #f5f7fa;
 		color: #202124;
+	}
+	.recommend-card {
+		padding-bottom: 14px;
+	}
+	.recommend-item {
+		display: grid;
+		grid-template-columns: 62px minmax(0, 1fr);
+		gap: 10px;
+		padding: 10px 0;
+		border-top: 1px solid #eef1ee;
+		cursor: pointer;
+	}
+	.recommend-item:first-of-type {
+		margin-top: 4px;
+	}
+	.recommend-cover {
+		width: 62px;
+		height: 62px;
+		border-radius: 8px;
+		background: linear-gradient(135deg, #edf5f0 0%, #eaf1ff 100%);
+		overflow: hidden;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 12px;
+		color: #667085;
+	}
+	.recommend-title,
+	.recommend-price {
+		display: block;
+	}
+	.recommend-title {
+		font-size: 13px;
+		font-weight: 850;
+		color: #17231d;
+		line-height: 1.35;
+	}
+	.recommend-price {
+		margin-top: 6px;
+		font-size: 14px;
+		font-weight: 900;
+		color: #d66a2c;
+	}
+	.side-spacer {
+		width: 100%;
+		border-radius: 8px;
+		background: transparent;
 	}
 	@media screen and (max-width: 960px) {
 		.topbar-inner,
@@ -1090,4 +1204,99 @@
 			box-sizing: border-box;
 		}
 	}
+
+	/* #ifdef MP-WEIXIN */
+	.topbar {
+		position: relative;
+		padding-top: 72px;
+		z-index: 20;
+	}
+	.topbar-inner {
+		height: auto;
+		padding: 10px 18px 12px;
+		gap: 10px;
+	}
+	.brand {
+		width: 100%;
+		justify-content: center;
+	}
+	.brand-mark {
+		width: 48px;
+		height: 48px;
+	}
+	.brand-name {
+		font-size: 24px;
+		line-height: 1.15;
+	}
+	.top-actions {
+		width: 100%;
+		justify-content: center;
+	}
+	.search {
+		width: calc(100vw - 68px);
+		height: 44px;
+		padding: 0 7px 0 12px;
+		box-sizing: border-box;
+	}
+	.search-icon {
+		font-size: 18px;
+		margin-right: 5px;
+	}
+	.search-input {
+		height: 32px;
+		font-size: 13px;
+		line-height: 20px;
+	}
+	.search-action {
+		width: 64px;
+		height: 36px;
+		font-size: 13px;
+		flex-shrink: 0;
+	}
+	.scroll-shell {
+		height: auto;
+		min-height: calc(100vh - 178px);
+	}
+	.main {
+		padding: 20px 18px 112px;
+	}
+	.hero-copy {
+		padding: 28px 24px;
+	}
+	.hero-title {
+		font-size: 31px;
+		line-height: 1.26;
+	}
+	.toolbar-group {
+		width: 100%;
+		align-items: stretch;
+		justify-content: flex-start;
+	}
+	.mode-switch,
+	.sort-switch {
+		width: 100%;
+		box-sizing: border-box;
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 6px;
+	}
+	.mode-item,
+	.sort-item {
+		width: auto;
+		min-width: 0;
+	}
+	.product-layout,
+	.goods-grid {
+		width: 100%;
+	}
+	.goods-grid {
+		align-items: center;
+		gap: 18px;
+	}
+	.goods-card {
+		width: 100%;
+		max-width: 390px;
+		margin: 0 auto;
+	}
+	/* #endif */
 </style>

@@ -3,7 +3,7 @@
     <view class="shell">
       <view class="showcase">
         <view class="brand">
-          <view class="logo">S</view>
+          <image class="logo" src="/static/logo.png" mode="aspectFit" />
           <view>
             <text class="brand-title">&#26494;&#26524;&#38598;&#24066;</text>
             <text class="brand-subtitle">&#21487;&#20449;&#20108;&#25163;&#20132;&#26131;&#24037;&#20316;&#21488;</text>
@@ -210,12 +210,8 @@ export default {
   height: 52px;
   border-radius: 8px;
   background: #fff;
-  color: #123629;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: 900;
+  padding: 6px;
+  box-sizing: border-box;
 }
 .brand-title,
 .brand-subtitle,

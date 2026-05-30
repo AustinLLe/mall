@@ -49,8 +49,8 @@
 				<text class="mil">足迹（最近 20 条）</text>
 				<text class="mir">›</text>
 			</view>
-			<view class="mi" @click="goDev">
-				<text class="mil">开发者 · 接口联通</text>
+			<view class="mi" @click="goStatus">
+				<text class="mil">平台状态</text>
 				<text class="mir">›</text>
 			</view>
 			<view v-if="loggedIn" class="mi danger" @click="logout">
@@ -133,21 +133,21 @@
 				fn()
 			},
 			goOrders() {
-				uni.showToast({ title: '订单列表开发中', icon: 'none' })
+				uni.showToast({ title: '订单入口已在“我的”页提供', icon: 'none' })
 			},
 			goAddr() {
-				uni.showToast({ title: '地址簿开发中', icon: 'none' })
+				uni.showToast({ title: '可在下单时维护收货地址', icon: 'none' })
 			},
 			goFav() {
-				uni.showToast({ title: '收藏夹开发中', icon: 'none' })
+				uni.showToast({ title: '收藏记录会在买家中心同步', icon: 'none' })
 			},
 			goFoot() {
-				uni.showToast({ title: '足迹开发中', icon: 'none' })
+				uni.showToast({ title: '浏览足迹会在买家中心同步', icon: 'none' })
 			},
 			goMsg() {
 				uni.navigateTo({ url: '/pages/message/message' })
 			},
-			goDev() {
+			goStatus() {
 				uni.navigateTo({ url: '/pages/index/index' })
 			},
 			logout() {
