@@ -10,8 +10,8 @@
 				<text class="label">订单商品</text>
 				<view v-for="item in selectedItems" :key="item.id" class="item">
 					<view class="item-info">
-						<view class="cover" :class="{ 'has-image': isImageCover(item.cover) }">
-							<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+						<view class="cover" :class="{ 'has-image': isImageUrl(item.cover) }">
+							<image v-if="isImageUrl(item.cover)" class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
 							<text v-else>{{ item.cover }}</text>
 						</view>
 						<text>{{ item.title }} x{{ item.qty }}</text>
@@ -31,6 +31,7 @@
 <script>
 	import { getCartItems, clearCheckedCartItems } from '@/utils/cart.js'
 	import { getDefaultAddress } from '@/utils/address.js'
+	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 	export default {
 		data() { return { items: [], address: null } },
 		computed: {
@@ -40,9 +41,8 @@
 		},
 		onShow() { this.items = getCartItems(); this.address = getDefaultAddress() },
 		methods: {
-			isImageCover(cover) {
-				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
-			},
+			isImageUrl,
+			resolveImageUrl,
 			pay() { clearCheckedCartItems(); uni.navigateTo({ url: '/pages/order/pay-result' }) }
 		}
 	}

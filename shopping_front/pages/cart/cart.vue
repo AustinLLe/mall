@@ -40,8 +40,8 @@
 							<view class="check" :class="{ on: item.checked }" @click="toggleChecked(item.id)">
 								{{ item.checked ? '✓' : '' }}
 							</view>
-							<view class="cover" :class="{ 'has-image': isImageCover(resolvedCover(item)) }">
-								<image v-if="isImageCover(resolvedCover(item))" class="cover-img" :src="resolvedCover(item)" mode="aspectFill"></image>
+							<view class="cover" :class="{ 'has-image': isImageUrl(resolvedCover(item)) }">
+								<image v-if="isImageUrl(resolvedCover(item))" class="cover-img" :src="resolveImageUrl(resolvedCover(item))" mode="aspectFill"></image>
 								<text v-else>{{ resolvedCover(item) }}</text>
 							</view>
 							<view class="item-main">
@@ -106,6 +106,7 @@
 <script>
 	import { getCartItems, updateCartItem, removeCartItem, groupCartByShop } from '@/utils/cart.js'
 	import { goodsCatalog } from '../../data/catalog.js'
+	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 
 	export default {
 		data() {
@@ -132,11 +133,10 @@
 			this.loadData()
 		},
 		methods: {
-			isImageCover(cover) {
-				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
-			},
+			isImageUrl,
+			resolveImageUrl,
 			resolvedCover(item) {
-				if (this.isImageCover(item.cover)) return item.cover
+				if (isImageUrl(item.cover)) return item.cover
 				const id = String(item.id || '').trim()
 				const title = String(item.title || '').trim()
 				const source = goodsCatalog.find((g) => g.id === id || g.title === title || g.title === id || (title && title.includes(g.title)) || (title && g.title.includes(title)))
@@ -145,8 +145,7 @@
 			loadData() {
 				const list = getCartItems()
 				list.forEach((item) => {
-					const isImg = typeof item.cover === 'string' && (item.cover.startsWith('/static/') || item.cover.startsWith('http'))
-					if (!isImg) {
+					if (!isImageUrl(item.cover)) {
 						const id = String(item.id || '').trim()
 						const title = String(item.title || '').trim()
 						const source = goodsCatalog.find((g) => g.id === id || g.title === title || g.title === id || (title && title.includes(g.title)) || (title && g.title.includes(title)))

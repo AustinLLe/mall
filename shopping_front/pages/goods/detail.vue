@@ -4,8 +4,8 @@
 			<view class="content-wrap main">
 				<view class="detail-layout">
 					<view class="gallery">
-						<view class="cover" :class="{ 'has-image': isImageCover(detail.cover) }">
-							<image v-if="isImageCover(detail.cover)" class="cover-img" :src="detail.cover" mode="aspectFill"></image>
+						<view class="cover" :class="{ 'has-image': isImageUrl(detail.cover) }">
+							<image v-if="isImageUrl(detail.cover)" class="cover-img" :src="resolveImageUrl(detail.cover)" mode="aspectFill"></image>
 							<text v-else>{{ detail.cover }}</text>
 						</view>
 						<view class="gallery-foot">
@@ -71,16 +71,8 @@
 							<text class="story">{{ detail.story }}</text>
 						</view>
 
-						<view v-if="detail.timeline && detail.timeline.length" class="card">
-							<text class="card-title">二手物品流浪时间线</text>
-							<view v-for="node in detail.timeline" :key="node.date" class="timeline-node">
-								<text class="dot"></text>
-								<view>
-									<text class="node-date">{{ node.date }}</text>
-									<text class="node-title">{{ node.title }}</text>
-									<text class="node-text">{{ node.text }}</text>
-								</view>
-							</view>
+						<view v-if="detail.scene === 'used'" class="card timeline-card">
+							<wandering-timeline :nodes="usedTimeline" />
 						</view>
 
 						<view class="card">
@@ -115,8 +107,8 @@
 						<view class="card sticky-card">
 							<text class="card-title">猜你喜欢</text>
 							<view v-for="item in recommends" :key="item.id" class="recommend" @click="openRecommend(item)">
-								<view class="recommend-cover" :class="{ 'has-image': isImageCover(item.cover) }">
-									<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+								<view class="recommend-cover" :class="{ 'has-image': isImageUrl(item.cover) }">
+									<image v-if="isImageUrl(item.cover)" class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
 									<text v-else>{{ item.cover }}</text>
 								</view>
 								<view>
@@ -147,8 +139,11 @@
 	import { addCartItem, getCartCount } from '../../utils/cart.js'
 	import { addBuyerItem } from '@/services/center.js'
 	import { fetchProduct } from '@/services/shop.js'
+	import WanderingTimeline from '@/components/wandering-timeline/wandering-timeline.vue'
+	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 
 	export default {
+		components: { WanderingTimeline },
 		data() {
 			return {
 				detail: goodsCatalog[0],
@@ -161,6 +156,25 @@
 					if (Array.isArray(row)) return { key: row[0], value: row[1] }
 					return { key: row.key, value: row.value }
 				}).filter((row) => row.key)
+			},
+			usedTimeline() {
+				if (this.detail.scene !== 'used') return []
+				const icons = ['买', '用', '发', '审', '新']
+				const existing = (this.detail.timeline || []).map((node, index) => ({
+					date: node.date || node.time,
+					title: node.title,
+					text: node.text || node.desc,
+					icon: node.icon || icons[index] || '记'
+				}))
+				const fallback = [
+					{ date: '首次购入', title: '首次购入', text: '上一任主人把它带进日常生活，开始认真使用。', icon: '买' },
+					{ date: '使用经历', title: '使用经历', text: this.detail.story || '它经历过稳定使用，功能和状态会在交易前充分说明。', icon: '用' },
+					{ date: this.detail.publishedAt || '发布转让', title: '发布转让', text: '卖家完成清洁整理并提交平台审核。', icon: '发' },
+					{ date: this.detail.status === 'approved' ? '已通过' : '审核中', title: '审核通过', text: this.detail.status === 'approved' ? '平台审核通过，商品流转信息已记录。' : '管理员正在核验描述、图片和价格合理性。', icon: '审' },
+					{ date: '进行中', title: '等待新主人', text: '等待合适的买家接手，继续延长物品的使用价值。', icon: '新' }
+				]
+				const titles = new Set(existing.map((node) => node.title))
+				return existing.concat(fallback.filter((node) => !titles.has(node.title))).slice(0, 5)
 			},
 			recommends() {
 				const picked = []
@@ -184,9 +198,8 @@
 			this.refreshCartCount()
 		},
 		methods: {
-			isImageCover(cover) {
-				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
-			},
+			isImageUrl,
+			resolveImageUrl,
 			async loadDetail(id) {
 				if (!id) {
 					this.recordBrowse()
@@ -505,40 +518,10 @@
 		border-radius: 14rpx;
 		padding: 12rpx 16rpx;
 	}
-	.timeline-node {
-		display: flex;
-		gap: 16rpx;
-		padding: 18rpx 0;
-		border-top: 1rpx solid #eef1ee;
-	}
-	.dot {
-		width: 16rpx;
-		height: 16rpx;
-		border-radius: 50%;
-		background: #d66a2c;
-		margin-top: 10rpx;
-		flex-shrink: 0;
-	}
-	.node-date,
-	.node-title,
-	.node-text {
-		display: block;
-	}
-	.node-date {
-		font-size: 22rpx;
-		color: #667085;
-	}
-	.node-title {
-		margin-top: 3rpx;
-		font-size: 27rpx;
-		font-weight: 900;
-		color: #17231d;
-	}
-	.node-text {
-		margin-top: 6rpx;
-		font-size: 24rpx;
-		color: #667085;
-		line-height: 1.6;
+	.timeline-card {
+		background: linear-gradient(180deg, #fffaf3 0%, #ffffff 56%);
+		border-color: #f3ddc6;
+		overflow: hidden;
 	}
 	.params {
 		display: grid;

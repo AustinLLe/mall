@@ -8,7 +8,7 @@
           <text class="brand-sub">{{ user.username || 'admin' }} · {{ user.phoneMasked || '139****0000' }}</text>
         </view>
       </view>
-      <button class="top-action admin-action" @click="active = 'audit'">&#22788;&#29702;&#23457;&#26680;</button>
+      <button class="top-action admin-action" @click="openProductAudit">&#21830;&#21697;&#23457;&#26680;</button>
     </view>
 
     <view class="role-nav">
@@ -43,8 +43,22 @@
     </view>
 
     <view v-if="active === 'audit'" class="content">
-      <text class="page-title">&#23457;&#26680;&#31649;&#29702;</text>
-      <view v-for="item in auditList" :key="item.id || item.title" class="list-card">
+      <view class="section-head">
+        <text class="page-title">&#23457;&#26680;&#31649;&#29702;</text>
+        <text class="section-more" @click="openProductAudit">&#21830;&#21697;&#23457;&#26680; {{ productAuditList.length }}</text>
+      </view>
+      <text class="audit-group-title">&#24453;&#23457;&#21830;&#21697;</text>
+      <view v-if="!productAuditList.length" class="line muted">&#26242;&#26080;&#24453;&#23457;&#26680;&#21830;&#21697;</view>
+      <view v-for="item in productAuditList" :key="'goods-' + item.id" class="list-card" @click="openProductAudit">
+        <view>
+          <text class="item-title">{{ item.title }}</text>
+          <text class="item-desc">{{ item.publisherName || item.shopName || '卖家' }} · ¥{{ item.price }} · {{ item.category }}</text>
+        </view>
+        <text class="pill warn">&#24453;&#23457;&#26680;</text>
+      </view>
+      <text class="audit-group-title">&#23454;&#21517;&#35748;&#35777;</text>
+      <view v-if="!auditList.length" class="line muted">&#26242;&#26080;&#24453;&#23457;&#26680;&#23454;&#21517;</view>
+      <view v-for="item in auditList" :key="'real-' + item.id" class="list-card">
         <view>
           <text class="item-title">{{ item.username || item.title }}</text>
           <text class="item-desc">{{ item.realName || item.seller }} · {{ item.idCardMasked || item.risk }}</text>
@@ -102,6 +116,7 @@
 <script>
 import { clearSession, getCachedUser } from '@/utils/auth.js'
 import { adjustUserCredit, approveRealName, deleteUser, fetchAdminCenter, rejectRealName, updateUserStatus } from '@/services/center.js'
+import { fetchAuditItems } from '@/services/shop.js'
 
 export default {
   data() {
@@ -117,10 +132,8 @@ export default {
       ],
       stats: [],
       alerts: ['9 \u4ef6\u5546\u54c1\u7b49\u5f85\u5ba1\u6838', '2 \u4e2a\u7528\u6237\u72b6\u6001\u9700\u590d\u6838', '1 \u6761\u552e\u540e\u7ea0\u7eb7\u8fdb\u5165\u5e73\u53f0\u534f\u5546'],
-      auditList: [
-        { title: 'ViewTop 27', seller: 'seller', risk: '\u4f4e\u98ce\u9669' },
-        { title: 'AirWave Pro', seller: 'demo-store', risk: '\u9700\u590d\u6838' }
-      ],
+      auditList: [],
+      productAuditList: [],
       users: [
         { name: 'demo', role: '\u4e70\u5bb6', status: '\u6b63\u5e38', credit: 100 },
         { name: 'seller', role: '\u5356\u5bb6', status: '\u5b9e\u540d\u6a21\u62df\u901a\u8fc7', credit: 100 },
@@ -131,8 +144,22 @@ export default {
   onShow() {
     this.user = getCachedUser() || {}
     this.loadCenter()
+    this.loadProductAudits()
   },
   methods: {
+    openProductAudit() {
+      uni.navigateTo({ url: '/pages/admin/audit' })
+    },
+    async loadProductAudits() {
+      try {
+        const body = await fetchAuditItems()
+        if (body && body.code === 0 && Array.isArray(body.data)) {
+          this.productAuditList = body.data
+        }
+      } catch (e) {
+        this.productAuditList = []
+      }
+    },
     async loadCenter() {
       try {
         const body = await fetchAdminCenter()
@@ -257,5 +284,29 @@ export default {
 .danger {
   background: rgba(185, 28, 28, 0.12);
   color: #991b1b;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.section-more {
+  color: #1f5c43;
+  font-size: 13px;
+  font-weight: 700;
+}
+.audit-group-title {
+  display: block;
+  margin: 16px 0 10px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #17231d;
+}
+.line.muted {
+  color: #667085;
+  font-size: 13px;
+  margin-bottom: 10px;
 }
 </style>

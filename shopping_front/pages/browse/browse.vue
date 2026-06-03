@@ -82,7 +82,7 @@
           <view v-else class="feed-list">
             <view v-for="item in storyGoods" :key="item.id" class="article-card" @click="openGoods(item)">
               <view class="article-cover soft story-visual has-image">
-                <image class="cover-img" :src="item.cover" mode="aspectFill"></image>
+                <image class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
               </view>
               <view class="article-main">
                 <view class="article-line">
@@ -129,6 +129,7 @@
 
 <script>
   import { goodsCatalog, topicFeed, hotStores, buildGoodsDetailUrl, buildTopicDetailUrl, getTopicCover, getStoreCover } from '../../data/catalog.js'
+  import { resolveImageUrl } from '@/utils/media.js'
 
   export default {
     data() {
@@ -193,6 +194,7 @@
       openStore(store) {
         uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(store.name) })
       },
+      resolveImageUrl,
       topicCover(item) {
         return this.failedTopicCovers[item.id] ? item.fallbackCover : getTopicCover(item)
       },

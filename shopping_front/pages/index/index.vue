@@ -9,7 +9,7 @@
 </template>
 
 <script>
-	import { fetchHello } from '@/services/hello.js'
+	import { fetchProducts } from '@/services/shop.js'
 
 	export default {
 		data() {
@@ -23,9 +23,10 @@
 		methods: {
 			async getBackendData() {
 				try {
-					const body = await fetchHello()
+					const body = await fetchProducts()
 					if (body && body.code === 0) {
-						this.backendMsg = body.data || '平台服务运行正常'
+						const count = Array.isArray(body.data) ? body.data.length : 0
+						this.backendMsg = `平台服务运行正常，当前可浏览商品 ${count} 件`
 						uni.showToast({ title: '状态已刷新', icon: 'success' })
 					} else {
 						this.backendMsg = (body && body.message) || '平台服务暂未返回最新状态'

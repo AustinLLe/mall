@@ -30,8 +30,8 @@
 			</view>
 			<view class="grid">
 				<view v-for="item in goods" :key="item.id" class="goods" @click="open(item)">
-					<view class="cover" :class="{ 'has-image': isImageCover(item.cover) }">
-						<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+					<view class="cover" :class="{ 'has-image': isImageUrl(item.cover) }">
+						<image v-if="isImageUrl(item.cover)" class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
 						<text v-else>{{ item.cover }}</text>
 					</view>
 					<view class="tags"><text>{{ item.scene === 'new' ? '新品' : '二手' }}</text><text>信用 {{ item.credit }}</text></view>
@@ -46,6 +46,7 @@
 <script>
 	import { hotStores, findStoreByName, productsByStore, buildGoodsDetailUrl, getStoreCover } from '../../data/catalog.js'
 	import { addBuyerItem } from '@/services/center.js'
+	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 
 	export default {
 		data() {
@@ -77,9 +78,8 @@
 			this.goodsList = productsByStore(this.store.name)
 		},
 		methods: {
-			isImageCover(cover) {
-				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
-			},
+			isImageUrl,
+			resolveImageUrl,
 			open(item) { uni.navigateTo({ url: buildGoodsDetailUrl(item) }) },
 			async followCurrent() {
 				try {

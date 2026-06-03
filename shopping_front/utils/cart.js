@@ -1,10 +1,7 @@
 import { goodsCatalog } from '../data/catalog.js'
+import { isImageUrl } from './media.js'
 
 const CART_KEY = 'shopping_cart_items'
-
-function isImageCover(cover) {
-	return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
-}
 
 function findCatalogItem(item = {}) {
 	const id = String(item.id || '').trim()
@@ -19,7 +16,7 @@ function normalizeCartItem(item = {}) {
 	const source = findCatalogItem(item)
 	if (!source) return item
 	const next = Object.assign({}, item)
-	if (!isImageCover(next.cover) && source.cover) next.cover = source.cover
+	if (!isImageUrl(next.cover) && source.cover) next.cover = source.cover
 	if (!next.id || next.id === next.title) next.id = source.id
 	if (!next.title) next.title = source.title
 	if (!next.tag) next.tag = source.tag || ''
