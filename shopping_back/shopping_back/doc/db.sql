@@ -104,3 +104,29 @@ CREATE TABLE IF NOT EXISTS `credit_record` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='信用分记录';
+
+
+CREATE TABLE IF NOT EXISTS `chat_message` (
+    `cm_id` INT NOT NULL AUTO_INCREMENT,
+    `cov_id` INT NOT NULL,
+    `sender_id` INT NOT NULL,
+    `content` TEXT NOT NULL,
+    `price_value` DECIMAL(10,2) DEFAULT NULL,
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `is_read` TINYINT(1) DEFAULT 0 COMMENT '0:未读, 1:已读',
+    PRIMARY KEY (`cm_id`),
+    INDEX `idx_cov_id_create_time` (`cov_id`, `create_time` DESC)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='聊天消息表';
+
+CREATE TABLE IF NOT EXISTS `conversation` (
+    `cov_id` INT NOT NULL AUTO_INCREMENT COMMENT '会话ID',
+    `buyer_id` INT NOT NULL COMMENT '买家ID',
+    `seller_id` INT NOT NULL COMMENT '卖家ID',
+    `goods_id` INT NOT NULL COMMENT '商品ID',
+    `status` VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT '会话状态: pending, bargaining, agreed, closed',
+    `create_time` DATETIME NOT NULL COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+    PRIMARY KEY (`cov_id`),
+    INDEX `idx_update_time` (`update_time` DESC),
+    INDEX `idx_buyer_seller_goods` (`buyer_id`, `seller_id`, `goods_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='会话表';

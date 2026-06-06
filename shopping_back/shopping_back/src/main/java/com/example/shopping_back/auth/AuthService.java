@@ -68,6 +68,14 @@ public class AuthService {
         return toView(user);
     }
 
+    public AuthUserView getUserById(Integer userId) {
+        StoredUser user = userMapper.findById(userId);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        return toView(user);
+    }
+
     public List<AuthUserView> searchUsers(String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return new java.util.ArrayList<>();

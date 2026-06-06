@@ -15,6 +15,7 @@
           <text class="nav-link" @click="navTo('/pages/home/home')">首页</text>
           <text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
           <text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
+          <text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
           <text class="nav-link on">我的</text>
         </view>
       </view>
@@ -323,7 +324,11 @@ export default {
       uni.navigateTo({ url: '/pages/order/list' })
     },
     navTo(url) {
-      uni.switchTab({ url })
+      	if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
+					uni.switchTab({ url })
+					return
+				}
+				uni.reLaunch({ url })
     },
     enterRoleHome() {
       goRoleHome(this.user, 'reLaunch')

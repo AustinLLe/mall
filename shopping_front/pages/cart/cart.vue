@@ -15,6 +15,7 @@
 					<text class="nav-link" @click="navTo('/pages/home/home')">首页</text>
 					<text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
 					<text class="nav-link on">购物车</text>
+					<text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
 					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
 				</view>
 			</view>
@@ -161,7 +162,7 @@
 				uni.switchTab({ url: '/pages/browse/browse' })
 			},
 			navTo(url) {
-				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/user/index'].includes(url)) {
+				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
 					uni.switchTab({ url })
 					return
 				}

@@ -67,6 +67,26 @@
       </view>
     </view>
 
+    <view v-if="active === 'messages'" class="content">
+      <view class="section-head">
+          <text class="page-title">交易消息</text>
+      </view>
+      <view v-for="item in messageList" :key="item.covId" class="list-card clickable" @click="goChat(item)">
+        <view class="avatar-wrapper">
+          <view class="avatar">{{ item.icon || '💬' }}</view>
+          <text v-if="item.unreadCount > 0" class="badge">{{ item.unreadCount }}</text>
+        </view>
+        <view class="body">
+            <text class="item-title">{{ item.title }}</text>
+            <text class="item-desc">{{ item.sub }}</text>
+            <text class="time">{{ item.time }}</text>
+        </view>
+        <view class="goods-thumb" v-if="item.goodsImageUrl">
+        		<image :src="item.goodsImageUrl" mode="aspectFill"></image>
+    		</view>
+      </view>
+    </view>
+
     <view v-if="active === 'me'" class="content">
       <view class="profile-card">
         <view class="avatar">S</view>
@@ -127,6 +147,8 @@
 <script>
 import { clearSession, getCachedUser } from '@/utils/auth.js'
 import { cancelSellerRealName, fetchSellerCenter, submitSellerRealName } from '@/services/center.js'
+import { get } from '@/utils/request.js'
+import { post } from '@/utils/request.js'
 
 export default {
   data() {
@@ -137,6 +159,7 @@ export default {
       showRealNamePanel: false,
       submittingRealName: false,
       cancelingRealName: false,
+      messageList: [],
       realNameForm: {
         realName: '',
         idCard: ''
@@ -145,6 +168,7 @@ export default {
         { key: 'home', label: '\u5de5\u4f5c\u53f0' },
         { key: 'products', label: '\u5546\u54c1' },
         { key: 'orders', label: '\u8ba2\u5355' },
+        { key: 'messages', label: '\u6d88\u606f' },
         { key: 'me', label: '\u6211\u7684' }
       ],
       stats: [],
@@ -181,6 +205,7 @@ export default {
   onShow() {
     this.user = getCachedUser() || {}
     this.loadCenter()
+    this.fetchMessages()
   },
   methods: {
     async loadCenter() {
@@ -242,12 +267,44 @@ export default {
         this.cancelingRealName = false
       }
     },
+    async fetchMessages() {
+      try {
+        const res = await get('/api/chat/conversations');
+        const rawList = (res.data && res.data.data) ? res.data.data : [];
+        this.messageList = rawList.map(item => ({
+          covId: item.covId,
+          icon: '💬', 
+          title: item.targetName || '用户',
+          time: this.formatTime(item.lastTime),
+          sub: item.lastMessage || '暂无消息',
+          unreadCount: item.unreadCount || 0,
+          goodsImageUrl: item.goodsImageUrl
+        }));
+      } catch (e) {
+        console.error("加载消息失败", e);
+      }
+    },
+    async goChat(item) {
+      try {
+          await post(`/api/chat/conversations/${item.covId}/read`);
+      } catch (e) { console.error(e); }
+      uni.navigateTo({ 
+          url: `/pages/chat/chat?covId=${item.covId}` 
+      });
+    },
+
     goPublish() {
       uni.navigateTo({ url: '/pages/publish/publish' })
     },
     logout() {
       clearSession()
       uni.reLaunch({ url: '/pages/home/home' })
+    },
+    formatTime(dateStr) {
+      if (!dateStr) return ''
+      const timePart = dateStr.split('T')[1].split('.')[0]
+    	const [h, m] = timePart.split(':')
+    	return `${h}:${m}`
     }
   }
 }
@@ -255,4 +312,5 @@ export default {
 
 <style scoped>
 @import './role-mobile.css';
+
 </style>

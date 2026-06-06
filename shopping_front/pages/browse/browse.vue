@@ -15,6 +15,7 @@
           <text class="nav-link" @click="navTo('/pages/home/home')">首页</text>
           <text class="nav-link on">发现</text>
           <text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
+          <text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
           <text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
         </view>
         <view class="publish-btn" @click="goPublish">发布经验</view>
@@ -183,7 +184,11 @@
     },
     methods: {
       navTo(url) {
-        uni.switchTab({ url })
+        	if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
+					  uni.switchTab({ url })
+					  return
+				  }
+				  uni.reLaunch({ url })
       },
       openGoods(item) {
         uni.navigateTo({ url: buildGoodsDetailUrl(item) })

@@ -42,7 +42,7 @@
 						</view>
 						<view class="ai-box">
 							<view>
-								<text class="ai-title">AI 交易助手</text>
+								<text class="ai-title">联系卖家</text>
 								<text class="ai-desc">{{ detail.aiTips.join(' · ') }}</text>
 							</view>
 							<view class="ai-btn" @click="goMessage">去问问</view>
@@ -141,6 +141,7 @@
 	import { fetchProduct } from '@/services/shop.js'
 	import WanderingTimeline from '@/components/wandering-timeline/wandering-timeline.vue'
 	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
+	import { post } from '@/utils/request.js'
 
 	export default {
 		components: { WanderingTimeline },
@@ -254,8 +255,20 @@
 			goCart() {
 				uni.switchTab({ url: '/pages/cart/cart' })
 			},
-			goMessage() {
-				uni.navigateTo({ url: '/pages/message/message?goods=' + encodeURIComponent(this.detail.title) })
+			async goMessage() {
+    			try {
+        			const res = await post('/api/chat/conversations', { goodsId: this.detail.id });
+
+        			if (res.statusCode === 200 && res.data) {
+            			const covId = res.data.data.covId; // 从响应中获取 covId
+            			uni.navigateTo({ url: `/pages/chat/chat?covId=${covId}` });
+        			} else {
+            			uni.showToast({ title: '无法创建会话', icon: 'none' });
+        			}
+    			} catch (e) {
+        			console.error('跳转聊天出错:', e);
+        			uni.showToast({ title: '请求失败', icon: 'none' });
+    			}
 			},
 			openStore() {
 				uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(this.detail.shopName) })

@@ -15,6 +15,7 @@
 					<text class="nav-link on" @click="navTo('/pages/home/home')">首页</text>
 					<text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
 					<text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
+					<text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
 					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
 				</view>
 				<view class="top-actions">
@@ -365,7 +366,11 @@
 				uni.navigateTo({ url: '/pages/publish/publish' })
 			},
 			navTo(url) {
-				uni.switchTab({ url })
+				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
+					uni.switchTab({ url })
+					return
+				}
+				uni.reLaunch({ url })
 			},
 			visualClass(item) {
 				if (item.category === '数码影音') return 'digital'
