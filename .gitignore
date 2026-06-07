@@ -24,3 +24,4 @@ hs_err_pid*
 .vscode/
 NewSecondMall-db.local.cmd
 NewSecondMall-db.local.json
+application-local.properties

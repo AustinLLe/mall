@@ -6,7 +6,7 @@
                     <text class="title">发布商品</text>
                     <text class="desc">支持新品店铺发布，也支持二手闲置的成色、故事和 AI 估价。</text>
                 </view>
-                <view class="ai-pill" @click="fillByAi">AI 生成建议</view>
+                <view class="ai-pill" :class="{ disabled: aiLoading }" @click="fillByAi">{{ aiLoading ? 'AI 生成中' : 'AI 帮我生成' }}</view>
             </view>
 
             <view class="layout">
@@ -25,14 +25,19 @@
                             <view v-if="form.image" class="upload" @click="uploadImage">
                                 <image :src="form.image" mode="aspectFill" style="width: 100%; height: 100%; border-radius: 20rpx;"></image>
                             </view>
-                            <view v-else class="upload add" @click="uploadImage">+</view>
+                            <view v-else class="upload add" @click="uploadImage">{{ uploadLoading ? '...' : '+' }}</view>
                         </view>
+                        <text class="upload-tip">{{ uploadStatus }}</text>
                     </view>
 
                     <view class="grid">
                         <view class="field">
                             <text class="label">标题</text>
                             <input v-model="form.goods_name" class="input" placeholder="例如：[北航] 考研数学资料" />
+                        </view>
+                        <view class="field">
+                            <text class="label">关键词</text>
+                            <input v-model="form.keyword" class="input" placeholder="品牌 / 型号 / 课程名" />
                         </view>
                         <view class="field">
                             <text class="label">分类</text>
@@ -54,7 +59,7 @@
                     </view>
 
                     <view class="field">
-                        <text class="label">二手故事 / 新品卖点</text>
+                        <text class="label">{{ form.scene === 'used' ? '二手故事' : '新品卖点' }}</text>
                         <textarea v-model="form.story" class="textarea small" placeholder="二手商品可以写它的前世今生，新品可以写核心卖点..." />
                     </view>
 
@@ -76,6 +81,7 @@
 
                 <view class="side-card">
                     <text class="side-title">AI 发布助手</text>
+                    <view v-if="aiStatus" class="ai-status">{{ aiStatus }}</view>
                     <view v-for="item in aiSuggestions" :key="item.title" class="suggestion">
                         <text class="suggest-title">{{ item.title }}</text>
                         <text class="suggest-desc">{{ item.desc }}</text>
@@ -91,13 +97,18 @@
 </template>
 
 <script>
-    import { post } from '@/utils/request.js' 
+    import { publishProduct, requestPublishSuggestion } from '@/services/shop.js'
     import { buildRequestUrl } from '../../config/env.js'
+    import { resolveImageUrl } from '@/utils/media.js'
 
     export default {
         data() {
             return {
                 loading: false,
+                uploadLoading: false,
+                uploadStatus: '请选择一张真实商品图片，上传成功后会自动用于发布。',
+                aiLoading: false,
+                aiStatus: '',
                 form: {
                     goods_name: '',
                     goods_desc: '',
@@ -106,6 +117,7 @@
                     address: '北京航空航天大学(学院路校区)',
                     scene: 'used',       
                     category: '',        
+                    keyword: '',
                     condition: '',       
                     story: '',           
                     floor_price: ''      
@@ -120,59 +132,97 @@
 
         methods: {
             uploadImage() {
+                if (this.uploadLoading) return;
                 uni.chooseImage({
                     count: 1,
                     success: (res) => {
                         const tempFilePath = res.tempFilePaths[0];
+                        if (!tempFilePath) {
+                            return uni.showToast({ title: '未选择图片', icon: 'none' });
+                        }
                         uni.showLoading({ title: '上传中...' });
+                        this.uploadLoading = true;
+                        this.uploadStatus = '图片上传中，请稍候...';
             
                         uni.uploadFile({
                             url: buildRequestUrl('/api/upload/image'),
                             filePath: tempFilePath,
                             name: 'file', 
                             success: (uploadRes) => {
-                                let data = uploadRes.data;
-                                if (typeof data === 'string') {
-                                    data = JSON.parse(data);
+                                let data = {};
+                                try {
+                                    data = typeof uploadRes.data === 'string' ? JSON.parse(uploadRes.data) : uploadRes.data;
+                                } catch (e) {
+                                    data = {};
                                 }
-                                if (data.code === 200 || data.code === 0) {
-                                    this.form.image = data.data; 
+                                if (uploadRes.statusCode >= 200 && uploadRes.statusCode < 300 && (data.code === 200 || data.code === 0) && data.data) {
+                                    this.form.image = resolveImageUrl(data.data);
+                                    this.uploadStatus = '图片上传成功，可点击图片重新选择。';
                                     uni.showToast({ title: '上传成功' });
+                                    return;
                                 }
+                                const message = data.message || `上传失败(${uploadRes.statusCode || '未知状态'})`;
+                                this.uploadStatus = message;
+                                uni.showToast({ title: message, icon: 'none' });
                             },
-                            fail: () => {
-                                uni.showToast({ title: '网络连接失败', icon: 'none' });
+                            fail: (err) => {
+                                const message = err && err.errMsg ? err.errMsg : '网络连接失败';
+                                this.uploadStatus = message;
+                                uni.showToast({ title: '图片上传失败', icon: 'none' });
                             },
-                            complete: () => uni.hideLoading()
+                            complete: () => {
+                                this.uploadLoading = false;
+                                uni.hideLoading();
+                            }
                         });
                     }
                 });
             },
 
+            validateForm() {
+                const required = [
+                    ['goods_name', '标题不能为空'],
+                    ['category', '分类不能为空'],
+                    ['price', '价格不能为空'],
+                    ['goods_desc', '描述不能为空'],
+                    ['image', '图片不能为空']
+                ];
+                const missing = required.find(([key]) => !String(this.form[key] || '').trim());
+                if (missing) return missing[1];
+                const price = Number(this.form.price);
+                if (!Number.isFinite(price) || price <= 0) return '价格必须大于 0';
+                if (this.form.scene === 'used') {
+                    if (!String(this.form.condition || '').trim()) return '二手商品必须填写成色';
+                    if (!String(this.form.story || '').trim()) return '二手商品必须填写故事';
+                }
+                return '';
+            },
+
             handlePublish() {
-                if (!this.form.goods_name || !this.form.price) {
-                    return uni.showToast({ title: '标题和价格不能为空', icon: 'none' });
+                const error = this.validateForm();
+                if (error) {
+                    return uni.showToast({ title: error, icon: 'none' });
                 }
 
                 uni.showLoading({ title: '发布中...', mask: true });
                 this.loading = true;
 
-                post('/api/goods/publish', {
-                    goodsName: this.form.goods_name,
-                    goodsDesc: this.form.goods_desc,
-                    price: parseFloat(this.form.price),
-                    address: this.form.address,
+                publishProduct({
+                    scene: this.form.scene,
+                    title: this.form.goods_name,
                     image: this.form.image,
-                    scene: this.form.scene,                                                     
-                    category: this.form.category,                                               
-                    goodsCondition: this.form.condition,                                        
-                    story: this.form.story,                                                     
-                    floorPrice: this.form.floor_price ? parseFloat(this.form.floor_price) : null 
+                    category: this.form.category,
+                    price: parseFloat(this.form.price),
+                    condition: this.form.condition,
+                    description: this.form.goods_desc,
+                    story: this.form.story,
+                    floorPrice: this.form.floor_price ? parseFloat(this.form.floor_price) : null,
+                    location: this.form.address
                 })
                 .then(res => {
                     uni.showToast({ title: '提交审核成功', icon: 'success' });
                     setTimeout(() => {
-                        uni.navigateBack();
+                        uni.redirectTo({ url: '/pages/user/published' });
                     }, 1500);
                 })
                 .catch(err => {
@@ -185,18 +235,69 @@
                 });
             },
 
-            // 预留的 AI 模拟快速填表函数，方便日常开发和演示测试
-            fillByAi() {
-                this.form.goods_name = '[北航] 27 英寸 2K 显示器';
-                this.form.category = '数码影音';
-                this.form.price = '680';
-                this.form.condition = '9 成新';
-                this.form.address = '北京航空航天大学(学院路校区)';
-                this.form.floor_price = '620';
-                this.form.goods_desc = '补充说明：接口齐全，屏幕无坏点，日常写代码和看论文体验极佳，寝室当面验货。';
-                this.form.story = '这台显示器陪我熬过了好几个写系统内核实验和论文的夜晚，现在准备升级桌面，转给需要的同学。';
-                this.form.image = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=500';
+            async fillByAi() {
+                if (this.aiLoading) return;
+                this.aiLoading = true;
+                this.aiStatus = '正在调用后端 AI 发布建议接口...';
+                uni.showLoading({ title: 'AI 生成中...', mask: true });
+                try {
+                    const body = await requestPublishSuggestion({
+                        scene: this.form.scene,
+                        category: this.form.category,
+                        condition: this.form.condition,
+                        keyword: this.form.keyword || this.form.goods_name
+                    });
+                    if (body && body.code === 0 && body.data) {
+                        this.applyAiSuggestion(body.data);
+                        this.aiStatus = this.aiStatusText(body.data.source);
+                    } else {
+                        this.applyAiSuggestion(this.mockAiSuggestion());
+                        this.aiStatus = `后端 AI 返回异常，已使用本地兜底建议：${body && body.message ? body.message : '未知错误'}`;
+                    }
+                } catch (e) {
+                    this.applyAiSuggestion(this.mockAiSuggestion());
+                    this.aiStatus = '后端 AI 接口暂不可用，已使用本地兜底建议。';
+                } finally {
+                    this.aiLoading = false;
+                    uni.hideLoading();
+                }
                 uni.showToast({ title: '已生成发布建议', icon: 'success' });
+            },
+
+            applyAiSuggestion(data) {
+                this.form.goods_name = data.title || this.form.goods_name;
+                this.form.price = data.price ? String(data.price) : this.form.price;
+                this.form.goods_desc = data.description || this.form.goods_desc;
+                this.form.story = data.story || this.form.story;
+                if (!this.form.category) this.form.category = '数码影音';
+                if (!this.form.condition) this.form.condition = this.form.scene === 'used' ? '9 成新' : '全新';
+                if (!this.form.floor_price && this.form.price) {
+                    this.form.floor_price = String(Math.max(Math.floor(Number(this.form.price) * 0.9), 1));
+                }
+            },
+
+            aiStatusText(source) {
+                if (source === 'dashscope') return '已调用真实 DashScope / 阿里云百炼 API 并填充发布建议。';
+                if (source === 'openai') return '已调用真实 OpenAI API 并填充发布建议。';
+                if (source === 'mock_missing_key') return '后端未配置 DASHSCOPE_API_KEY 或 OPENAI_API_KEY，当前使用后端兜底建议。';
+                if (source === 'mock_dashscope_failed') return 'DashScope API 调用失败，当前使用后端兜底建议。';
+                if (source === 'mock_api_failed') return 'OpenAI API 调用失败，当前使用后端兜底建议。';
+                return '已生成发布建议。';
+            },
+
+            mockAiSuggestion() {
+                const keyword = this.form.keyword || this.form.goods_name || '27 英寸 2K 显示器';
+                const used = this.form.scene === 'used';
+                return {
+                    title: `${used ? '[二手]' : '[新品]'} ${keyword} · ${used ? (this.form.condition || '9 成新') : '现货严选'}`,
+                    price: used ? 680 : 699,
+                    description: used
+                        ? '补充说明：功能正常，外观保持良好，支持当面验货。建议主动补充配件、瑕疵和转手原因，让买家更放心。'
+                        : '补充说明：适合学习、办公和日常使用，建议突出规格、质保、发货时效和售后服务。',
+                    story: used
+                        ? '它陪我完成了一段稳定使用的日常，现在整理出来转给需要的人，希望继续被好好使用。'
+                        : '新品卖点可以围绕品质、服务和适用场景展开，让买家快速判断是否适合自己。'
+                };
             }
         }
     }
@@ -237,6 +338,10 @@
 	.submit {
 		background: #1f5c43;
 		color: #fff;
+	}
+	.ai-pill.disabled {
+		opacity: 0.7;
+		pointer-events: none;
 	}
 	.layout {
 		display: grid;
@@ -310,6 +415,21 @@
 	.upload.add {
 		border: 2rpx dashed #cbd5d0;
 		background: #fff;
+	}
+	.upload-tip,
+	.ai-status {
+		display: block;
+		margin-top: 12rpx;
+		font-size: 23rpx;
+		color: #667085;
+		line-height: 1.5;
+	}
+	.ai-status {
+		padding: 14rpx 16rpx;
+		border-radius: 14rpx;
+		background: #eef7f1;
+		color: #1f5c43;
+		font-weight: 800;
 	}
 	.grid {
 		display: grid;

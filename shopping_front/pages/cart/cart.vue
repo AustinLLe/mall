@@ -15,6 +15,7 @@
 					<text class="nav-link" @click="navTo('/pages/home/home')">首页</text>
 					<text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
 					<text class="nav-link on">购物车</text>
+					<text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
 					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
 				</view>
 			</view>
@@ -40,8 +41,8 @@
 							<view class="check" :class="{ on: item.checked }" @click="toggleChecked(item.id)">
 								{{ item.checked ? '✓' : '' }}
 							</view>
-							<view class="cover" :class="{ 'has-image': isImageCover(resolvedCover(item)) }">
-								<image v-if="isImageCover(resolvedCover(item))" class="cover-img" :src="resolvedCover(item)" mode="aspectFill"></image>
+							<view class="cover" :class="{ 'has-image': isImageUrl(resolvedCover(item)) }">
+								<image v-if="isImageUrl(resolvedCover(item))" class="cover-img" :src="resolveImageUrl(resolvedCover(item))" mode="aspectFill"></image>
 								<text v-else>{{ resolvedCover(item) }}</text>
 							</view>
 							<view class="item-main">
@@ -106,6 +107,7 @@
 <script>
 	import { getCartItems, updateCartItem, removeCartItem, groupCartByShop } from '@/utils/cart.js'
 	import { goodsCatalog } from '../../data/catalog.js'
+	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 
 	export default {
 		data() {
@@ -132,11 +134,10 @@
 			this.loadData()
 		},
 		methods: {
-			isImageCover(cover) {
-				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
-			},
+			isImageUrl,
+			resolveImageUrl,
 			resolvedCover(item) {
-				if (this.isImageCover(item.cover)) return item.cover
+				if (isImageUrl(item.cover)) return item.cover
 				const id = String(item.id || '').trim()
 				const title = String(item.title || '').trim()
 				const source = goodsCatalog.find((g) => g.id === id || g.title === title || g.title === id || (title && title.includes(g.title)) || (title && g.title.includes(title)))
@@ -145,8 +146,7 @@
 			loadData() {
 				const list = getCartItems()
 				list.forEach((item) => {
-					const isImg = typeof item.cover === 'string' && (item.cover.startsWith('/static/') || item.cover.startsWith('http'))
-					if (!isImg) {
+					if (!isImageUrl(item.cover)) {
 						const id = String(item.id || '').trim()
 						const title = String(item.title || '').trim()
 						const source = goodsCatalog.find((g) => g.id === id || g.title === title || g.title === id || (title && title.includes(g.title)) || (title && g.title.includes(title)))
@@ -162,7 +162,7 @@
 				uni.switchTab({ url: '/pages/browse/browse' })
 			},
 			navTo(url) {
-				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/user/index'].includes(url)) {
+				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
 					uni.switchTab({ url })
 					return
 				}

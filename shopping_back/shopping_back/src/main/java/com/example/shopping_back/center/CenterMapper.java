@@ -120,7 +120,7 @@ public interface CenterMapper {
     @Select("SELECT COUNT(*) FROM goods")
     int totalGoods();
 
-    @Select("SELECT COUNT(*) FROM goods WHERE status = '2'")
+    @Select("SELECT COUNT(*) FROM goods WHERE status IN ('2', 'pending', 'pe')")
     int pendingGoods();
 
     @Select("SELECT COUNT(*) FROM store WHERE status = 'pending'")

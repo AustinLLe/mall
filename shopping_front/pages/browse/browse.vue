@@ -15,6 +15,7 @@
           <text class="nav-link" @click="navTo('/pages/home/home')">首页</text>
           <text class="nav-link on">发现</text>
           <text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
+          <text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
           <text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
         </view>
         <view class="publish-btn" @click="goPublish">发布经验</view>
@@ -82,7 +83,7 @@
           <view v-else class="feed-list">
             <view v-for="item in storyGoods" :key="item.id" class="article-card" @click="openGoods(item)">
               <view class="article-cover soft story-visual has-image">
-                <image class="cover-img" :src="item.cover" mode="aspectFill"></image>
+                <image class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
               </view>
               <view class="article-main">
                 <view class="article-line">
@@ -129,6 +130,7 @@
 
 <script>
   import { goodsCatalog, topicFeed, hotStores, buildGoodsDetailUrl, buildTopicDetailUrl, getTopicCover, getStoreCover } from '../../data/catalog.js'
+  import { resolveImageUrl } from '@/utils/media.js'
 
   export default {
     data() {
@@ -182,7 +184,11 @@
     },
     methods: {
       navTo(url) {
-        uni.switchTab({ url })
+        	if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
+					  uni.switchTab({ url })
+					  return
+				  }
+				  uni.reLaunch({ url })
       },
       openGoods(item) {
         uni.navigateTo({ url: buildGoodsDetailUrl(item) })
@@ -193,6 +199,7 @@
       openStore(store) {
         uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(store.name) })
       },
+      resolveImageUrl,
       topicCover(item) {
         return this.failedTopicCovers[item.id] ? item.fallbackCover : getTopicCover(item)
       },

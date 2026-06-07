@@ -29,6 +29,9 @@ public interface UserMapper {
             "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = #{columnName}")
     int countUserColumn(@Param("columnName") String columnName);
 
+    @Select("SELECT * FROM users WHERE user_id = #{userId}")
+    StoredUser findById(@Param("userId") Integer userId);
+
     @Update("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'buyer' COMMENT 'buyer/seller/admin'")
     void addRoleColumn();
 

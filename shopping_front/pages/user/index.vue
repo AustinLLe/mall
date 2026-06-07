@@ -15,6 +15,7 @@
           <text class="nav-link" @click="navTo('/pages/home/home')">首页</text>
           <text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
           <text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
+          <text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
           <text class="nav-link on">我的</text>
         </view>
       </view>
@@ -181,6 +182,8 @@ export default {
     },
     menus() {
       return [
+        { title: '发布商品', desc: '新品或二手闲置，提交后进入审核', action: 'publish' },
+        { title: '我的发布', desc: '查看待审核、已通过和已拒绝商品', action: 'published' },
         { title: '\u6536\u85cf\u5939', desc: '\u8ffd\u8e2a\u5fc3\u4eea\u5546\u54c1', type: 'favorite' },
         { title: '\u6d4f\u89c8\u8db3\u8ff9', desc: '\u627e\u56de\u770b\u8fc7\u7684\u5546\u54c1', type: 'history' },
         { title: '\u5173\u6ce8\u5e97\u94fa', desc: '\u67e5\u770b\u5e97\u94fa\u4e0a\u65b0', type: 'follow' },
@@ -321,12 +324,24 @@ export default {
       uni.navigateTo({ url: '/pages/order/list' })
     },
     navTo(url) {
-      uni.switchTab({ url })
+      	if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
+					uni.switchTab({ url })
+					return
+				}
+				uni.reLaunch({ url })
     },
     enterRoleHome() {
       goRoleHome(this.user, 'reLaunch')
     },
     openMenu(item) {
+      if (item.action === 'publish') {
+        uni.navigateTo({ url: '/pages/publish/publish' })
+        return
+      }
+      if (item.action === 'published') {
+        uni.navigateTo({ url: '/pages/user/published' })
+        return
+      }
       if (item.action === 'logout') {
         this.logout()
         return

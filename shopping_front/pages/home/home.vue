@@ -15,6 +15,7 @@
 					<text class="nav-link on" @click="navTo('/pages/home/home')">首页</text>
 					<text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
 					<text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
+					<text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
 					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
 				</view>
 				<view class="top-actions">
@@ -52,8 +53,8 @@
 							</view>
 						</view>
 						<view class="focus-item" @click="openDetail(featured)">
-							<view class="focus-cover" :class="{ 'has-image': isImageCover(featured.cover) }">
-								<image v-if="isImageCover(featured.cover)" class="cover-img" :src="featured.cover" mode="aspectFill"></image>
+							<view class="focus-cover" :class="{ 'has-image': isImageUrl(featured.cover) }">
+								<image v-if="isImageUrl(featured.cover)" class="cover-img" :src="resolveImageUrl(featured.cover)" mode="aspectFill"></image>
 								<text v-else>{{ featured.cover }}</text>
 							</view>
 							<view>
@@ -101,8 +102,8 @@
 				<view class="product-layout">
 					<view class="goods-grid js-home-grid">
 						<view v-for="item in displayGoods" :key="item.id" class="goods-card" @click="openDetail(item)">
-							<view class="cover" :class="[visualClass(item), { 'has-image': isImageCover(item.cover) }]">
-								<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+							<view class="cover" :class="[visualClass(item), { 'has-image': isImageUrl(item.cover) }]">
+								<image v-if="isImageUrl(item.cover)" class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
 								<text v-else>{{ item.cover }}</text>
 							</view>
 							<view class="goods-body">
@@ -139,23 +140,24 @@
 								</view>
 							</view>
 						</view>
-						<view class="side-card">
+						<view class="side-card timeline-side-card">
 							<text class="side-title">物品时间线</text>
 							<text class="story-title">{{ usedSpot.title }}</text>
-							<view v-for="node in usedSpot.timeline" :key="node.date" class="timeline-node">
-								<text class="dot"></text>
-								<view>
-									<text class="node-date">{{ node.date }}</text>
-									<text class="node-text">{{ node.title }}</text>
-								</view>
-							</view>
-							<view class="story-link" @click="openDetail(usedSpot)">查看详情</view>
+							<wandering-timeline
+								v-if="usedSpotTimeline.length"
+								compact
+								:nodes="usedSpotTimeline"
+								title="流浪预览"
+								subtitle=""
+								badge=""
+							/>
+							<view class="story-link" @click="openDetail(usedSpot)">查看完整故事</view>
 						</view>
 						<view class="side-card recommend-card" v-if="sideRecommendations.length">
 							<text class="side-title">猜你喜欢</text>
 							<view v-for="item in sideRecommendations" :key="item.id" class="recommend-item" @click="openDetail(item)">
-								<view class="recommend-cover" :class="{ 'has-image': isImageCover(item.cover) }">
-									<image v-if="isImageCover(item.cover)" class="cover-img" :src="item.cover" mode="aspectFill"></image>
+								<view class="recommend-cover" :class="{ 'has-image': isImageUrl(item.cover) }">
+									<image v-if="isImageUrl(item.cover)" class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
 									<text v-else>{{ item.cover }}</text>
 								</view>
 								<view>
@@ -176,6 +178,8 @@
 	import { goodsCatalog, buildGoodsDetailUrl } from '../../data/catalog.js'
 	import { addBuyerItem } from '@/services/center.js'
 	import { fetchProducts } from '@/services/shop.js'
+	import WanderingTimeline from '@/components/wandering-timeline/wandering-timeline.vue'
+	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 
 	function mergeProducts(localList, remoteList) {
 		const merged = localList.slice()
@@ -191,6 +195,7 @@
 	}
 
 	export default {
+		components: { WanderingTimeline },
 		data() {
 			return {
 				statusBarHeight: 24,
@@ -250,6 +255,14 @@
 			usedSpot() {
 				return this.goodsList.find((item) => item.scene === 'used' && item.timeline && item.timeline.length) || this.featured
 			},
+			usedSpotTimeline() {
+				return (this.usedSpot.timeline || []).slice(0, 3).map((node, index) => ({
+					date: node.date || node.time,
+					title: node.title,
+					text: node.text || node.desc || '',
+					icon: node.icon || ['买', '用', '发'][index] || '记'
+				}))
+			},
 			displayGoods() {
 				const kw = this.keyword.trim().toLowerCase()
 				const list = this.goodsList.filter((item) => {
@@ -289,9 +302,8 @@
 			this.$nextTick(() => this.syncHomeSideLength())
 		},
 		methods: {
-			isImageCover(cover) {
-				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
-			},
+			isImageUrl,
+			resolveImageUrl,
 			async loadProducts() {
 				try {
 					const body = await fetchProducts({ scene: this.activeScene === 'all' ? '' : this.activeScene, keyword: this.keyword })
@@ -354,7 +366,11 @@
 				uni.navigateTo({ url: '/pages/publish/publish' })
 			},
 			navTo(url) {
-				uni.switchTab({ url })
+				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
+					uni.switchTab({ url })
+					return
+				}
+				uni.reLaunch({ url })
 			},
 			visualClass(item) {
 				if (item.category === '数码影音') return 'digital'
@@ -1098,27 +1114,8 @@
 		color: #12372a;
 		margin-bottom: 8px;
 	}
-	.timeline-node {
-		display: flex;
-		gap: 10px;
-		padding: 7px 0;
-	}
-	.dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: #d66a2c;
-		margin-top: 8px;
-		flex-shrink: 0;
-	}
-	.node-date {
-		font-size: 12px;
-		color: #667085;
-	}
-	.node-text {
-		margin-top: 2px;
-		font-size: 13px;
-		color: #17231d;
+	.timeline-side-card .wandering-timeline {
+		margin-top: 6px;
 	}
 	.story-link {
 		margin-top: 10px;

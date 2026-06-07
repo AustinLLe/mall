@@ -43,13 +43,13 @@
                 </view>
 
                 <view class="goods-grid" v-else>
-                    <view class="goods-card" v-for="item in displayGoods" :key="item.goodsId" @click="goToDetail(item)">
-                        <image :src="item.image || '🛍'" mode="aspectFill" class="goods-img" />
+                    <view class="goods-card" v-for="item in displayGoods" :key="item.id" @click="goToDetail(item)">
+                        <image :src="goodsCover(item)" mode="aspectFill" class="goods-img" />
                         <view class="goods-info">
-                            <text class="goods-title">{{ item.goodsName }}</text>
+                            <text class="goods-title">{{ item.title }}</text>
                             <view class="goods-foot">
                                 <text class="goods-price">¥{{ item.price }}</text>
-                                <text class="goods-address" v-if="item.address">{{ item.address }}</text>
+                                <text class="goods-address" v-if="item.location">{{ item.location }}</text>
                             </view>
                         </view>
                     </view>
@@ -80,7 +80,9 @@
 
 <script>
     import { get } from '@/utils/request.js' 
+    import { fetchProducts } from '@/services/shop.js'
     import { buildGoodsDetailUrl } from '../../data/catalog.js'
+    import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
     
     export default {
         data() {
@@ -103,12 +105,14 @@
         },
         computed: {
             displayGoods() {
-                if (this.activeScene === 'all') {
-                    return this.goodsList;
+                const list = this.activeScene === 'all' ? this.goodsList.slice() : this.goodsList.filter(item => item.scene === this.activeScene);
+                if (this.currentSort === 'price') {
+                    return list.sort((a, b) => {
+                        const diff = Number(a.price || 0) - Number(b.price || 0);
+                        return this.currentOrder === 'ASC' ? diff : -diff;
+                    });
                 }
-                return this.goodsList.filter(item => {
-                    return item.scene === this.activeScene;
-                });
+                return list;
             }
         },
         onLoad(options) {
@@ -118,6 +122,11 @@
             }
         },
         methods: {
+            goodsCover(item) {
+                const cover = item && item.cover
+                if (isImageUrl(cover)) return resolveImageUrl(cover)
+                return '/static/goods/viewtop-monitor.jpg'
+            },
             switchTab(tabName) {
                 this.activeTab = tabName;
                 if (tabName === 'goods' && this.goodsList.length === 0) {
@@ -129,10 +138,12 @@
 
             fetchGoodsResult() {
                 uni.showLoading({ title: '正在检索商品...' });
-                const url = `/api/goods/search?keyword=${encodeURIComponent(this.currentKeyword)}&sortBy=${this.currentSort}&sortOrder=${this.currentOrder}`;
-                get(url).then(res => {
-                    if (res.data && res.data.code === 0) {
-                        this.goodsList = res.data.data || [];
+                fetchProducts({
+                    keyword: this.currentKeyword,
+                    scene: this.activeScene === 'all' ? '' : this.activeScene
+                }).then(body => {
+                    if (body && body.code === 0) {
+                        this.goodsList = body.data || [];
                     }
                 }).finally(() => { uni.hideLoading(); });
             },

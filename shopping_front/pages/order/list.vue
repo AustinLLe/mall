@@ -11,8 +11,8 @@
 					<text class="status">{{ order.status }}</text>
 				</view>
 				<view class="body">
-					<view class="cover" :class="{ 'has-image': isImageCover(order.cover) }">
-						<image v-if="isImageCover(order.cover)" class="cover-img" :src="order.cover" mode="aspectFill"></image>
+					<view class="cover" :class="{ 'has-image': isImageUrl(order.cover) }">
+						<image v-if="isImageUrl(order.cover)" class="cover-img" :src="resolveImageUrl(order.cover)" mode="aspectFill"></image>
 						<text v-else>{{ order.cover }}</text>
 					</view>
 					<view class="main">
@@ -33,6 +33,7 @@
 <script>
 	import { orderTabs } from '../../data/catalog.js'
 	import { fetchOrders } from '@/services/shop.js'
+	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 
 	const fallbackOrders = [
 		{ id: 'o1', shop: '松果严选数码', status: '待收货', title: 'AirWave Pro 降噪耳机', cover: '/static/goods/airwave-pro.jpg', type: '新品', service: '平台担保', amount: 699 },
@@ -56,9 +57,8 @@
 			this.loadOrders()
 		},
 		methods: {
-			isImageCover(cover) {
-				return typeof cover === 'string' && (cover.startsWith('/static/') || cover.startsWith('http'))
-			},
+			isImageUrl,
+			resolveImageUrl,
 			async loadOrders() {
 				try {
 					const body = await fetchOrders()

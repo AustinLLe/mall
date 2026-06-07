@@ -14,6 +14,9 @@ export function request(options = {}) {
 	if (token) {
 		mergedHeader.Authorization = `Bearer ${token}`
 	}
+	if (rest.method && rest.method !== 'GET' && !mergedHeader['Content-Type']) {
+		mergedHeader['Content-Type'] = 'application/json'
+	}
 	return new Promise((resolve, reject) => {
 		uni.request({
 			url: buildRequestUrl(url),

@@ -13,6 +13,7 @@ app.$mount()
 
 // #ifdef VUE3
 import { createSSRApp } from 'vue'
+window.global = window;
 export function createApp() {
   const app = createSSRApp(App)
   return {

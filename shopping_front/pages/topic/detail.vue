@@ -32,7 +32,7 @@
 						<text class="side-title">相关商品</text>
 						<view v-for="item in relatedGoods" :key="item.id" class="goods" @click="openGoods(item)">
 							<view class="goods-cover">
-								<image class="cover-img" :src="item.cover" mode="aspectFill"></image>
+								<image class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
 							</view>
 							<view>
 								<text class="goods-title">{{ item.title }}</text>
@@ -48,6 +48,7 @@
 
 <script>
 	import { topicFeed, goodsCatalog, findTopicById, buildGoodsDetailUrl } from '../../data/catalog.js'
+	import { resolveImageUrl } from '@/utils/media.js'
 
 	export default {
 		data() {
@@ -72,6 +73,7 @@
 			this.coverFailed = false
 		},
 		methods: {
+			resolveImageUrl,
 			openGoods(item) {
 				uni.navigateTo({ url: buildGoodsDetailUrl(item) })
 			}
