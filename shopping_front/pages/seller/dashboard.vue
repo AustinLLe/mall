@@ -286,7 +286,7 @@ export default {
     },
     async goChat(item) {
       try {
-          await post(`/api/chat/conversations/${item.covId}/read`);
+          await post(`/api/chat/${item.covId}/read`);
       } catch (e) { console.error(e); }
       uni.navigateTo({ 
           url: `/pages/chat/chat?covId=${item.covId}` 

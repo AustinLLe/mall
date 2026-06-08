@@ -86,25 +86,18 @@ public class ShopService {
     public List<ProductView> products(String scene, String keyword) {
         try {
             List<ProductRecord> records = productMapper.selectApproved(scene, keyword);
-            if (!records.isEmpty()) {
-                return records.stream().map(this::toView).toList();
-            }
+            return records.stream().map(this::toView).toList();
         } catch (RuntimeException ignored) {
+            return List.of();
         }
-        String kw = keyword == null ? "" : keyword.trim().toLowerCase();
-        return products.stream()
-                .filter(item -> scene == null || scene.isBlank() || "all".equals(scene) || item.scene().equals(scene))
-                .filter(item -> "approved".equals(item.status()) || item.status() == null)
-                .filter(item -> kw.isBlank() || (item.title() + item.subtitle() + item.category() + item.shopName()).toLowerCase().contains(kw))
-                .toList();
     }
 
     public ProductView product(String id) {
-        ProductView byDb = productFromDatabase(id);
-        if (byDb != null) {
-            return byDb;
+        ProductRecord record = productMapper.selectById(parseDbId(id));
+        if (record == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "商品不存在");
         }
-        return products.stream().filter(item -> item.id().equals(id)).findFirst().orElse(products.get(0));
+        return toView(record);
     }
 
     public List<ProductView> myProducts(AuthUserView user) {

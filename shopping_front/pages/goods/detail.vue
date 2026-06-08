@@ -135,19 +135,45 @@
 </template>
 
 <script>
-	import { goodsCatalog, findGoodsById, buildGoodsDetailUrl } from '../../data/catalog.js'
+	import { buildGoodsDetailUrl } from '../../data/catalog.js'
 	import { addCartItem, getCartCount } from '../../utils/cart.js'
 	import { addBuyerItem } from '@/services/center.js'
-	import { fetchProduct } from '@/services/shop.js'
+	import { fetchProduct, fetchProducts } from '@/services/shop.js'
 	import WanderingTimeline from '@/components/wandering-timeline/wandering-timeline.vue'
 	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 	import { post } from '@/utils/request.js'
+	import { pickErrorMessage } from '@/utils/auth.js'
+
+	const EMPTY_DETAIL = {
+		id: '',
+		scene: 'used',
+		category: '',
+		title: '商品加载中',
+		subtitle: '',
+		price: 0,
+		originPrice: 0,
+		cover: '',
+		tag: '',
+		condition: '',
+		credit: 0,
+		location: '',
+		shopName: '',
+		delivery: '',
+		service: [],
+		highlights: [],
+		story: '',
+		params: [],
+		reviews: [],
+		timeline: [],
+		aiTips: []
+	}
 
 	export default {
 		components: { WanderingTimeline },
 		data() {
 			return {
-				detail: goodsCatalog[0],
+				detail: Object.assign({}, EMPTY_DETAIL),
+				recommendList: [],
 				cartCount: 0
 			}
 		},
@@ -184,14 +210,13 @@
 						if (item.id !== this.detail.id && !picked.some((current) => current.id === item.id)) picked.push(item)
 					})
 				}
-				append(goodsCatalog.filter((item) => item.category === this.detail.category))
-				append(goodsCatalog)
+				append(this.recommendList.filter((item) => item.category === this.detail.category))
+				append(this.recommendList)
 				return picked.slice(0, 4)
 			}
 		},
 		onLoad(q) {
 			const id = q && q.id ? decodeURIComponent(q.id) : ''
-			this.detail = findGoodsById(id) || goodsCatalog[0]
 			this.loadDetail(id)
 			this.refreshCartCount()
 		},
@@ -203,16 +228,31 @@
 			resolveImageUrl,
 			async loadDetail(id) {
 				if (!id) {
-					this.recordBrowse()
+					uni.showToast({ title: '商品 ID 缺失', icon: 'none' })
 					return
 				}
 				try {
 					const body = await fetchProduct(id)
 					if (body && body.code === 0 && body.data && body.data.id === id) {
 						this.detail = body.data
+						this.recordBrowse()
+						this.loadRecommendations()
+						return
 					}
-				} catch (e) {}
-				this.recordBrowse()
+					uni.showToast({ title: '商品不存在', icon: 'none' })
+				} catch (e) {
+					uni.showToast({ title: pickErrorMessage(e) || '商品加载失败', icon: 'none' })
+				}
+			},
+			async loadRecommendations() {
+				try {
+					const body = await fetchProducts({ scene: this.detail.scene === 'all' ? '' : this.detail.scene })
+					if (body && body.code === 0 && Array.isArray(body.data)) {
+						this.recommendList = body.data
+					}
+				} catch (e) {
+					this.recommendList = []
+				}
 			},
 			refreshCartCount() {
 				this.cartCount = getCartCount()
@@ -257,7 +297,12 @@
 			},
 			async goMessage() {
     			try {
-        			const res = await post('/api/chat/conversations', { goodsId: this.detail.id });
+					const goodsId = Number(this.detail.id)
+					if (!Number.isInteger(goodsId) || goodsId <= 0) {
+						uni.showToast({ title: '商品数据未就绪', icon: 'none' })
+						return
+					}
+        			const res = await post('/api/chat/conversations', { goodsId });
 
         			if (res.statusCode === 200 && res.data) {
             			const covId = res.data.data.covId; // 从响应中获取 covId
@@ -267,7 +312,12 @@
         			}
     			} catch (e) {
         			console.error('跳转聊天出错:', e);
-        			uni.showToast({ title: '请求失败', icon: 'none' });
+					if (e && e.statusCode === 401) {
+						uni.showToast({ title: '请先登录后联系卖家', icon: 'none' })
+						uni.navigateTo({ url: '/pages/auth/login' })
+						return
+					}
+        			uni.showToast({ title: pickErrorMessage(e) || '请求失败', icon: 'none' });
     			}
 			},
 			openStore() {

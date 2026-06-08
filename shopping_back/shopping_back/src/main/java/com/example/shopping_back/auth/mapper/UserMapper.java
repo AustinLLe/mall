@@ -18,7 +18,7 @@ public interface UserMapper {
 
     @Select("SELECT user_id AS userId, username, password_hash AS passwordHash, phone, credit, role, " +
             "COALESCE(status, 'normal') AS status " +
-            "FROM users WHERE username = #{username}")
+            "FROM users WHERE username = #{username} ORDER BY user_id LIMIT 1")
     StoredUser findByUsername(String username);
 
     @Select("SELECT user_id AS userId, username, phone, credit, role, COALESCE(status, 'normal') AS status " +

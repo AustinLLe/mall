@@ -47,13 +47,15 @@
 </template>
 
 <script>
-	import { topicFeed, goodsCatalog, findTopicById, buildGoodsDetailUrl } from '../../data/catalog.js'
+	import { topicFeed, findTopicById, buildGoodsDetailUrl } from '../../data/catalog.js'
+	import { fetchProducts } from '@/services/shop.js'
 	import { resolveImageUrl } from '@/utils/media.js'
 
 	export default {
 		data() {
 			return {
 				topic: topicFeed[0],
+				relatedGoodsList: [],
 				coverFailed: false
 			}
 		},
@@ -62,18 +64,27 @@
 				return this.coverFailed ? this.topic.fallbackCover : this.topic.cover
 			},
 			relatedGoods() {
-				const ids = this.topic.relatedGoods || []
-				const picked = ids.map((id) => goodsCatalog.find((item) => item.id === id)).filter(Boolean)
-				return picked.length ? picked : goodsCatalog.slice(0, 3)
+				return this.relatedGoodsList.slice(0, 3)
 			}
 		},
 		onLoad(query) {
 			const id = query && query.id ? decodeURIComponent(query.id) : ''
 			this.topic = findTopicById(id) || topicFeed[0]
 			this.coverFailed = false
+			this.loadRelatedGoods()
 		},
 		methods: {
 			resolveImageUrl,
+			async loadRelatedGoods() {
+				try {
+					const body = await fetchProducts()
+					if (body && body.code === 0 && Array.isArray(body.data)) {
+						this.relatedGoodsList = body.data
+					}
+				} catch (e) {
+					this.relatedGoodsList = []
+				}
+			},
 			openGoods(item) {
 				uni.navigateTo({ url: buildGoodsDetailUrl(item) })
 			}

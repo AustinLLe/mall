@@ -175,23 +175,26 @@
 </template>
 
 <script>
-	import { goodsCatalog, buildGoodsDetailUrl } from '../../data/catalog.js'
+	import { buildGoodsDetailUrl } from '../../data/catalog.js'
 	import { addBuyerItem } from '@/services/center.js'
 	import { fetchProducts } from '@/services/shop.js'
 	import WanderingTimeline from '@/components/wandering-timeline/wandering-timeline.vue'
 	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 
-	function mergeProducts(localList, remoteList) {
-		const merged = localList.slice()
-		remoteList.forEach((remote) => {
-			const index = merged.findIndex((item) => item.id === remote.id || item.title === remote.title)
-			if (index >= 0) {
-				merged.splice(index, 1, Object.assign({}, merged[index], remote))
-			} else {
-				merged.push(remote)
-			}
-		})
-		return merged
+	const EMPTY_PRODUCT = {
+		id: '',
+		scene: 'used',
+		category: '',
+		title: '暂无商品',
+		subtitle: '数据库商品加载后会显示在这里',
+		price: 0,
+		originPrice: 0,
+		cover: '',
+		condition: '',
+		credit: 0,
+		location: '',
+		shopName: '',
+		timeline: []
 	}
 
 	export default {
@@ -203,7 +206,7 @@
 				activeSort: 'recommend',
 				activeCategory: '全部',
 				keyword: '',
-				goodsList: goodsCatalog,
+				goodsList: [],
 				loadError: false,
 				homeRecommendCount: 0,
 				homeSideSpacer: 0
@@ -250,7 +253,7 @@
 				]
 			},
 			featured() {
-				return this.goodsList[0] || goodsCatalog[0]
+				return this.goodsList[0] || EMPTY_PRODUCT
 			},
 			usedSpot() {
 				return this.goodsList.find((item) => item.scene === 'used' && item.timeline && item.timeline.length) || this.featured
@@ -286,7 +289,6 @@
 				}
 				append(this.displayGoods)
 				append(this.goodsList)
-				append(goodsCatalog)
 				return picked.slice(0, this.homeRecommendCount)
 			}
 		},
@@ -308,11 +310,14 @@
 				try {
 					const body = await fetchProducts({ scene: this.activeScene === 'all' ? '' : this.activeScene, keyword: this.keyword })
 					if (body && body.code === 0 && Array.isArray(body.data) && body.data.length) {
-						this.goodsList = mergeProducts(goodsCatalog, body.data)
+						this.goodsList = body.data
 						this.loadError = false
+					} else {
+						this.goodsList = []
+						this.loadError = true
 					}
 				} catch (e) {
-					this.goodsList = goodsCatalog
+					this.goodsList = []
 					this.loadError = true
 				} finally {
 					this.$nextTick(() => this.syncHomeSideLength())
@@ -378,6 +383,10 @@
 				return 'life'
 			},
 			openDetail(item) {
+				if (!item || !item.id) {
+					uni.showToast({ title: '暂无可查看商品', icon: 'none' })
+					return
+				}
 				uni.navigateTo({ url: buildGoodsDetailUrl(item) })
 			},
 			async favoriteItem(item) {

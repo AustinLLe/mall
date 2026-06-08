@@ -129,7 +129,8 @@
 </template>
 
 <script>
-  import { goodsCatalog, topicFeed, hotStores, buildGoodsDetailUrl, buildTopicDetailUrl, getTopicCover, getStoreCover } from '../../data/catalog.js'
+  import { topicFeed, hotStores, buildGoodsDetailUrl, buildTopicDetailUrl, getTopicCover, getStoreCover } from '../../data/catalog.js'
+  import { fetchProducts } from '@/services/shop.js'
   import { resolveImageUrl } from '@/utils/media.js'
 
   export default {
@@ -139,6 +140,7 @@
         activeTab: 'topics',
         topicFeed,
         hotStores,
+        storyGoodsList: [],
         failedTopicCovers: {},
         failedStoreCovers: {},
         browseMissionCount: 3,
@@ -154,7 +156,7 @@
         ]
       },
       storyGoods() {
-        return goodsCatalog.filter((item) => item.timeline && item.timeline.length)
+        return this.storyGoodsList.filter((item) => item.scene === 'used' && item.timeline && item.timeline.length)
       },
       hotTags() {
         return ['宿舍桌搭', '二手数码', '同城自提', '交易保障', '新品', '验货清单']
@@ -180,9 +182,22 @@
     onLoad() {
       const sys = uni.getWindowInfo()
       this.statusBarHeight = sys.statusBarHeight || 24
+      this.loadStoryGoods()
       this.$nextTick(() => this.syncBrowseAsideLength())
     },
     methods: {
+      async loadStoryGoods() {
+        try {
+          const body = await fetchProducts({ scene: 'used' })
+          if (body && body.code === 0 && Array.isArray(body.data)) {
+            this.storyGoodsList = body.data
+          }
+        } catch (e) {
+          this.storyGoodsList = []
+        } finally {
+          this.$nextTick(() => this.syncBrowseAsideLength())
+        }
+      },
       navTo(url) {
         	if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
 					  uni.switchTab({ url })
