@@ -1,129 +1,561 @@
 <template>
 	<view class="safe-page">
 		<view class="content-wrap page">
-			<view class="store-head">
-				<view class="avatar">
-					<image class="store-cover" :src="storeCover" mode="aspectFill" @error="coverFailed = true"></image>
-				</view>
-				<view class="store-main">
-					<text class="eyebrow">信用店铺</text>
-					<text class="name">{{ store.name }}</text>
-					<text class="desc">{{ store.desc }}</text>
-					<view class="meta"><text>评分 {{ store.score }}</text><text>{{ store.fans }} 关注</text><text>{{ store.badge }}</text></view>
-				</view>
-				<button class="follow-btn" @click="followCurrent">关注</button>
-			</view>
-			<view class="intro-card">
-				<view>
-					<text class="intro-title">商家介绍</text>
-					<text class="intro-desc">{{ store.announcement || store.desc }}</text>
-				</view>
-				<view class="service-tags">
-					<text v-for="item in store.service" :key="item">{{ item }}</text>
-				</view>
-			</view>
-			<view class="store-stats">
-				<view v-for="item in stats" :key="item.label" class="stat">
-					<text class="stat-value">{{ item.value }}</text>
-					<text class="stat-label">{{ item.label }}</text>
-				</view>
-			</view>
-			<view class="grid">
-				<view v-for="item in goods" :key="item.id" class="goods" @click="open(item)">
-					<view class="cover" :class="{ 'has-image': isImageUrl(item.cover) }">
-						<image v-if="isImageUrl(item.cover)" class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
-						<text v-else>{{ item.cover }}</text>
+			<view class="store-shell">
+				<view class="store-top">
+					<view class="store-title-block">
+						<text class="store-name">{{ store.name || '店铺' }}</text>
+						<view class="rating-row">
+							<view class="stars" :title="`评分 ${store.score || '4.8'}`">
+								<text v-for="item in starItems" :key="item" class="star" :class="{ filled: item <= roundedScore }">★</text>
+							</view>
+							<text class="score">{{ store.score || '4.8' }}</text>
+							<text class="fans">{{ store.fans || '0' }} 关注</text>
+							<text class="badge">{{ store.badge || '信用店铺' }}</text>
+						</view>
 					</view>
-					<view class="tags"><text>{{ item.scene === 'new' ? '新品' : '二手' }}</text><text>信用 {{ item.credit }}</text></view>
-					<text class="title">{{ item.title }}</text>
-					<text class="price">¥{{ item.price }}</text>
+
+					<view class="search-box">
+						<text class="search-icon">⌕</text>
+						<input v-model="keyword" class="search-input" placeholder="搜索本店商品" confirm-type="search" />
+					</view>
+
+					<button class="follow-btn" :class="{ followed: store.followed }" :disabled="following" @click="toggleFollow">
+						{{ store.followed ? '已关注' : '关注店铺' }}
+					</button>
+				</view>
+
+				<view class="intro-card">
+					<view class="intro-main">
+						<text class="intro-label">店铺介绍</text>
+						<text class="intro-title">每一家店铺，都是卖家的经营主页</text>
+						<text class="intro-desc">{{ store.desc || '卖家暂未填写店铺介绍。' }}</text>
+					</view>
+					<view class="service-tags">
+						<text v-for="item in services" :key="item">{{ item }}</text>
+					</view>
+				</view>
+
+				<view class="stats-row">
+					<view class="stat-card">
+						<text class="stat-value">{{ store.productCount || 0 }}</text>
+						<text class="stat-label">在售商品</text>
+					</view>
+					<view class="stat-card">
+						<text class="stat-value">{{ store.newCount || 0 }}</text>
+						<text class="stat-label">新品</text>
+					</view>
+					<view class="stat-card">
+						<text class="stat-value">{{ store.usedCount || 0 }}</text>
+						<text class="stat-label">二手闲置</text>
+					</view>
+					<view class="stat-card">
+						<text class="stat-value">{{ store.creditScore || 100 }}</text>
+						<text class="stat-label">店铺信用</text>
+					</view>
+				</view>
+
+				<view class="goods-section">
+					<view class="section-head">
+						<view>
+							<text class="section-title">店铺商品</text>
+							<text class="section-sub">按类型和分类筛选，所有商品来自数据库</text>
+						</view>
+						<view class="scene-tabs">
+							<button v-for="tab in sceneTabs" :key="tab.key" class="scene-tab" :class="{ on: activeScene === tab.key }" @click="activeScene = tab.key">{{ tab.label }}</button>
+						</view>
+					</view>
+
+					<scroll-view class="category-line" scroll-x :show-scrollbar="false">
+						<view class="category-track">
+							<button v-for="item in categories" :key="item" class="category-chip" :class="{ on: activeCategory === item }" @click="activeCategory = item">{{ item }}</button>
+						</view>
+					</scroll-view>
+
+					<view class="goods-grid">
+						<view v-for="item in filteredGoods" :key="item.id" class="goods-card" @click="open(item)">
+							<view class="cover">
+								<image class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
+								<text class="scene-tag" :class="item.scene">{{ item.scene === 'new' ? '新品' : '二手' }}</text>
+							</view>
+							<view class="goods-body">
+								<view class="goods-meta">
+									<text>{{ item.category || '未分类' }}</text>
+									<text>信用 {{ item.credit || store.creditScore || 100 }}</text>
+								</view>
+								<text class="goods-title">{{ item.title }}</text>
+								<text class="goods-desc">{{ item.subtitle || item.description || '卖家暂未填写更多说明' }}</text>
+								<view class="price-row">
+									<text class="price">¥{{ item.price }}</text>
+									<text class="location">{{ item.location || '未知地区' }}</text>
+								</view>
+							</view>
+						</view>
+					</view>
+
+					<view v-if="!loading && filteredGoods.length === 0" class="empty">
+						<text class="empty-title">没有找到商品</text>
+						<text class="empty-sub">可以换个关键词，或切换新品/二手分类看看。</text>
+					</view>
 				</view>
 			</view>
-			<view v-if="!goods.length" class="empty">该店铺暂无在售商品，可以先关注等待上新。</view>
 		</view>
 	</view>
 </template>
+
 <script>
-	import { hotStores, findStoreByName, productsByStore, buildGoodsDetailUrl, getStoreCover } from '../../data/catalog.js'
-	import { addBuyerItem } from '@/services/center.js'
-	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
+	import { fetchStore, fetchStoreProducts, followStore, unfollowStore } from '@/services/shop.js'
+	import { resolveImageUrl } from '@/utils/media.js'
 
 	export default {
 		data() {
 			return {
-				store: hotStores[0],
-				goodsList: productsByStore(hotStores[0].name),
-				queryName: '',
-				coverFailed: false
-			}
-		},
-		computed: {
-			goods() {
-				return this.goodsList.length ? this.goodsList : productsByStore(this.store.name)
-			},
-			storeCover() {
-				return this.coverFailed ? this.store.fallbackCover : getStoreCover(this.store)
-			},
-			stats() {
-				return [
-					{ label: '在售商品', value: this.goods.length },
-					{ label: '店铺评分', value: this.store.score },
-					{ label: '服务标签', value: this.store.badge }
+				storeId: '',
+				store: {},
+				goodsList: [],
+				keyword: '',
+				activeScene: 'all',
+				activeCategory: '全部',
+				following: false,
+				loading: false,
+				starItems: [1, 2, 3, 4, 5],
+				sceneTabs: [
+					{ key: 'all', label: '全部' },
+					{ key: 'new', label: '新品' },
+					{ key: 'used', label: '二手' }
 				]
 			}
 		},
-		onLoad(q) {
-			this.queryName = q && q.name ? decodeURIComponent(q.name) : ''
-			this.store = findStoreByName(this.queryName) || hotStores[0]
-			this.goodsList = productsByStore(this.store.name)
+		computed: {
+			roundedScore() {
+				const score = Number(this.store.score || 4.8)
+				return Math.max(0, Math.min(5, Math.round(score)))
+			},
+			services() {
+				return this.store.service && this.store.service.length ? this.store.service : ['平台担保', '信用卖家', '真实商品']
+			},
+			categories() {
+				return ['全部'].concat(Array.from(new Set(this.goodsList.map(item => item.category).filter(Boolean))))
+			},
+			filteredGoods() {
+				const word = this.keyword.trim().toLowerCase()
+				return this.goodsList.filter(item => {
+					const sceneOk = this.activeScene === 'all' || item.scene === this.activeScene
+					const categoryOk = this.activeCategory === '全部' || item.category === this.activeCategory
+					const keywordOk = !word || [item.title, item.subtitle, item.description, item.category].join(' ').toLowerCase().includes(word)
+					return sceneOk && categoryOk && keywordOk
+				})
+			}
+		},
+		async onLoad(query) {
+			this.storeId = query && query.id ? decodeURIComponent(query.id) : ''
+			if (!this.storeId && query && query.name) this.storeId = decodeURIComponent(query.name)
+			await this.loadStore()
 		},
 		methods: {
-			isImageUrl,
 			resolveImageUrl,
-			open(item) { uni.navigateTo({ url: buildGoodsDetailUrl(item) }) },
-			async followCurrent() {
+			async loadStore() {
+				this.loading = true
 				try {
-					await addBuyerItem('follow', { storeName: this.store.name })
-					uni.showToast({ title: '已关注店铺', icon: 'success' })
+					const id = this.storeId || '1'
+					const [storeBody, productsBody] = await Promise.all([
+						fetchStore(id),
+						fetchStoreProducts(id)
+					])
+					this.store = storeBody.data || {}
+					this.goodsList = productsBody.data || []
+					this.storeId = this.store.id || id
+				} catch (e) {
+					console.error('加载店铺失败', e)
+					uni.showToast({ title: '店铺加载失败', icon: 'none' })
+				} finally {
+					this.loading = false
+				}
+			},
+			async toggleFollow() {
+				if (!this.storeId || this.following) return
+				this.following = true
+				try {
+					const body = this.store.followed ? await unfollowStore(this.storeId) : await followStore(this.storeId)
+					this.store = body.data || this.store
+					uni.showToast({ title: this.store.followed ? '已关注店铺' : '已取消关注', icon: 'none' })
 				} catch (e) {
 					uni.showToast({ title: '请先登录买家账号', icon: 'none' })
+				} finally {
+					this.following = false
 				}
+			},
+			open(item) {
+				uni.navigateTo({ url: `/pages/goods/detail?id=${item.id}` })
 			}
 		}
 	}
 </script>
+
 <style lang="scss" scoped>
-	.page { padding: 28rpx; }
-	.store-head { display: flex; gap: 24rpx; background: #fff; border-radius: 8px; padding: 34rpx; border: 1rpx solid #e4e9e5; align-items: center; box-shadow: 0 18rpx 52rpx rgba(17, 38, 28, 0.08); }
-	.avatar { width: 132rpx; height: 132rpx; border-radius: 8px; background: #edf3ef; overflow: hidden; flex-shrink: 0; }
-	.store-cover { width: 100%; height: 100%; display: block; }
-	.store-main { flex: 1; min-width: 0; }
-	.eyebrow, .name, .desc, .stat-value, .stat-label, .intro-title, .intro-desc { display: block; }
-	.eyebrow { margin-bottom: 8rpx; color: #2563eb; font-size: 22rpx; font-weight: 900; }
-	.name { font-size: 40rpx; font-weight: 900; color: #17231d; }
-	.desc { margin-top: 8rpx; font-size: 25rpx; color: #667085; line-height: 1.6; }
-	.meta { display: flex; gap: 12rpx; flex-wrap: wrap; margin-top: 14rpx; color: #1f5c43; font-size: 24rpx; }
-	.meta text { padding: 8rpx 14rpx; border-radius: 999rpx; background: #f5f7fa; }
-	.follow-btn { margin-left: auto; width: 146rpx; height: 70rpx; line-height: 70rpx; border-radius: 8px; background: #12372a; color: #fff; font-size: 24rpx; font-weight: 900; }
-	.intro-card { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; margin-top: 20rpx; padding: 28rpx; border-radius: 8px; background: #fff; border: 1rpx solid #e4e9e5; box-shadow: 0 12rpx 34rpx rgba(17, 38, 28, 0.05); }
-	.intro-title { font-size: 30rpx; font-weight: 900; color: #17231d; }
-	.intro-desc { margin-top: 8rpx; color: #667085; font-size: 25rpx; line-height: 1.65; }
-	.service-tags { display: flex; flex-wrap: wrap; gap: 10rpx; justify-content: flex-end; }
-	.service-tags text { padding: 8rpx 14rpx; border-radius: 999rpx; background: #eef7f1; color: #1f5c43; font-size: 22rpx; font-weight: 800; }
-	.store-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16rpx; margin-top: 20rpx; }
-	.stat { background: #fff; border: 1rpx solid #e4e9e5; border-radius: 8px; padding: 24rpx; box-shadow: 0 12rpx 34rpx rgba(17, 38, 28, 0.05); }
-	.stat-value { font-size: 32rpx; font-weight: 900; color: #17231d; }
-	.stat-label { margin-top: 6rpx; font-size: 23rpx; color: #667085; }
-	.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18rpx; margin-top: 22rpx; }
-	.goods { background: #fff; border-radius: 8px; padding: 20rpx; border: 1rpx solid #e4e9e5; box-shadow: 0 14rpx 40rpx rgba(17, 38, 28, 0.06); }
-	.cover { height: 160rpx; border-radius: 8px; background: linear-gradient(135deg, #f5f7fa, #edf3ef); display: flex; align-items: center; justify-content: center; font-size: 64rpx; overflow: hidden; }
-	.cover.has-image { background: #eef7f1; }
-	.cover-img { width: 100%; height: 100%; display: block; }
-	.tags { display: flex; gap: 8rpx; margin-top: 14rpx; flex-wrap: wrap; }
-	.tags text { padding: 6rpx 10rpx; border-radius: 999rpx; background: #eaf1ff; color: #2563eb; font-size: 20rpx; font-weight: 800; }
-	.title, .price { display: block; margin-top: 12rpx; }
-	.title { font-size: 26rpx; font-weight: 900; color: #17231d; line-height: 1.35; }
-	.price { color: #d66a2c; font-size: 30rpx; font-weight: 900; }
-	.empty { margin-top: 20rpx; padding: 28rpx; border-radius: 8px; background: #fff; color: #667085; border: 1rpx solid #e4e9e5; }
-	@media screen and (max-width: 900px) { .store-head, .intro-card { align-items: flex-start; flex-direction: column; } .grid, .store-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .service-tags { justify-content: flex-start; } }
+	.safe-page {
+		min-height: 100vh;
+		background: linear-gradient(180deg, #fffaf4 0%, #f6f8fb 240px, #f6f8fb 100%);
+	}
+	.page {
+		padding: 22px;
+		box-sizing: border-box;
+	}
+	.store-shell {
+		max-width: 1220px;
+		margin: 0 auto;
+	}
+	.store-top {
+		display: grid;
+		grid-template-columns: minmax(240px, 1fr) minmax(280px, 460px) 116px;
+		align-items: center;
+		gap: 18px;
+		padding: 22px;
+		border-radius: 8px;
+		background: rgba(255, 255, 255, .94);
+		border: 1px solid #eadfd4;
+		box-shadow: 0 18px 50px rgba(120, 84, 44, .09);
+	}
+	.store-name,
+	.intro-label,
+	.intro-title,
+	.intro-desc,
+	.section-title,
+	.section-sub,
+	.stat-value,
+	.stat-label,
+	.goods-title,
+	.goods-desc,
+	.price,
+	.location,
+	.empty-title,
+	.empty-sub {
+		display: block;
+	}
+	.store-name {
+		font-size: 30px;
+		font-weight: 950;
+		color: #201a17;
+		letter-spacing: 0;
+	}
+	.rating-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+		margin-top: 10px;
+	}
+	.stars {
+		display: flex;
+		gap: 2px;
+	}
+	.star {
+		color: #d5d9df;
+		font-size: 17px;
+		line-height: 1;
+	}
+	.star.filled {
+		color: #f5a524;
+	}
+	.score {
+		color: #9a5b20;
+		font-weight: 900;
+	}
+	.fans,
+	.badge {
+		padding: 5px 9px;
+		border-radius: 999px;
+		background: #f8fafc;
+		color: #64748b;
+		font-size: 12px;
+		font-weight: 800;
+	}
+	.search-box {
+		height: 44px;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 0 14px;
+		border-radius: 999px;
+		background: #fff;
+		border: 1px solid #eadfd4;
+		box-shadow: inset 0 0 0 1px rgba(255,255,255,.7);
+		box-sizing: border-box;
+	}
+	.search-icon {
+		color: #b47a45;
+		font-size: 20px;
+	}
+	.search-input {
+		flex: 1;
+		height: 100%;
+		color: #201a17;
+		font-size: 14px;
+	}
+	button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		line-height: normal;
+		box-sizing: border-box;
+	}
+	button::after {
+		border: none;
+	}
+	.follow-btn {
+		width: 116px;
+		height: 42px;
+		border-radius: 999px;
+		background: #b77945;
+		color: #fff;
+		font-size: 14px;
+		font-weight: 950;
+		box-shadow: 0 12px 24px rgba(183, 121, 69, .22);
+	}
+	.follow-btn.followed {
+		background: #fff;
+		color: #b77945;
+		border: 1px solid #d8b998;
+		box-shadow: none;
+	}
+	.intro-card {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 360px;
+		gap: 18px;
+		margin-top: 18px;
+		padding: 24px;
+		border-radius: 8px;
+		background: #fff;
+		border: 1px solid #e7edf3;
+		box-shadow: 0 14px 42px rgba(15, 23, 42, .06);
+	}
+	.intro-label {
+		color: #b77945;
+		font-size: 13px;
+		font-weight: 900;
+	}
+	.intro-title {
+		margin-top: 8px;
+		color: #17212f;
+		font-size: 22px;
+		font-weight: 950;
+	}
+	.intro-desc {
+		margin-top: 10px;
+		color: #64748b;
+		font-size: 14px;
+		line-height: 1.8;
+	}
+	.service-tags {
+		display: flex;
+		align-content: center;
+		justify-content: flex-end;
+		flex-wrap: wrap;
+		gap: 10px;
+	}
+	.service-tags text {
+		padding: 8px 12px;
+		border-radius: 999px;
+		background: #fff7ed;
+		color: #9a5b20;
+		font-size: 13px;
+		font-weight: 850;
+	}
+	.stats-row {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 14px;
+		margin-top: 18px;
+	}
+	.stat-card {
+		padding: 18px;
+		border-radius: 8px;
+		background: #fff;
+		border: 1px solid #e7edf3;
+		box-shadow: 0 12px 34px rgba(15, 23, 42, .05);
+	}
+	.stat-value {
+		color: #17212f;
+		font-size: 24px;
+		font-weight: 950;
+	}
+	.stat-label {
+		margin-top: 6px;
+		color: #64748b;
+		font-size: 13px;
+	}
+	.goods-section {
+		margin-top: 18px;
+		padding: 22px;
+		border-radius: 8px;
+		background: #fff;
+		border: 1px solid #e7edf3;
+		box-shadow: 0 16px 46px rgba(15, 23, 42, .06);
+	}
+	.section-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+	}
+	.section-title {
+		color: #17212f;
+		font-size: 22px;
+		font-weight: 950;
+	}
+	.section-sub {
+		margin-top: 5px;
+		color: #8a94a6;
+		font-size: 13px;
+	}
+	.scene-tabs {
+		display: flex;
+		gap: 8px;
+	}
+	.scene-tab,
+	.category-chip {
+		height: 34px;
+		padding: 0 15px;
+		border-radius: 999px;
+		background: #f8fafc;
+		color: #64748b;
+		font-size: 13px;
+		font-weight: 850;
+	}
+	.scene-tab.on,
+	.category-chip.on {
+		background: #17212f;
+		color: #fff;
+	}
+	.category-line {
+		width: 100%;
+		white-space: nowrap;
+		margin-top: 16px;
+	}
+	.category-track {
+		display: inline-flex;
+		gap: 8px;
+		min-width: max-content;
+	}
+	.goods-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 16px;
+		margin-top: 18px;
+	}
+	.goods-card {
+		border-radius: 8px;
+		background: #fff;
+		border: 1px solid #e7edf3;
+		overflow: hidden;
+		box-shadow: 0 10px 28px rgba(15, 23, 42, .05);
+		transition: transform .2s ease, box-shadow .2s ease;
+	}
+	.goods-card:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 16px 36px rgba(15, 23, 42, .08);
+	}
+	.cover {
+		position: relative;
+		aspect-ratio: 1 / .78;
+		background: #f1f5f9;
+		overflow: hidden;
+	}
+	.cover-img {
+		width: 100%;
+		height: 100%;
+		display: block;
+	}
+	.scene-tag {
+		position: absolute;
+		top: 10px;
+		left: 10px;
+		padding: 5px 9px;
+		border-radius: 999px;
+		color: #fff;
+		font-size: 12px;
+		font-weight: 900;
+	}
+	.scene-tag.new {
+		background: #2563eb;
+	}
+	.scene-tag.used {
+		background: #b77945;
+	}
+	.goods-body {
+		padding: 14px;
+	}
+	.goods-meta {
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+		color: #94a3b8;
+		font-size: 12px;
+	}
+	.goods-title {
+		margin-top: 10px;
+		min-height: 42px;
+		color: #17212f;
+		font-size: 15px;
+		font-weight: 950;
+		line-height: 1.4;
+	}
+	.goods-desc {
+		margin-top: 7px;
+		height: 38px;
+		color: #64748b;
+		font-size: 12px;
+		line-height: 1.55;
+		overflow: hidden;
+	}
+	.price-row {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 8px;
+		margin-top: 12px;
+	}
+	.price {
+		color: #ef4444;
+		font-size: 20px;
+		font-weight: 950;
+	}
+	.location {
+		color: #94a3b8;
+		font-size: 12px;
+	}
+	.empty {
+		padding: 48px 16px;
+		text-align: center;
+	}
+	.empty-title {
+		color: #334155;
+		font-size: 17px;
+		font-weight: 950;
+	}
+	.empty-sub {
+		margin-top: 8px;
+		color: #94a3b8;
+		font-size: 13px;
+	}
+	@media screen and (max-width: 960px) {
+		.store-top,
+		.intro-card {
+			grid-template-columns: 1fr;
+		}
+		.service-tags {
+			justify-content: flex-start;
+		}
+		.stats-row,
+		.goods-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+		.section-head {
+			align-items: flex-start;
+			flex-direction: column;
+		}
+	}
 </style>

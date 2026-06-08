@@ -83,6 +83,24 @@ public final class ShopDtos {
     public record StoreView(String id, String name, String score, String fans, String desc, String badge) {
     }
 
+    public record StoreDetailView(
+            String id,
+            Integer sellerId,
+            String sellerName,
+            String name,
+            String score,
+            Integer creditScore,
+            String fans,
+            String desc,
+            String badge,
+            List<String> service,
+            boolean followed,
+            long productCount,
+            long newCount,
+            long usedCount
+    ) {
+    }
+
     public record TopicView(String id, String type, String title, String desc, String heat, String author, String cover, List<String> tags) {
     }
 

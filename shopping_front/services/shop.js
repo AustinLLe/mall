@@ -1,4 +1,4 @@
-import { get, post } from '@/utils/request.js'
+import { del, get, post } from '@/utils/request.js'
 
 function unwrap(res) {
 	return res.data
@@ -22,6 +22,22 @@ export function fetchMyProducts() {
 
 export function fetchStores() {
 	return get('/api/stores').then(unwrap)
+}
+
+export function fetchStore(id) {
+	return get('/api/stores/' + encodeURIComponent(id)).then(unwrap)
+}
+
+export function fetchStoreProducts(id) {
+	return get('/api/stores/' + encodeURIComponent(id) + '/products').then(unwrap)
+}
+
+export function followStore(id) {
+	return post('/api/stores/' + encodeURIComponent(id) + '/follow', {}).then(unwrap)
+}
+
+export function unfollowStore(id) {
+	return del('/api/stores/' + encodeURIComponent(id) + '/follow').then(unwrap)
 }
 
 export function fetchTopics() {

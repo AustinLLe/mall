@@ -7,6 +7,7 @@ import com.example.shopping_back.auth.dto.RegisterRequest;
 import com.example.shopping_back.auth.mapper.UserMapper;
 import com.example.shopping_back.auth.model.StoredUser;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -141,8 +142,12 @@ public class AuthService {
     }
 
     private static String normalizeRole(String raw) {
-        if ("seller".equals(raw) || "admin".equals(raw)) {
-            return raw;
+        String role = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+        if ("seller".equals(role) || "卖家".equals(role)) {
+            return "seller";
+        }
+        if ("admin".equals(role) || "管理员".equals(role)) {
+            return "admin";
         }
         return "buyer";
     }

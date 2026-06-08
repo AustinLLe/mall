@@ -12,10 +12,12 @@ import com.example.shopping_back.shop.ShopDtos.AuditResult;
 import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
+import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -60,6 +62,32 @@ public class ShopController {
     @GetMapping("/stores")
     public ApiResult<List<StoreView>> stores() {
         return ApiResult.ok(shopService.stores());
+    }
+
+    @GetMapping("/stores/{id}")
+    public ApiResult<StoreDetailView> store(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.store(id, currentUserOrNull(authorization)));
+    }
+
+    @GetMapping("/stores/{id}/products")
+    public ApiResult<List<ProductView>> storeProducts(@PathVariable String id) {
+        return ApiResult.ok(shopService.storeProducts(id));
+    }
+
+    @PostMapping("/stores/{id}/follow")
+    public ApiResult<StoreDetailView> followStore(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.followStore(id, currentUserOrNull(authorization)));
+    }
+
+    @DeleteMapping("/stores/{id}/follow")
+    public ApiResult<StoreDetailView> unfollowStore(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.unfollowStore(id, currentUserOrNull(authorization)));
     }
 
     @GetMapping("/topics")

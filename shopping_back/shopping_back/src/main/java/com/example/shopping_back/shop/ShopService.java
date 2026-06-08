@@ -13,10 +13,13 @@ import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
 import com.example.shopping_back.shop.ShopDtos.ReviewView;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
+import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
 import com.example.shopping_back.shop.ShopDtos.TimelineNode;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
 import com.example.shopping_back.shop.mapper.ShopProductMapper;
+import com.example.shopping_back.shop.mapper.ShopStoreMapper;
 import com.example.shopping_back.shop.model.ProductRecord;
+import com.example.shopping_back.shop.model.StoreRecord;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +50,7 @@ public class ShopService {
     private final List<StoreView> stores = new ArrayList<>();
     private final List<TopicView> topics = new ArrayList<>();
     private final ShopProductMapper productMapper;
+    private final ShopStoreMapper storeMapper;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final String openAiApiKey;
@@ -58,6 +62,7 @@ public class ShopService {
 
     public ShopService(
             ShopProductMapper productMapper,
+            ShopStoreMapper storeMapper,
             ObjectMapper objectMapper,
             @Value("${openai.api.key:}") String openAiApiKey,
             @Value("${openai.model:gpt-4.1-mini}") String openAiModel,
@@ -67,6 +72,7 @@ public class ShopService {
             @Value("${dashscope.chat.url:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}") String dashScopeChatUrl
     ) {
         this.productMapper = productMapper;
+        this.storeMapper = storeMapper;
         this.objectMapper = objectMapper;
         this.openAiApiKey = openAiApiKey == null ? "" : openAiApiKey.trim();
         this.openAiModel = openAiModel == null || openAiModel.isBlank() ? "gpt-4.1-mini" : openAiModel.trim();
@@ -81,6 +87,7 @@ public class ShopService {
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
         seed();
         ensureProductSchema();
+        ensureStoreSchema();
     }
 
     public List<ProductView> products(String scene, String keyword) {
@@ -118,7 +125,63 @@ public class ShopService {
     }
 
     public List<StoreView> stores() {
-        return stores;
+        try {
+            return storeMapper.selectNormalStores().stream().map(this::toStoreView).toList();
+        } catch (RuntimeException ignored) {
+            return stores;
+        }
+    }
+
+    public StoreDetailView store(String id, AuthUserView user) {
+        StoreRecord store = findStore(id);
+        if (store == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found");
+        }
+        List<ProductView> goods = storeProducts(id);
+        int followers = safeFollowerCount(store.getStoreId());
+        boolean followed = user != null && storeMapper.isFollowed(user.getUserId(), store.getStoreId()) > 0;
+        long newCount = goods.stream().filter(item -> "new".equals(item.scene())).count();
+        long usedCount = goods.stream().filter(item -> "used".equals(item.scene())).count();
+        return toStoreDetail(store, followed, followers, goods.size(), newCount, usedCount);
+    }
+
+    public List<ProductView> storeProducts(String id) {
+        StoreRecord store = findStore(id);
+        if (store == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found");
+        }
+        try {
+            return productMapper.selectBySeller(store.getSellerId()).stream()
+                    .filter(item -> "approved".equals(normalizeStatus(item.getStatus())))
+                    .map(this::toView)
+                    .toList();
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    public StoreDetailView followStore(String id, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Please login first");
+        }
+        StoreRecord store = findStore(id);
+        if (store == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found");
+        }
+        storeMapper.follow(user.getUserId(), store.getStoreId(), store.getStoreName());
+        return store(id, user);
+    }
+
+    public StoreDetailView unfollowStore(String id, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Please login first");
+        }
+        StoreRecord store = findStore(id);
+        if (store == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found");
+        }
+        storeMapper.unfollow(user.getUserId(), store.getStoreId());
+        return store(id, user);
     }
 
     public List<TopicView> topics() {
@@ -426,6 +489,25 @@ public class ShopService {
         }
     }
 
+    private void ensureStoreSchema() {
+        try {
+            if (storeMapper.countStoreColumn("store_desc") == 0) {
+                storeMapper.addStoreDescColumn();
+            }
+            if (storeMapper.countStoreColumn("badge") == 0) {
+                storeMapper.addBadgeColumn();
+            }
+            if (storeMapper.countStoreColumn("service_tags") == 0) {
+                storeMapper.addServiceTagsColumn();
+            }
+            if (storeMapper.countFollowUniqueIndex() == 0) {
+                storeMapper.dedupeFollows();
+                storeMapper.addFollowUniqueIndex();
+            }
+        } catch (RuntimeException ignored) {
+        }
+    }
+
     private boolean usesWideGoodsStatus() {
         try {
             Integer length = productMapper.statusColumnLength();
@@ -477,6 +559,86 @@ public class ShopService {
         } catch (RuntimeException ignored) {
             return null;
         }
+    }
+
+    private StoreRecord findStore(String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        try {
+            try {
+                return storeMapper.selectById(Integer.parseInt(id));
+            } catch (NumberFormatException ignored) {
+                return storeMapper.selectByName(id);
+            }
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private StoreView toStoreView(StoreRecord record) {
+        int followers = safeFollowerCount(record.getStoreId());
+        return new StoreView(
+                String.valueOf(record.getStoreId()),
+                defaultText(record.getStoreName(), "店铺"),
+                scoreText(record.getScore()),
+                formatFans(followers),
+                defaultText(record.getStoreDesc(), defaultStoreDesc(record)),
+                defaultText(record.getBadge(), "信用店铺")
+        );
+    }
+
+    private StoreDetailView toStoreDetail(StoreRecord record, boolean followed, int followers, long productCount, long newCount, long usedCount) {
+        return new StoreDetailView(
+                String.valueOf(record.getStoreId()),
+                record.getSellerId(),
+                defaultText(record.getSellerName(), "卖家"),
+                defaultText(record.getStoreName(), "店铺"),
+                scoreText(record.getScore()),
+                record.getCreditScore() == null ? 100 : record.getCreditScore(),
+                formatFans(followers),
+                defaultText(record.getStoreDesc(), defaultStoreDesc(record)),
+                defaultText(record.getBadge(), "信用店铺"),
+                parseServiceTags(record.getServiceTags()),
+                followed,
+                productCount,
+                newCount,
+                usedCount
+        );
+    }
+
+    private int safeFollowerCount(Integer storeId) {
+        try {
+            return storeMapper.followerCount(storeId);
+        } catch (RuntimeException ignored) {
+            return 0;
+        }
+    }
+
+    private List<String> parseServiceTags(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of("平台担保", "真实商品", "信用卖家");
+        }
+        return List.of(raw.split(",")).stream()
+                .map(String::trim)
+                .filter(item -> !item.isEmpty())
+                .toList();
+    }
+
+    private String scoreText(BigDecimal score) {
+        return score == null ? "4.8" : score.stripTrailingZeros().toPlainString();
+    }
+
+    private String formatFans(int count) {
+        if (count >= 10000) {
+            return String.format(Locale.ROOT, "%.1fw", count / 10000.0);
+        }
+        return String.valueOf(count);
+    }
+
+    private String defaultStoreDesc(StoreRecord record) {
+        String name = defaultText(record.getStoreName(), "这家店铺");
+        return name + "由卖家自主经营，商品经过平台记录，支持在站内沟通、关注和浏览。";
     }
 
     private ProductView toView(ProductRecord record) {

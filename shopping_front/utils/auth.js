@@ -27,9 +27,17 @@ export function getCachedUser() {
 	}
 }
 
+export function normalizeRole(role) {
+	const value = String(role || '').trim().toLowerCase()
+	if (value === 'seller' || value === '卖家') return 'seller'
+	if (value === 'admin' || value === '管理员') return 'admin'
+	return 'buyer'
+}
+
 export function roleHomePath(role) {
-	if (role === 'seller') return '/pages/seller/dashboard'
-	if (role === 'admin') return '/pages/admin/dashboard'
+	const normalized = normalizeRole(role)
+	if (normalized === 'seller') return '/pages/seller/dashboard'
+	if (normalized === 'admin') return '/pages/admin/dashboard'
 	return '/pages/home/home'
 }
 

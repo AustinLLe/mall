@@ -14,7 +14,7 @@ public interface ShopProductMapper {
     String BASE_SELECT = """
             SELECT g.goods_id AS goodsId,
                    g.seller_id AS sellerId,
-                   COALESCE(u.username, '个人卖家') AS sellerName,
+                   COALESCE(s.store_name, u.username, '个人卖家') AS sellerName,
                    COALESCE(u.credit, 96) AS sellerCredit,
                    g.goods_name AS goodsName,
                    g.category,
@@ -32,6 +32,13 @@ public interface ShopProductMapper {
                    g.create_time AS createTime
             FROM goods g
             LEFT JOIN users u ON g.seller_id = u.user_id
+            LEFT JOIN store s ON s.store_id = (
+                SELECT st.store_id
+                FROM store st
+                WHERE st.seller_id = g.seller_id AND st.status = 'normal'
+                ORDER BY st.store_id
+                LIMIT 1
+            )
             """;
 
     @Select("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'goods' AND COLUMN_NAME = #{column}")
