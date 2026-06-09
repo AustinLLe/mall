@@ -101,7 +101,44 @@ public final class ShopDtos {
     ) {
     }
 
-    public record TopicView(String id, String type, String title, String desc, String heat, String author, String cover, List<String> tags) {
+    public record TopicView(
+            String id,
+            String type,
+            String title,
+            String desc,
+            String heat,
+            String author,
+            String cover,
+            List<String> tags,
+            Integer postCount,
+            Integer likeCount
+    ) {
+        public TopicView(String id, String type, String title, String desc, String heat, String author, String cover, List<String> tags) {
+            this(id, type, title, desc, heat, author, cover, tags, 0, 0);
+        }
+    }
+
+    public record TopicPostView(
+            String id,
+            String topicId,
+            String author,
+            String content,
+            List<String> images,
+            String createdAt,
+            Integer likeCount,
+            Integer commentCount,
+            boolean liked,
+            List<TopicCommentView> comments
+    ) {
+    }
+
+    public record TopicCommentView(String id, String author, String content, String createdAt) {
+    }
+
+    public record TopicPostRequest(@NotBlank(message = "帖子内容不能为空") String content, List<String> images) {
+    }
+
+    public record TopicCommentRequest(@NotBlank(message = "评论内容不能为空") String content) {
     }
 
     public record OrderView(

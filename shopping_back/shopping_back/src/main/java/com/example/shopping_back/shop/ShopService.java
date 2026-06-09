@@ -18,13 +18,21 @@ import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
 import com.example.shopping_back.shop.ShopDtos.TimelineNode;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
+import com.example.shopping_back.shop.ShopDtos.TopicCommentRequest;
+import com.example.shopping_back.shop.ShopDtos.TopicCommentView;
+import com.example.shopping_back.shop.ShopDtos.TopicPostRequest;
+import com.example.shopping_back.shop.ShopDtos.TopicPostView;
 import com.example.shopping_back.shop.mapper.ShopOrderMapper;
 import com.example.shopping_back.shop.mapper.ShopProductMapper;
 import com.example.shopping_back.shop.mapper.ShopStoreMapper;
+import com.example.shopping_back.shop.mapper.ShopTopicMapper;
 import com.example.shopping_back.shop.model.OrderRecord;
 import com.example.shopping_back.shop.model.ProductRecord;
 import com.example.shopping_back.shop.model.ProductReviewRecord;
 import com.example.shopping_back.shop.model.StoreRecord;
+import com.example.shopping_back.shop.model.TopicCommentRecord;
+import com.example.shopping_back.shop.model.TopicPostRecord;
+import com.example.shopping_back.shop.model.TopicRecord;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,10 +61,10 @@ public class ShopService {
 
     private final List<ProductView> products = new ArrayList<>();
     private final List<StoreView> stores = new ArrayList<>();
-    private final List<TopicView> topics = new ArrayList<>();
     private final ShopProductMapper productMapper;
     private final ShopStoreMapper storeMapper;
     private final ShopOrderMapper orderMapper;
+    private final ShopTopicMapper topicMapper;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final String openAiApiKey;
@@ -70,6 +78,7 @@ public class ShopService {
             ShopProductMapper productMapper,
             ShopStoreMapper storeMapper,
             ShopOrderMapper orderMapper,
+            ShopTopicMapper topicMapper,
             ObjectMapper objectMapper,
             @Value("${openai.api.key:}") String openAiApiKey,
             @Value("${openai.model:gpt-4.1-mini}") String openAiModel,
@@ -81,6 +90,7 @@ public class ShopService {
         this.productMapper = productMapper;
         this.storeMapper = storeMapper;
         this.orderMapper = orderMapper;
+        this.topicMapper = topicMapper;
         this.objectMapper = objectMapper;
         this.openAiApiKey = openAiApiKey == null ? "" : openAiApiKey.trim();
         this.openAiModel = openAiModel == null || openAiModel.isBlank() ? "gpt-4.1-mini" : openAiModel.trim();
@@ -97,6 +107,7 @@ public class ShopService {
         ensureProductSchema();
         ensureStoreSchema();
         ensureOrderSchema();
+        ensureTopicSchema();
     }
 
     public List<ProductView> products(String scene, String keyword) {
@@ -193,8 +204,83 @@ public class ShopService {
         return store(id, user);
     }
 
-    public List<TopicView> topics() {
-        return topics;
+    public List<TopicView> topics(String tag) {
+        try {
+            ensureTopicSchema();
+            return topicMapper.selectTopics(tag).stream().map(this::toTopicView).toList();
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    public TopicView topic(String id) {
+        ensureTopicSchema();
+        TopicRecord record = topicMapper.selectTopic(parseDbId(id));
+        if (record == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "话题不存在");
+        }
+        return toTopicView(record);
+    }
+
+    public List<TopicPostView> topicPosts(String topicId, AuthUserView user) {
+        ensureTopicSchema();
+        Integer id = parseDbId(topicId);
+        Integer userId = user == null ? null : user.getUserId();
+        return topicMapper.selectPosts(id, userId).stream().map(this::toTopicPostView).toList();
+    }
+
+    public List<TopicPostView> createTopicPost(String topicId, TopicPostRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后发帖");
+        }
+        ensureTopicSchema();
+        Integer id = parseDbId(topicId);
+        if (topicMapper.selectTopic(id) == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "话题不存在");
+        }
+        String content = request == null ? "" : defaultText(request.content(), "").trim();
+        if (content.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "帖子内容不能为空");
+        }
+        String images = request == null || request.images() == null ? "" : String.join(",", request.images());
+        topicMapper.insertPost(id, user.getUserId(), content, images);
+        return topicPosts(topicId, user);
+    }
+
+    public List<TopicPostView> createTopicComment(String postId, TopicCommentRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后评论");
+        }
+        ensureTopicSchema();
+        Integer id = parseDbId(postId);
+        Integer topicId = topicMapper.topicIdByPost(id);
+        if (topicId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
+        }
+        String content = request == null ? "" : defaultText(request.content(), "").trim();
+        if (content.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评论内容不能为空");
+        }
+        topicMapper.insertComment(id, user.getUserId(), content);
+        return topicPosts(String.valueOf(topicId), user);
+    }
+
+    public List<TopicPostView> toggleTopicPostLike(String postId, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后点赞");
+        }
+        ensureTopicSchema();
+        Integer id = parseDbId(postId);
+        Integer topicId = topicMapper.topicIdByPost(id);
+        if (topicId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
+        }
+        if (topicMapper.likeExists(id, user.getUserId()) > 0) {
+            topicMapper.deleteLike(id, user.getUserId());
+        } else {
+            topicMapper.insertLike(id, user.getUserId());
+        }
+        return topicPosts(String.valueOf(topicId), user);
     }
 
     public List<OrderView> orders(AuthUserView user) {
@@ -578,6 +664,16 @@ public class ShopService {
         }
     }
 
+    private void ensureTopicSchema() {
+        try {
+            topicMapper.createTopicTable();
+            topicMapper.createPostTable();
+            topicMapper.createCommentTable();
+            topicMapper.createLikeTable();
+        } catch (RuntimeException ignored) {
+        }
+    }
+
     private boolean usesWideGoodsStatus() {
         try {
             Integer length = productMapper.statusColumnLength();
@@ -864,6 +960,68 @@ public class ShopService {
         );
     }
 
+    private TopicView toTopicView(TopicRecord record) {
+        int postCount = record.getPostCount() == null ? 0 : record.getPostCount();
+        int likeCount = record.getLikeCount() == null ? 0 : record.getLikeCount();
+        String heat = postCount + " 帖 · " + likeCount + " 赞";
+        return new TopicView(
+                String.valueOf(record.getTopicId()),
+                defaultText(record.getType(), "话题"),
+                defaultText(record.getTitle(), "未命名话题"),
+                defaultText(record.getTopicDesc(), "一起讨论这个话题。"),
+                heat,
+                defaultText(record.getAuthor(), "松果社区"),
+                defaultText(record.getCover(), "/static/goods/viewtop-monitor.jpg"),
+                parseTags(record.getTags()),
+                postCount,
+                likeCount
+        );
+    }
+
+    private TopicPostView toTopicPostView(TopicPostRecord record) {
+        return new TopicPostView(
+                String.valueOf(record.getPostId()),
+                String.valueOf(record.getTopicId()),
+                defaultText(record.getUsername(), "松果用户"),
+                defaultText(record.getContent(), ""),
+                parseImages(record.getImages()),
+                formatTime(record.getCreatedAt()),
+                record.getLikeCount() == null ? 0 : record.getLikeCount(),
+                record.getCommentCount() == null ? 0 : record.getCommentCount(),
+                record.getLiked() != null && record.getLiked() > 0,
+                topicMapper.selectComments(record.getPostId()).stream().map(this::toTopicCommentView).toList()
+        );
+    }
+
+    private TopicCommentView toTopicCommentView(TopicCommentRecord record) {
+        return new TopicCommentView(
+                String.valueOf(record.getCommentId()),
+                defaultText(record.getUsername(), "松果用户"),
+                defaultText(record.getContent(), ""),
+                formatTime(record.getCreatedAt())
+        );
+    }
+
+    private List<String> parseTags(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return List.of(raw.replace("，", ",").split(",")).stream()
+                .map(String::trim)
+                .filter(item -> !item.isEmpty())
+                .toList();
+    }
+
+    private List<String> parseImages(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return List.of(raw.split(",")).stream()
+                .map(String::trim)
+                .filter(item -> !item.isEmpty())
+                .toList();
+    }
+
     private int normalizeScore(Integer score) {
         if (score == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评分不能为空");
@@ -952,9 +1110,6 @@ public class ShopService {
         stores.add(new StoreView("store-1", "松果严选数码", "4.9", "1.2w", "新品数码与官方配件，售后响应快。", "官方严选"));
         stores.add(new StoreView("store-2", "南湖旧书摊", "4.8", "6.4k", "课程教材、考研资料和学长笔记流转地。", "校园认证"));
         stores.add(new StoreView("store-3", "榕树下的小店", "4.7", "4.1k", "家居生活闲置为主，重视真实描述。", "信用卖家"));
-
-        topics.add(new TopicView("topic-1", "好物清单", "宿舍桌面升级，哪些二手数码最值得淘？", "整理低预算但体验提升明显的桌面清单。", "2.3w 浏览", "松果编辑部", "🧩", List.of("宿舍桌搭", "二手数码")));
-        topics.add(new TopicView("topic-2", "避雷经验", "买二手大件前，最好确认这 5 件事", "验货、物流、瑕疵、售后协商和平台担保。", "1.8w 讨论", "同城交易观察", "🛡️", List.of("交易保障", "验货清单")));
 
         products.add(new ProductView(
             "airwave-pro", "new", "数码影音", "AirWave Pro 降噪耳机", "全新正品 · 48 小时发货 · 支持七天无理由",

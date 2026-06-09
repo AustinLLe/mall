@@ -44,6 +44,26 @@ export function fetchTopics() {
 	return get('/api/topics').then(unwrap)
 }
 
+export function fetchTopic(id) {
+	return get('/api/topics/' + encodeURIComponent(id)).then(unwrap)
+}
+
+export function fetchTopicPosts(id) {
+	return get('/api/topics/' + encodeURIComponent(id) + '/posts').then(unwrap)
+}
+
+export function createTopicPost(id, payload) {
+	return post('/api/topics/' + encodeURIComponent(id) + '/posts', payload).then(unwrap)
+}
+
+export function createTopicComment(postId, payload) {
+	return post('/api/topic-posts/' + encodeURIComponent(postId) + '/comments', payload).then(unwrap)
+}
+
+export function toggleTopicPostLike(postId) {
+	return post('/api/topic-posts/' + encodeURIComponent(postId) + '/like', {}).then(unwrap)
+}
+
 export function fetchOrders() {
 	return get('/api/orders').then(unwrap)
 }

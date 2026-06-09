@@ -154,12 +154,59 @@ CREATE TABLE IF NOT EXISTS `conversation` (
     INDEX `idx_buyer_seller_goods` (`buyer_id`, `seller_id`, `goods_id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `community_topic` (
+    `topic_id` INT NOT NULL AUTO_INCREMENT,
+    `type` VARCHAR(60) NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `topic_desc` VARCHAR(1000) NOT NULL,
+    `author` VARCHAR(80) DEFAULT '松果社区',
+    `cover` TEXT DEFAULT NULL,
+    `tags` VARCHAR(500) DEFAULT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT 'normal',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`topic_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `topic_post` (
+    `post_id` INT NOT NULL AUTO_INCREMENT,
+    `topic_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `content` TEXT NOT NULL,
+    `images` TEXT DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`post_id`),
+    INDEX `idx_topic_post` (`topic_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `topic_comment` (
+    `comment_id` INT NOT NULL AUTO_INCREMENT,
+    `post_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `content` VARCHAR(1000) NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`comment_id`),
+    INDEX `idx_post_comment` (`post_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `topic_post_like` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `post_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_topic_post_like` (`post_id`, `user_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
 ALTER TABLE `users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `goods` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `store` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `conversation` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `chat_message` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `product_review` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `community_topic` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `topic_post` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `topic_comment` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `topic_post_like` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 DROP PROCEDURE IF EXISTS `ensure_column`;
 DELIMITER //
@@ -338,3 +385,47 @@ JOIN (
     GROUP BY `seller_id`
 ) r ON r.`seller_id` = s.`seller_id`
 SET s.`score` = r.`score_value`, s.`credit_score` = r.`credit_value`;
+
+INSERT INTO `community_topic` (`topic_id`, `type`, `title`, `topic_desc`, `author`, `cover`, `tags`, `status`)
+VALUES
+    (7001, '新品推荐', '开学新品推荐：哪些数码配件真正提升效率？', '围绕耳机、平板、键盘、台灯等新品，讨论真实使用体验、预算区间和避坑点。', '松果编辑部', '/static/goods/songuo-pad.jpg', '新品推荐,数码影音,学生党,效率工具', 'normal'),
+    (7002, '宿舍好物推荐', '宿舍好物推荐：桌面、收纳和二手小家具合集', '分享宿舍里真正用得上的好物，也欢迎晒出自己的桌搭和改造经验。', '宿舍改造小组', '/static/goods/ergo-chair.jpg', '宿舍好物,家居生活,二手闲置,桌搭', 'normal'),
+    (7003, '防晒避雷帖', '防晒避雷帖：夏季通勤和军训怎么选才不踩坑？', '防晒、遮阳、清洁和晒后修护相关经验集中讨论，少花冤枉钱。', '生活经验社', '/static/goods/desk-lamp.jpg', '防晒避雷,生活经验,新品推荐,避坑', 'normal'),
+    (7004, '学习资料合集', '期末和考研资料流转：哪些资料值得买二手？', '教材、讲义、笔记和题集的购买经验与资料交换讨论。', '南湖旧书摊', '/static/goods/software-book.jpg', '学习资料,图书文创,二手闲置,期末复习', 'normal')
+ON DUPLICATE KEY UPDATE
+    `type` = VALUES(`type`),
+    `title` = VALUES(`title`),
+    `topic_desc` = VALUES(`topic_desc`),
+    `author` = VALUES(`author`),
+    `cover` = VALUES(`cover`),
+    `tags` = VALUES(`tags`),
+    `status` = VALUES(`status`);
+
+INSERT INTO `topic_post` (`post_id`, `topic_id`, `user_id`, `content`, `images`)
+VALUES
+    (7201, 7001, 1, '刚换了 68 键蓝牙键盘，宿舍桌面一下清爽很多。建议优先看连接稳定性和键帽高度，别只看颜值。', '/static/goods/airwave-pro.jpg'),
+    (7202, 7002, 1, '二手人体工学椅真的要当面试坐，腰托和升降比外观更重要。我的经验是先问使用年限，再看底盘有没有异响。', '/static/goods/ergo-chair.jpg'),
+    (7203, 7003, 1, '防晒别盲目囤大瓶，通勤和运动需求不一样。大家可以把空瓶体验和踩雷点发在这里，后面买的人少踩坑。', ''),
+    (7204, 7004, 1, '软件工程课本如果带项目笔记会很值，单纯教材就看价格。买之前可以让卖家拍目录和重点页。', '/static/goods/software-book.jpg')
+ON DUPLICATE KEY UPDATE
+    `topic_id` = VALUES(`topic_id`),
+    `user_id` = VALUES(`user_id`),
+    `content` = VALUES(`content`),
+    `images` = VALUES(`images`);
+
+INSERT INTO `topic_comment` (`comment_id`, `post_id`, `user_id`, `content`)
+VALUES
+    (7301, 7201, 2, '同意，三模切换稳定比灯效重要多了。'),
+    (7302, 7202, 5, '椅子还要看轮子，宿舍地面不平的话很影响体验。'),
+    (7303, 7204, 2, '资料类最好让卖家说明有没有缺页和水渍。')
+ON DUPLICATE KEY UPDATE
+    `post_id` = VALUES(`post_id`),
+    `user_id` = VALUES(`user_id`),
+    `content` = VALUES(`content`);
+
+INSERT IGNORE INTO `topic_post_like` (`post_id`, `user_id`)
+VALUES
+    (7201, 1),
+    (7201, 2),
+    (7202, 1),
+    (7204, 1);
