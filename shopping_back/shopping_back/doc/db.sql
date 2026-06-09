@@ -104,6 +104,22 @@ CREATE TABLE IF NOT EXISTS `orders` (
     PRIMARY KEY (`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `product_review` (
+    `review_id` INT NOT NULL AUTO_INCREMENT,
+    `order_id` INT NOT NULL,
+    `goods_id` INT NOT NULL,
+    `buyer_id` INT NOT NULL,
+    `seller_id` INT NOT NULL,
+    `product_score` INT NOT NULL,
+    `seller_score` INT NOT NULL,
+    `content` VARCHAR(1000) NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`review_id`),
+    UNIQUE KEY `uk_review_order` (`order_id`),
+    INDEX `idx_review_goods` (`goods_id`, `created_at`),
+    INDEX `idx_review_seller` (`seller_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS `credit_record` (
     `id` INT NOT NULL AUTO_INCREMENT,
     `user_id` INT NOT NULL,
@@ -143,6 +159,7 @@ ALTER TABLE `goods` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `store` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `conversation` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `chat_message` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `product_review` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 DROP PROCEDURE IF EXISTS `ensure_column`;
 DELIMITER //
@@ -284,3 +301,40 @@ ON DUPLICATE KEY UPDATE
     `image` = VALUES(`image`),
     `status` = VALUES(`status`),
     `reviewed_at` = VALUES(`reviewed_at`);
+
+INSERT INTO `orders` (`order_id`, `buyer_id`, `seller_id`, `goods_id`, `status`, `amount`)
+VALUES
+    (9001, 1, 2, 1003, 'completed', 680.00),
+    (9002, 1, 5, 1004, 'completed', 18.00),
+    (9003, 1, 4, 1005, 'completed', 420.00)
+ON DUPLICATE KEY UPDATE
+    `buyer_id` = VALUES(`buyer_id`),
+    `seller_id` = VALUES(`seller_id`),
+    `goods_id` = VALUES(`goods_id`),
+    `status` = VALUES(`status`),
+    `amount` = VALUES(`amount`);
+
+INSERT INTO `product_review` (`review_id`, `order_id`, `goods_id`, `buyer_id`, `seller_id`, `product_score`, `seller_score`, `content`)
+VALUES
+    (9101, 9001, 1003, 1, 2, 5, 5, '显示器和描述一致，屏幕没有坏点，卖家沟通很及时，当面验货很顺利。'),
+    (9102, 9002, 1004, 1, 5, 4, 5, '教材重点标注很清楚，复习提纲有帮助，书角有轻微磨损但不影响使用。')
+ON DUPLICATE KEY UPDATE
+    `product_score` = VALUES(`product_score`),
+    `seller_score` = VALUES(`seller_score`),
+    `content` = VALUES(`content`);
+
+UPDATE `users` u
+JOIN (
+    SELECT `seller_id`, ROUND(AVG(`seller_score`) * 20) AS `credit_value`
+    FROM `product_review`
+    GROUP BY `seller_id`
+) r ON r.`seller_id` = u.`user_id`
+SET u.`credit` = r.`credit_value`;
+
+UPDATE `store` s
+JOIN (
+    SELECT `seller_id`, ROUND(AVG(`seller_score`), 1) AS `score_value`, ROUND(AVG(`seller_score`) * 20) AS `credit_value`
+    FROM `product_review`
+    GROUP BY `seller_id`
+) r ON r.`seller_id` = s.`seller_id`
+SET s.`score` = r.`score_value`, s.`credit_score` = r.`credit_value`;

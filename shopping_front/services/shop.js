@@ -48,6 +48,14 @@ export function fetchOrders() {
 	return get('/api/orders').then(unwrap)
 }
 
+export function createOrders(items = []) {
+	return post('/api/orders', { items }).then(unwrap)
+}
+
+export function submitOrderReview(orderId, payload) {
+	return post('/api/orders/' + encodeURIComponent(orderId) + '/review', payload).then(unwrap)
+}
+
 export function publishProduct(payload) {
 	return post('/api/products', payload).then(unwrap)
 }

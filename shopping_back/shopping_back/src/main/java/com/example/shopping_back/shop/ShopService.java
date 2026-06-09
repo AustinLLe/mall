@@ -7,18 +7,23 @@ import com.example.shopping_back.shop.ShopDtos.AiPublishSuggestionRequest;
 import com.example.shopping_back.shop.ShopDtos.AiPublishSuggestionResponse;
 import com.example.shopping_back.shop.ShopDtos.AuditRequest;
 import com.example.shopping_back.shop.ShopDtos.AuditResult;
+import com.example.shopping_back.shop.ShopDtos.CreateOrderRequest;
 import com.example.shopping_back.shop.ShopDtos.KeyValue;
 import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
 import com.example.shopping_back.shop.ShopDtos.ReviewView;
+import com.example.shopping_back.shop.ShopDtos.ReviewRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
 import com.example.shopping_back.shop.ShopDtos.TimelineNode;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
+import com.example.shopping_back.shop.mapper.ShopOrderMapper;
 import com.example.shopping_back.shop.mapper.ShopProductMapper;
 import com.example.shopping_back.shop.mapper.ShopStoreMapper;
+import com.example.shopping_back.shop.model.OrderRecord;
 import com.example.shopping_back.shop.model.ProductRecord;
+import com.example.shopping_back.shop.model.ProductReviewRecord;
 import com.example.shopping_back.shop.model.StoreRecord;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -51,6 +56,7 @@ public class ShopService {
     private final List<TopicView> topics = new ArrayList<>();
     private final ShopProductMapper productMapper;
     private final ShopStoreMapper storeMapper;
+    private final ShopOrderMapper orderMapper;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final String openAiApiKey;
@@ -63,6 +69,7 @@ public class ShopService {
     public ShopService(
             ShopProductMapper productMapper,
             ShopStoreMapper storeMapper,
+            ShopOrderMapper orderMapper,
             ObjectMapper objectMapper,
             @Value("${openai.api.key:}") String openAiApiKey,
             @Value("${openai.model:gpt-4.1-mini}") String openAiModel,
@@ -73,6 +80,7 @@ public class ShopService {
     ) {
         this.productMapper = productMapper;
         this.storeMapper = storeMapper;
+        this.orderMapper = orderMapper;
         this.objectMapper = objectMapper;
         this.openAiApiKey = openAiApiKey == null ? "" : openAiApiKey.trim();
         this.openAiModel = openAiModel == null || openAiModel.isBlank() ? "gpt-4.1-mini" : openAiModel.trim();
@@ -88,6 +96,7 @@ public class ShopService {
         seed();
         ensureProductSchema();
         ensureStoreSchema();
+        ensureOrderSchema();
     }
 
     public List<ProductView> products(String scene, String keyword) {
@@ -188,11 +197,64 @@ public class ShopService {
         return topics;
     }
 
-    public List<OrderView> orders() {
-        return List.of(
-                new OrderView("o1", "松果严选数码", "待收货", "AirWave Pro 降噪耳机", "/static/goods/airwave-pro.jpg", "新品", "平台担保", new BigDecimal("699")),
-                new OrderView("o2", "阿洛的桌面仓库", "待评价", "ViewTop 27 英寸 2K 显示器", "/static/goods/viewtop-monitor.jpg", "二手", "同城验货", new BigDecimal("680"))
-        );
+    public List<OrderView> orders(AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后查看订单");
+        }
+        ensureOrderSchema();
+        return orderMapper.selectBuyerOrders(user.getUserId()).stream().map(this::toOrderView).toList();
+    }
+
+    public List<OrderView> createOrders(CreateOrderRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后下单");
+        }
+        if (request == null || request.items() == null || request.items().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "订单商品不能为空");
+        }
+        ensureOrderSchema();
+        for (ShopDtos.CreateOrderItem item : request.items()) {
+            Integer goodsId = parseDbId(item.goodsId());
+            ProductRecord product = productMapper.selectById(goodsId);
+            if (product == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "商品不存在");
+            }
+            if (user.getUserId().equals(product.getSellerId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能购买自己发布的商品");
+            }
+            int quantity = item.quantity() == null || item.quantity() <= 0 ? 1 : item.quantity();
+            BigDecimal price = product.getPrice() == null ? BigDecimal.ZERO : product.getPrice();
+            orderMapper.insertOrder(user.getUserId(), product.getSellerId(), goodsId, "completed", price.multiply(new BigDecimal(quantity)));
+        }
+        return orders(user);
+    }
+
+    public OrderView reviewOrder(String orderId, ReviewRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后评价");
+        }
+        ensureOrderSchema();
+        Integer id = parseDbId(orderId);
+        OrderRecord order = orderMapper.selectOrder(id);
+        if (order == null || !user.getUserId().equals(order.getBuyerId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "订单不存在");
+        }
+        if (!"completed".equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "订单完成后才能评价");
+        }
+        if (orderMapper.reviewCountByOrder(id) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该订单已评价");
+        }
+        int productScore = normalizeScore(request == null ? null : request.productScore());
+        int sellerScore = normalizeScore(request == null ? null : request.sellerScore());
+        String content = request == null ? "" : defaultText(request.content(), "").trim();
+        if (content.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评价内容不能为空");
+        }
+        orderMapper.insertReview(id, order.getGoodsId(), user.getUserId(), order.getSellerId(), productScore, sellerScore, content);
+        orderMapper.refreshSellerCredit(order.getSellerId());
+        orderMapper.refreshStoreCredit(order.getSellerId());
+        return toOrderView(orderMapper.selectOrder(id));
     }
 
     public ProductView publish(PublishRequest request, AuthUserView user) {
@@ -508,6 +570,14 @@ public class ShopService {
         }
     }
 
+    private void ensureOrderSchema() {
+        try {
+            orderMapper.createOrdersTable();
+            orderMapper.createReviewTable();
+        } catch (RuntimeException ignored) {
+        }
+    }
+
     private boolean usesWideGoodsStatus() {
         try {
             Integer length = productMapper.statusColumnLength();
@@ -670,7 +740,7 @@ public class ShopService {
                 List.of("真实描述", "pending".equals(status) ? "待审核" : "平台审核记录"),
                 story,
                 buildParamsFromRecord(record, status),
-                List.of(),
+                reviewsForGoods(record.getGoodsId()),
                 buildTimeline(scene, story, publishedAt, record.getReviewedAt()),
                 List.of("可询问成色和配件", "可生成验货清单", "可根据最低价辅助议价"),
                 status,
@@ -747,6 +817,62 @@ public class ShopService {
                 new TimelineNode(reviewTime, "审核通过", reviewedAt == null ? "管理员正在核验描述、图片和价格合理性。" : "平台审核通过，商品流转信息已记录。", "✅"),
                 new TimelineNode("进行中", "等待新主人", "等待合适的买家接手，继续延长物品的使用价值。", "🏠")
         );
+    }
+
+    private List<ReviewView> reviewsForGoods(Integer goodsId) {
+        if (goodsId == null) {
+            return List.of();
+        }
+        try {
+            ensureOrderSchema();
+            return orderMapper.selectProductReviews(goodsId).stream()
+                    .map(this::toReviewView)
+                    .toList();
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    private ReviewView toReviewView(ProductReviewRecord record) {
+        return new ReviewView(
+                defaultText(record.getBuyerName(), "买家"),
+                defaultText(record.getContent(), "买家未填写文字评价"),
+                String.valueOf(record.getProductScore() == null ? 5 : record.getProductScore()),
+                List.of("商品 " + safeScore(record.getProductScore()) + " 星", "卖家 " + safeScore(record.getSellerScore()) + " 星")
+        );
+    }
+
+    private OrderView toOrderView(OrderRecord record) {
+        boolean reviewed = record.getReviewedAt() != null || record.getProductScore() != null;
+        boolean completed = "completed".equals(record.getStatus());
+        String status = reviewed ? "已评价" : completed ? "已完成" : "待收货";
+        return new OrderView(
+                String.valueOf(record.getOrderId()),
+                defaultText(record.getSellerName(), "卖家"),
+                status,
+                defaultText(record.getGoodsName(), "商品"),
+                defaultText(record.getGoodsImage(), ""),
+                "new".equals(record.getScene()) ? "新品" : "二手",
+                "平台担保",
+                record.getAmount() == null ? BigDecimal.ZERO : record.getAmount(),
+                record.getGoodsId() == null ? "" : String.valueOf(record.getGoodsId()),
+                completed && !reviewed,
+                reviewed,
+                record.getProductScore(),
+                record.getSellerScore(),
+                defaultText(record.getReviewContent(), "")
+        );
+    }
+
+    private int normalizeScore(Integer score) {
+        if (score == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评分不能为空");
+        }
+        return Math.max(1, Math.min(5, score));
+    }
+
+    private int safeScore(Integer score) {
+        return score == null ? 5 : Math.max(1, Math.min(5, score));
     }
 
     private BigDecimal estimateUsedPrice(String category, String condition) {

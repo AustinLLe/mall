@@ -9,9 +9,11 @@ import com.example.shopping_back.shop.ShopDtos.AiAssistRequest;
 import com.example.shopping_back.shop.ShopDtos.AiAssistResponse;
 import com.example.shopping_back.shop.ShopDtos.AuditRequest;
 import com.example.shopping_back.shop.ShopDtos.AuditResult;
+import com.example.shopping_back.shop.ShopDtos.CreateOrderRequest;
 import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
+import com.example.shopping_back.shop.ShopDtos.ReviewRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
@@ -96,8 +98,23 @@ public class ShopController {
     }
 
     @GetMapping("/orders")
-    public ApiResult<List<OrderView>> orders() {
-        return ApiResult.ok(shopService.orders());
+    public ApiResult<List<OrderView>> orders(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.orders(currentUserOrNull(authorization)));
+    }
+
+    @PostMapping("/orders")
+    public ApiResult<List<OrderView>> createOrders(
+            @RequestBody CreateOrderRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.createOrders(request, currentUserOrNull(authorization)));
+    }
+
+    @PostMapping("/orders/{id}/review")
+    public ApiResult<OrderView> reviewOrder(
+            @PathVariable String id,
+            @Valid @RequestBody ReviewRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.reviewOrder(id, request, currentUserOrNull(authorization)));
     }
 
     @PostMapping("/products")
