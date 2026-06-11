@@ -171,6 +171,8 @@ CREATE TABLE IF NOT EXISTS `topic_post` (
     `post_id` INT NOT NULL AUTO_INCREMENT,
     `topic_id` INT NOT NULL,
     `user_id` INT NOT NULL,
+    `product_id` INT DEFAULT NULL,
+    `store_id` INT DEFAULT NULL,
     `content` TEXT NOT NULL,
     `images` TEXT DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -197,6 +199,17 @@ CREATE TABLE IF NOT EXISTS `topic_post_like` (
     UNIQUE KEY `uk_topic_post_like` (`post_id`, `user_id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `topic_post_action` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `post_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `action_type` VARCHAR(20) NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_topic_post_action` (`post_id`, `user_id`, `action_type`),
+    INDEX `idx_topic_post_action` (`post_id`, `action_type`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
 ALTER TABLE `users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `goods` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `store` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
@@ -207,6 +220,7 @@ ALTER TABLE `community_topic` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_g
 ALTER TABLE `topic_post` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `topic_comment` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `topic_post_like` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `topic_post_action` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 DROP PROCEDURE IF EXISTS `ensure_column`;
 DELIMITER //
@@ -249,6 +263,9 @@ CALL `ensure_column`('goods', 'status', '`status` VARCHAR(20) NOT NULL DEFAULT '
 CALL `ensure_column`('goods', 'reject_reason', '`reject_reason` VARCHAR(255) DEFAULT NULL');
 CALL `ensure_column`('goods', 'reviewed_at', '`reviewed_at` DATETIME DEFAULT NULL');
 CALL `ensure_column`('goods', 'create_time', '`create_time` DATETIME DEFAULT CURRENT_TIMESTAMP');
+
+CALL `ensure_column`('topic_post', 'product_id', '`product_id` INT DEFAULT NULL');
+CALL `ensure_column`('topic_post', 'store_id', '`store_id` INT DEFAULT NULL');
 
 ALTER TABLE `goods`
     MODIFY COLUMN `status` VARCHAR(20) NOT NULL DEFAULT 'approved';
@@ -401,15 +418,17 @@ ON DUPLICATE KEY UPDATE
     `tags` = VALUES(`tags`),
     `status` = VALUES(`status`);
 
-INSERT INTO `topic_post` (`post_id`, `topic_id`, `user_id`, `content`, `images`)
+INSERT INTO `topic_post` (`post_id`, `topic_id`, `user_id`, `product_id`, `store_id`, `content`, `images`)
 VALUES
-    (7201, 7001, 1, '刚换了 68 键蓝牙键盘，宿舍桌面一下清爽很多。建议优先看连接稳定性和键帽高度，别只看颜值。', '/static/goods/airwave-pro.jpg'),
-    (7202, 7002, 1, '二手人体工学椅真的要当面试坐，腰托和升降比外观更重要。我的经验是先问使用年限，再看底盘有没有异响。', '/static/goods/ergo-chair.jpg'),
-    (7203, 7003, 1, '防晒别盲目囤大瓶，通勤和运动需求不一样。大家可以把空瓶体验和踩雷点发在这里，后面买的人少踩坑。', ''),
-    (7204, 7004, 1, '软件工程课本如果带项目笔记会很值，单纯教材就看价格。买之前可以让卖家拍目录和重点页。', '/static/goods/software-book.jpg')
+    (7201, 7001, 1, 1007, 1, '刚换了 68 键蓝牙键盘，宿舍桌面一下清爽很多。建议优先看连接稳定性和键帽高度，别只看颜值。', '/static/goods/airwave-pro.jpg'),
+    (7202, 7002, 1, 1005, 3, '二手人体工学椅真的要当面试坐，腰托和升降比外观更重要。我的经验是先问使用年限，再看底盘有没有异响。', '/static/goods/ergo-chair.jpg'),
+    (7203, 7003, 1, NULL, NULL, '防晒别盲目囤大瓶，通勤和运动需求不一样。大家可以把空瓶体验和踩雷点发在这里，后面买的人少踩坑。', ''),
+    (7204, 7004, 1, 1004, 2, '软件工程课本如果带项目笔记会很值，单纯教材就看价格。买之前可以让卖家拍目录和重点页。', '/static/goods/software-book.jpg')
 ON DUPLICATE KEY UPDATE
     `topic_id` = VALUES(`topic_id`),
     `user_id` = VALUES(`user_id`),
+    `product_id` = VALUES(`product_id`),
+    `store_id` = VALUES(`store_id`),
     `content` = VALUES(`content`),
     `images` = VALUES(`images`);
 
@@ -429,3 +448,10 @@ VALUES
     (7201, 2),
     (7202, 1),
     (7204, 1);
+
+INSERT IGNORE INTO `topic_post_action` (`post_id`, `user_id`, `action_type`)
+VALUES
+    (7201, 2, 'want'),
+    (7201, 1, 'collect'),
+    (7202, 5, 'want'),
+    (7204, 2, 'collect');

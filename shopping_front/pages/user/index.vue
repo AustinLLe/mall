@@ -18,6 +18,7 @@
           <text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
           <text class="nav-link on">我的</text>
         </view>
+        <view class="top-actions"></view>
       </view>
     </view>
 
@@ -529,14 +530,15 @@ export default {
   position: sticky;
   top: 0;
   z-index: 10;
-  margin: -22px -22px 22px;
+  margin: 0 0 22px;
   background: rgba(255,255,255,.94);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid rgba(203, 213, 225, .55);
+  box-shadow: 0 10px 40px rgba(60,64,67,.06);
 }
 .topbar-inner {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: 300px 320px minmax(0, 1fr);
   align-items: center;
   gap: 18px;
   height: 82px;
@@ -589,7 +591,7 @@ export default {
   color: #667085;
 }
 .web-nav {
-  justify-self: end;
+  justify-self: center;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -599,6 +601,10 @@ export default {
   background: #fff;
   border: 1px solid rgba(203, 213, 225, .72);
   box-sizing: border-box;
+  box-shadow: 0 14px 38px rgba(60,64,67,.08);
+}
+.top-actions {
+  min-height: 1px;
 }
 .nav-link {
   width: 82px;

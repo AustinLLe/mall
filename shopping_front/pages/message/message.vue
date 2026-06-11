@@ -617,8 +617,8 @@
 		grid-template-columns: 300px 320px minmax(0, 1fr);
 		align-items: center;
 		gap: 18px;
-		height: 76px;
-		padding: 0 20px;
+		height: 82px;
+		padding: 0 22px;
 	}
 	.brand {
 		display: flex;
@@ -626,8 +626,8 @@
 		gap: 12px;
 	}
 	.brand-mark {
-		width: 38px;
-		height: 38px;
+		width: 42px;
+		height: 42px;
 		border-radius: 8px;
 		overflow: hidden;
 	}
@@ -655,7 +655,7 @@
 		align-items: center;
 		gap: 4px;
 		padding: 5px;
-		height: 48px;
+		height: 50px;
 		border-radius: 999px;
 		background: rgba(255,255,255,.72);
 		border: 1px solid rgba(203, 213, 225, .72);
@@ -663,7 +663,7 @@
 	}
 	.nav-link {
 		width: 82px;
-		height: 36px;
+		height: 38px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -679,7 +679,7 @@
 		box-shadow: 0 8px 22px rgba(15, 23, 42, .08);
 	}
 	.page-shell {
-		height: calc(100vh - 76px);
+		height: calc(100vh - 82px);
 		padding: 14px;
 		box-sizing: border-box;
 		overflow: hidden;

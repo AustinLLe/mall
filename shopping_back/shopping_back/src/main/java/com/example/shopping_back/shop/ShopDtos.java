@@ -124,10 +124,16 @@ public final class ShopDtos {
             String author,
             String content,
             List<String> images,
+            ProductView product,
+            StoreView store,
             String createdAt,
             Integer likeCount,
+            Integer wantCount,
+            Integer collectCount,
             Integer commentCount,
             boolean liked,
+            boolean wanted,
+            boolean collected,
             List<TopicCommentView> comments
     ) {
     }
@@ -135,10 +141,27 @@ public final class ShopDtos {
     public record TopicCommentView(String id, String author, String content, String createdAt) {
     }
 
-    public record TopicPostRequest(@NotBlank(message = "帖子内容不能为空") String content, List<String> images) {
+    public record TopicPostRequest(
+            @NotBlank(message = "帖子内容不能为空") String content,
+            List<String> images,
+            String productId,
+            String storeId
+    ) {
     }
 
     public record TopicCommentRequest(@NotBlank(message = "评论内容不能为空") String content) {
+    }
+
+    public record TopicActionRequest(@NotBlank(message = "操作类型不能为空") String actionType) {
+    }
+
+    public record TopicCreateRequest(
+            @NotBlank(message = "话题标题不能为空") String title,
+            @NotBlank(message = "话题简介不能为空") String desc,
+            String type,
+            String cover,
+            List<String> tags
+    ) {
     }
 
     public record OrderView(

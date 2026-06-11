@@ -40,8 +40,16 @@ export function unfollowStore(id) {
 	return del('/api/stores/' + encodeURIComponent(id) + '/follow').then(unwrap)
 }
 
-export function fetchTopics() {
-	return get('/api/topics').then(unwrap)
+export function fetchTopics(params = {}) {
+	const query = []
+	if (params.tag) query.push('tag=' + encodeURIComponent(params.tag))
+	if (params.keyword) query.push('keyword=' + encodeURIComponent(params.keyword))
+	const suffix = query.length ? '?' + query.join('&') : ''
+	return get('/api/topics' + suffix).then(unwrap)
+}
+
+export function createTopic(payload) {
+	return post('/api/topics', payload).then(unwrap)
 }
 
 export function fetchTopic(id) {
@@ -62,6 +70,10 @@ export function createTopicComment(postId, payload) {
 
 export function toggleTopicPostLike(postId) {
 	return post('/api/topic-posts/' + encodeURIComponent(postId) + '/like', {}).then(unwrap)
+}
+
+export function toggleTopicPostAction(postId, actionType) {
+	return post('/api/topic-posts/' + encodeURIComponent(postId) + '/action', { actionType }).then(unwrap)
 }
 
 export function fetchOrders() {

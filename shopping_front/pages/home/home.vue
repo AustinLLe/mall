@@ -419,10 +419,10 @@
 	}
 	.topbar-inner {
 		display: grid;
-		grid-template-columns: 360px 320px minmax(0, 1fr);
+		grid-template-columns: 300px 320px minmax(0, 1fr);
 		align-items: center;
 		gap: 18px;
-		height: 96px;
+		height: 82px;
 		padding: 0 22px;
 	}
 	.brand {
@@ -432,8 +432,8 @@
 		flex-shrink: 0;
 	}
 	.brand-mark {
-		width: 64px;
-		height: 64px;
+		width: 42px;
+		height: 42px;
 		border-radius: 8px;
 		display: flex;
 		align-items: center;
@@ -471,7 +471,7 @@
 	}
 	.brand-name {
 		display: block;
-		font-size: 28px;
+		font-size: 20px;
 		line-height: 1.1;
 		font-weight: 900;
 		color: #202124;
@@ -485,8 +485,8 @@
 	}
 	.brand-sub {
 		display: block;
-		margin-top: 8px;
-		font-size: 14px;
+		margin-top: 2px;
+		font-size: 12px;
 		line-height: 1.25;
 		color: #667085;
 	}

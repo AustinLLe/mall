@@ -20,6 +20,7 @@ import com.example.shopping_back.shop.ShopDtos.TimelineNode;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
 import com.example.shopping_back.shop.ShopDtos.TopicCommentRequest;
 import com.example.shopping_back.shop.ShopDtos.TopicCommentView;
+import com.example.shopping_back.shop.ShopDtos.TopicCreateRequest;
 import com.example.shopping_back.shop.ShopDtos.TopicPostRequest;
 import com.example.shopping_back.shop.ShopDtos.TopicPostView;
 import com.example.shopping_back.shop.mapper.ShopOrderMapper;
@@ -204,10 +205,10 @@ public class ShopService {
         return store(id, user);
     }
 
-    public List<TopicView> topics(String tag) {
+    public List<TopicView> topics(String tag, String keyword) {
         try {
             ensureTopicSchema();
-            return topicMapper.selectTopics(tag).stream().map(this::toTopicView).toList();
+            return topicMapper.selectTopics(tag, keyword).stream().map(this::toTopicView).toList();
         } catch (RuntimeException ignored) {
             return List.of();
         }
@@ -220,6 +221,32 @@ public class ShopService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "话题不存在");
         }
         return toTopicView(record);
+    }
+
+    public TopicView createTopic(TopicCreateRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后创建话题");
+        }
+        if (!"buyer".equals(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "当前仅买家可以创建话题");
+        }
+        String title = request == null ? "" : defaultText(request.title(), "").trim();
+        String desc = request == null ? "" : defaultText(request.desc(), "").trim();
+        if (title.isBlank() || desc.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "话题标题和简介不能为空");
+        }
+        TopicRecord record = new TopicRecord();
+        record.setType(defaultText(request.type(), "买家话题"));
+        record.setTitle(title);
+        record.setTopicDesc(desc);
+        record.setAuthor(defaultText(user.getUsername(), "买家"));
+        record.setCover(defaultText(request.cover(), "/static/goods/viewtop-monitor.jpg"));
+        record.setTags(joinTopicTags(request.tags()));
+        record.setStatus("normal");
+        ensureTopicSchema();
+        topicMapper.insertTopic(record);
+        TopicRecord created = topicMapper.selectTopic(record.getTopicId());
+        return toTopicView(created == null ? record : created);
     }
 
     public List<TopicPostView> topicPosts(String topicId, AuthUserView user) {
@@ -243,7 +270,15 @@ public class ShopService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "帖子内容不能为空");
         }
         String images = request == null || request.images() == null ? "" : String.join(",", request.images());
-        topicMapper.insertPost(id, user.getUserId(), content, images);
+        Integer productId = request == null || isBlank(request.productId()) ? null : parseDbId(request.productId());
+        Integer storeId = request == null || isBlank(request.storeId()) ? null : parseDbId(request.storeId());
+        if (productId != null && productMapper.selectById(productId) == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "推荐商品不存在");
+        }
+        if (storeId != null && storeMapper.selectById(storeId) == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "推荐店铺不存在");
+        }
+        topicMapper.insertPost(id, user.getUserId(), productId, storeId, content, images);
         return topicPosts(topicId, user);
     }
 
@@ -262,6 +297,25 @@ public class ShopService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评论内容不能为空");
         }
         topicMapper.insertComment(id, user.getUserId(), content);
+        return topicPosts(String.valueOf(topicId), user);
+    }
+
+    public List<TopicPostView> toggleTopicPostAction(String postId, String actionType, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后操作");
+        }
+        ensureTopicSchema();
+        Integer id = parseDbId(postId);
+        Integer topicId = topicMapper.topicIdByPost(id);
+        if (topicId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
+        }
+        String action = normalizeTopicAction(actionType);
+        if (topicMapper.actionExists(id, user.getUserId(), action) > 0) {
+            topicMapper.deleteAction(id, user.getUserId(), action);
+        } else {
+            topicMapper.insertAction(id, user.getUserId(), action);
+        }
         return topicPosts(String.valueOf(topicId), user);
     }
 
@@ -670,6 +724,13 @@ public class ShopService {
             topicMapper.createPostTable();
             topicMapper.createCommentTable();
             topicMapper.createLikeTable();
+            topicMapper.createActionTable();
+            if (topicMapper.countPostColumn("product_id") == 0) {
+                topicMapper.addPostProductIdColumn();
+            }
+            if (topicMapper.countPostColumn("store_id") == 0) {
+                topicMapper.addPostStoreIdColumn();
+            }
         } catch (RuntimeException ignored) {
         }
     }
@@ -985,12 +1046,34 @@ public class ShopService {
                 defaultText(record.getUsername(), "松果用户"),
                 defaultText(record.getContent(), ""),
                 parseImages(record.getImages()),
+                postProduct(record.getProductId()),
+                postStore(record.getStoreId()),
                 formatTime(record.getCreatedAt()),
                 record.getLikeCount() == null ? 0 : record.getLikeCount(),
+                record.getWantCount() == null ? 0 : record.getWantCount(),
+                record.getCollectCount() == null ? 0 : record.getCollectCount(),
                 record.getCommentCount() == null ? 0 : record.getCommentCount(),
                 record.getLiked() != null && record.getLiked() > 0,
+                record.getWanted() != null && record.getWanted() > 0,
+                record.getCollected() != null && record.getCollected() > 0,
                 topicMapper.selectComments(record.getPostId()).stream().map(this::toTopicCommentView).toList()
         );
+    }
+
+    private ProductView postProduct(Integer productId) {
+        if (productId == null) {
+            return null;
+        }
+        ProductRecord record = productMapper.selectById(productId);
+        return record == null ? null : toView(record);
+    }
+
+    private StoreView postStore(Integer storeId) {
+        if (storeId == null) {
+            return null;
+        }
+        StoreRecord record = storeMapper.selectById(storeId);
+        return record == null ? null : toStoreView(record);
     }
 
     private TopicCommentView toTopicCommentView(TopicCommentRecord record) {
@@ -1012,6 +1095,19 @@ public class ShopService {
                 .toList();
     }
 
+    private String joinTopicTags(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return "买家话题";
+        }
+        return tags.stream()
+                .map(item -> defaultText(item, "").trim())
+                .filter(item -> !item.isEmpty())
+                .distinct()
+                .limit(6)
+                .reduce((left, right) -> left + "," + right)
+                .orElse("买家话题");
+    }
+
     private List<String> parseImages(String raw) {
         if (raw == null || raw.isBlank()) {
             return List.of();
@@ -1020,6 +1116,14 @@ public class ShopService {
                 .map(String::trim)
                 .filter(item -> !item.isEmpty())
                 .toList();
+    }
+
+    private String normalizeTopicAction(String actionType) {
+        String value = defaultText(actionType, "").toLowerCase(Locale.ROOT);
+        if ("want".equals(value) || "collect".equals(value)) {
+            return value;
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不支持的操作");
     }
 
     private int normalizeScore(Integer score) {
