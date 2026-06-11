@@ -27,7 +27,7 @@
 					<view class="pane-head">
 						<view>
 							<text class="pane-kicker">Messages</text>
-							<text class="pane-title">消息中心</text>
+							<text class="pane-title">{{ messageTitle }}</text>
 						</view>
 						<view class="total-pill">{{ filteredList.length }}</view>
 					</view>
@@ -62,7 +62,7 @@
 
 						<view v-if="!loadingList && filteredList.length === 0" class="empty-list">
 							<text class="empty-title">暂无会话</text>
-							<text class="empty-sub">从商品详情页点击“去问问”后，会话会出现在这里。</text>
+							<text class="empty-sub">{{ emptyConversationText }}</text>
 						</view>
 					</scroll-view>
 				</view>
@@ -78,7 +78,7 @@
 								</view>
 							</view>
 							<view class="header-actions">
-								<button class="ghost-btn" @click="triggerAiBargain">AI 议价</button>
+								<button v-if="!isSeller" class="ghost-btn" :disabled="aiBargaining" @click="triggerAiBargain">{{ aiBargaining ? '生成中' : 'AI 议价' }}</button>
 								<button class="ghost-btn" @click="refreshCurrent">刷新</button>
 							</view>
 						</view>
@@ -113,6 +113,7 @@
 									<view v-else class="bubble">
 										<text>{{ msg.content }}</text>
 									</view>
+									<text v-if="msg.senderId === myUserId" class="read-receipt" :class="{ read: msg.isRead }">{{ msg.isRead ? '已读' : '未读' }}</text>
 								</view>
 							</view>
 
@@ -155,18 +156,18 @@
 							<view class="tool-row">
 								<button class="tool-btn" :class="{ active: showEmojiPicker }" @click="toggleEmojiPicker">☺</button>
 								<button class="tool-btn" @click="sendProductCard">▧</button>
-								<button class="tool-btn" @click="appendText('我想再了解一下商品成色和配件。')">♡</button>
+								<button class="tool-btn" @click="appendText(defaultAppendText)">♡</button>
 								<text class="counter">{{ messageInput.length }} / 500</text>
 							</view>
 							<textarea
 								v-model="messageInput"
 								class="message-input"
 								maxlength="500"
-								placeholder="请输入您想要咨询的内容..."
+								:placeholder="inputPlaceholder"
 								@confirm="sendMessage"
 							/>
 							<view class="composer-actions">
-								<button class="send-btn secondary" @click="sendProductCard">发送宝贝</button>
+								<button class="send-btn secondary" @click="sendProductCard">{{ productCardButtonText }}</button>
 								<button class="send-btn" :disabled="sending || !messageInput.trim()" @click="sendMessage">发送</button>
 							</view>
 						</view>
@@ -174,7 +175,7 @@
 
 					<view v-else class="chat-empty-state">
 						<text class="empty-title">请选择一个会话</text>
-						<text class="empty-sub">左侧会展示你和卖家的所有商品咨询。</text>
+						<text class="empty-sub">{{ emptyChatText }}</text>
 					</view>
 				</view>
 
@@ -183,11 +184,55 @@
 						<view class="seller-card">
 							<view class="seller-avatar">{{ activeConversation.icon }}</view>
 							<view class="seller-main">
-								<text class="seller-name">{{ currentShopName }}</text>
-								<text class="seller-desc">{{ activeConversation.title }} · {{ activeConversation.goodsCategory || '商品咨询' }}</text>
+								<text class="seller-name">{{ sidePrimaryName }}</text>
+								<text class="seller-desc">{{ sideSecondaryText }}</text>
 							</view>
 						</view>
 
+						<template v-if="isSeller">
+							<view class="side-section">
+								<text class="block-title">卖家处理</text>
+								<view class="seller-action-grid">
+									<button class="seller-fn-btn" @click="appendText('您好，这件商品目前还在，可以继续沟通细节。')">回复在售</button>
+									<button class="seller-fn-btn" @click="appendText('支持平台担保交易，您可以放心下单。')">担保说明</button>
+									<button class="seller-fn-btn" @click="appendText('我可以补充商品细节图和配件说明。')">补充细节</button>
+									<button class="seller-fn-btn" @click="sendProductCard">发商品卡</button>
+								</view>
+							</view>
+							<view class="side-section">
+								<text class="block-title">会话状态</text>
+								<view class="status-row">
+									<button class="status-btn" :class="{ on: activeConversation.status === 'pending' }" @click="updateConversationStatus('pending')">待跟进</button>
+									<button class="status-btn" :class="{ on: activeConversation.status === 'dealing' }" @click="updateConversationStatus('dealing')">沟通中</button>
+									<button class="status-btn" :class="{ on: activeConversation.status === 'closed' }" @click="updateConversationStatus('closed')">已结束</button>
+								</view>
+							</view>
+							<view class="side-section">
+								<view class="section-head">
+									<text class="block-title">咨询商品</text>
+									<button class="text-btn" @click="openProduct">查看</button>
+								</view>
+								<view class="focus-product" @click="openProduct">
+									<image v-if="focusProduct.cover" class="focus-img" :src="focusProduct.cover" mode="aspectFill"></image>
+									<view v-else class="focus-placeholder">商品</view>
+									<view class="focus-main">
+										<text class="focus-title">{{ focusProduct.title || activeConversation.goodsName || '商品信息加载中' }}</text>
+										<text class="focus-price">{{ priceLabel(focusProduct.price || activeConversation.goodsPrice) }}</text>
+										<view class="tag-row">
+											<text v-if="focusProduct.scene || activeConversation.goodsScene" class="tag">{{ sceneLabel(focusProduct.scene || activeConversation.goodsScene) }}</text>
+											<text v-if="focusProduct.category || activeConversation.goodsCategory" class="tag">{{ focusProduct.category || activeConversation.goodsCategory }}</text>
+										</view>
+									</view>
+								</view>
+							</view>
+							<view class="side-section">
+								<text class="block-title">经营入口</text>
+								<button class="link-btn" @click="openSellerStore">店铺管理</button>
+								<button class="link-btn" @click="openSellerProducts">我的发布</button>
+							</view>
+						</template>
+
+						<template v-else>
 						<view class="side-section">
 							<view class="section-head">
 								<text class="block-title">正在咨询</text>
@@ -248,11 +293,12 @@
 								<view v-if="similarProducts.length === 0" class="side-empty-mini">暂无同类商品</view>
 							</scroll-view>
 						</view>
+						</template>
 					</template>
 
 					<view v-else class="side-empty">
 						<text class="empty-title">没有选中的会话</text>
-						<text class="empty-sub">商品推荐会在这里展示。</text>
+						<text class="empty-sub">{{ sideEmptyText }}</text>
 					</view>
 				</view>
 			</view>
@@ -262,7 +308,7 @@
 
 <script>
 	import { fetchMe } from '@/services/auth.js'
-	import { get, post } from '@/utils/request.js'
+	import { get, post, put } from '@/utils/request.js'
 
 	const PRODUCT_CARD_PREFIX = '__PRODUCT_CARD__'
 
@@ -276,11 +322,14 @@
 				messages: [],
 				messageInput: '',
 				myUserId: null,
+				currentUser: {},
 				loadingList: false,
 				loadingMessages: false,
 				sending: false,
+				aiBargaining: false,
 				pollTimer: null,
 				scrollTop: 0,
+				pendingFocus: null,
 				showEmojiPicker: false,
 				activeEmojiGroup: 'face',
 				emojiGroups: [
@@ -288,11 +337,40 @@
 					{ key: 'hand', name: '手势', items: ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤙', '👋', '👏', '🙌', '🙏', '💪', '🤝', '🫶', '☝️', '👉', '👈', '👇', '👆', '✋', '🤚', '🖐️', '🫡', '🤲'] },
 					{ key: 'trade', name: '交易', items: ['💬', '💰', '💸', '🧾', '📦', '🚚', '🎁', '🏷️', '💳', '✅', '❌', '⚠️', '📌', '🔍', '🛒', '⭐', '🔥', '💡', '📮', '⏰', '🧡', '💯', '📱', '💻', '🎧', '📚', '🏠', '☕'] },
 					{ key: 'heart', name: '心情', items: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🤍', '🤎', '🖤', '💔', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '✨', '🌟', '🎉', '🌈', '☀️', '🌙', '🍀'] }
-				],
-				quickOptions: ['可以便宜一点吗', '支持平台担保吗', '成色细节能发我看看吗', '今天可以发货吗', '配件齐全吗', '最低多少钱']
+				]
 			}
 		},
 		computed: {
+			isSeller() {
+				return this.currentUser && this.currentUser.role === 'seller'
+			},
+			messageTitle() {
+				return this.isSeller ? '卖家消息' : '消息中心'
+			},
+			emptyConversationText() {
+				return this.isSeller ? '买家咨询你的商品后，会话会出现在这里。' : '从商品详情页点击“去问问”后，会话会出现在这里。'
+			},
+			emptyChatText() {
+				return this.isSeller ? '左侧会展示买家对你店铺商品的咨询。' : '左侧会展示你和卖家的所有商品咨询。'
+			},
+			sideEmptyText() {
+				return this.isSeller ? '选择会话后，这里会显示卖家处理功能。' : '商品推荐会在这里展示。'
+			},
+			inputPlaceholder() {
+				return this.isSeller ? '请输入回复买家的内容...' : '请输入您想要咨询的内容...'
+			},
+			productCardButtonText() {
+				return this.isSeller ? '发送商品' : '发送宝贝'
+			},
+			defaultAppendText() {
+				return this.isSeller ? '您好，我来为您补充一下商品细节。' : '我想再了解一下商品成色和配件。'
+			},
+			quickOptions() {
+				if (this.isSeller) {
+					return ['您好，商品还在', '支持平台担保', '可以补充细节图', '今天可以发货', '配件信息如下', '价格可以小幅协商']
+				}
+				return ['可以便宜一点吗', '支持平台担保吗', '成色细节能发我看看吗', '今天可以发货吗', '配件齐全吗', '最低多少钱']
+			},
 			filteredList() {
 				const word = this.keyword.trim().toLowerCase()
 				if (!word) return this.list
@@ -321,21 +399,33 @@
 					cover: active.goodsImageUrl,
 					category: active.goodsCategory,
 					scene: active.goodsScene,
+					storeId: active.storeId,
 					shopName: active.title
 				}
 			},
 			currentShopName() {
 				return this.focusProduct.shopName || this.focusProduct.publisherName || (this.activeConversation && this.activeConversation.title) || '店铺'
 			},
+			sidePrimaryName() {
+				if (!this.activeConversation) return ''
+				return this.isSeller ? this.activeConversation.title : this.currentShopName
+			},
+			sideSecondaryText() {
+				if (!this.activeConversation) return ''
+				return this.isSeller
+					? `买家咨询 · ${this.activeConversation.goodsCategory || '商品咨询'}`
+					: `${this.activeConversation.title} · ${this.activeConversation.goodsCategory || '商品咨询'}`
+			},
 			recentStoreProducts() {
 				const focus = this.focusProduct
 				if (!focus || !focus.id) return []
 				return this.allProducts
-					.filter(item => String(item.id) !== String(focus.id))
 					.filter(item => {
+						if (focus.storeId && item.storeId) return String(item.storeId) === String(focus.storeId)
 						if (focus.publisherId && item.publisherId) return item.publisherId === focus.publisherId
 						return item.shopName && focus.shopName && item.shopName === focus.shopName
 					})
+					.sort((a, b) => (String(a.id) === String(focus.id) ? -1 : String(b.id) === String(focus.id) ? 1 : 0))
 					.slice(0, 4)
 			},
 			similarProducts() {
@@ -349,7 +439,9 @@
 		},
 		async onShow() {
 			await this.loadMe()
-			await Promise.all([this.fetchProducts(), this.fetchConversationList(true)])
+			this.pendingFocus = this.consumePendingFocus()
+			await Promise.all([this.fetchProducts(), this.fetchConversationList(!this.pendingFocus)])
+			if (this.pendingFocus) await this.applyPendingFocus()
 			this.startPolling()
 		},
 		onHide() {
@@ -362,10 +454,37 @@
 			closeFloaters() {
 				this.showEmojiPicker = false
 			},
+			consumePendingFocus() {
+				try {
+					const focus = uni.getStorageSync('pending_message_focus')
+					uni.removeStorageSync('pending_message_focus')
+					if (!focus || !focus.covId) return null
+					if (focus.time && Date.now() - focus.time > 5 * 60 * 1000) return null
+					return focus
+				} catch (e) {
+					return null
+				}
+			},
+			async applyPendingFocus() {
+				const focus = this.pendingFocus
+				if (!focus) return
+				if (focus.product && focus.product.id && !this.allProducts.some(item => String(item.id) === String(focus.product.id))) {
+					this.allProducts.unshift(focus.product)
+				}
+				const target = this.list.find(item => String(item.covId) === String(focus.covId))
+					|| this.list.find(item => String(item.goodsId) === String(focus.goodsId))
+				if (target) {
+					await this.selectConversation(target)
+				} else if (this.list.length > 0 && !this.activeCovId) {
+					await this.selectConversation(this.list[0])
+				}
+				this.pendingFocus = null
+			},
 			async loadMe() {
 				try {
 					const body = await fetchMe()
-					this.myUserId = body && body.data ? body.data.userId : null
+					this.currentUser = body && body.data ? body.data : {}
+					this.myUserId = this.currentUser.userId || null
 				} catch (e) {
 					if (e.statusCode === 401) uni.showToast({ title: '请先登录', icon: 'none' })
 				}
@@ -373,6 +492,11 @@
 			async fetchProducts() {
 				try {
 					const res = await get('/api/products')
+					if (this.isSeller) {
+						const mine = await get('/api/products/mine')
+						this.allProducts = (mine.data && mine.data.data) ? mine.data.data : []
+						return
+					}
 					this.allProducts = (res.data && res.data.data) ? res.data.data : []
 				} catch (e) {
 					console.error('加载商品失败', e)
@@ -395,7 +519,9 @@
 						goodsPrice: item.goodsPrice,
 						goodsCategory: item.goodsCategory,
 						goodsScene: item.goodsScene,
-						goodsImageUrl: item.goodsImageUrl
+						goodsImageUrl: item.goodsImageUrl,
+						storeId: item.storeId,
+						status: item.status || 'pending'
 					}))
 					if (autoSelect && !this.activeCovId && this.list.length > 0) await this.selectConversation(this.list[0])
 				} catch (e) {
@@ -509,20 +635,48 @@
 					cover: product.cover || product.goodsImageUrl,
 					scene: product.scene,
 					category: product.category,
+					storeId: product.storeId,
 					shopName: product.shopName || this.currentShopName
 				}
 				this.sendContent(`${PRODUCT_CARD_PREFIX}${JSON.stringify(card)}`)
 				this.closeFloaters()
 			},
 			async triggerAiBargain() {
-				if (!this.activeCovId) return
+				if (!this.activeCovId || this.aiBargaining) return
+				this.aiBargaining = true
+				uni.showLoading({ title: 'AI 生成中' })
 				try {
-					await post(`/api/chat/conversations/${this.activeCovId}/ai-bargain`)
+					const res = await post(`/api/chat/conversations/${this.activeCovId}/ai-bargain`)
+					const data = res && res.data && res.data.data ? res.data.data : {}
 					await this.refreshCurrent()
+					uni.showToast({
+						title: data.source === 'ai' ? 'AI 模型已生成' : 'AI 不可用，已用兜底建议',
+						icon: 'none'
+					})
 				} catch (e) {
 					console.error('AI 议价失败', e)
 					uni.showToast({ title: 'AI 议价失败', icon: 'none' })
+				} finally {
+					this.aiBargaining = false
+					uni.hideLoading()
 				}
+			},
+			async updateConversationStatus(status) {
+				if (!this.activeCovId) return
+				try {
+					await put(`/api/chat/conversations/${this.activeCovId}/status`, { status })
+					const active = this.activeConversation
+					if (active) active.status = status
+					uni.showToast({ title: '状态已更新', icon: 'none' })
+				} catch (e) {
+					uni.showToast({ title: '状态更新失败', icon: 'none' })
+				}
+			},
+			openSellerStore() {
+				uni.navigateTo({ url: '/pages/seller/dashboard?tab=store' })
+			},
+			openSellerProducts() {
+				uni.navigateTo({ url: '/pages/user/published' })
 			},
 			openProduct() {
 				if (this.focusProduct && this.focusProduct.id) this.openProductById(this.focusProduct.id)
@@ -536,7 +690,7 @@
 					uni.switchTab({ url })
 					return
 				}
-				uni.reLaunch({ url })
+				uni.navigateTo({ url })
 			},
 			normalizeMessage(msg, prevMsg) {
 				return {
@@ -601,8 +755,8 @@
 		height: 100vh;
 		overflow: hidden;
 		background:
-			radial-gradient(circle at 18% 8%, rgba(255, 240, 219, .72), transparent 34%),
-			linear-gradient(135deg, #f7f8fb 0%, #eef2f7 100%);
+			radial-gradient(circle at 18% 8%, rgba(232, 243, 237, .72), transparent 34%),
+			linear-gradient(135deg, #f7f8fb 0%, #eef3ef 100%);
 	}
 	.topbar {
 		position: sticky;
@@ -674,9 +828,9 @@
 	}
 	.nav-link.on,
 	.nav-link:hover {
-		background: #fff;
-		color: #e11d48;
-		box-shadow: 0 8px 22px rgba(15, 23, 42, .08);
+		background: linear-gradient(135deg, #ffffff, #f5f7fa);
+		color: #12372a;
+		box-shadow: 0 10px 26px rgba(18, 55, 42, .14);
 	}
 	.page-shell {
 		height: calc(100vh - 82px);
@@ -744,8 +898,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #fff1f2;
-		color: #e11d48;
+		background: #e8f3ed;
+		color: #12372a;
 		font-size: 13px;
 		font-weight: 900;
 		box-sizing: border-box;
@@ -789,8 +943,8 @@
 	}
 	.conversation-item:hover,
 	.conversation-item.active {
-		background: linear-gradient(135deg, #fff7ed, #fff);
-		border-color: #fed7aa;
+		background: linear-gradient(135deg, #f8fbf9, #fff);
+		border-color: #cfe6d8;
 	}
 	.conversation-item.active {
 		transform: translateX(2px);
@@ -809,8 +963,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient(135deg, #fff7ed, #fee2e2);
-		color: #e11d48;
+		background: linear-gradient(135deg, #e8f3ed, #f8fbf9);
+		color: #12372a;
 		font-weight: 950;
 	}
 	.avatar,
@@ -827,7 +981,7 @@
 		height: 18px;
 		padding: 0 5px;
 		border-radius: 999px;
-		background: #ef4444;
+		background: #d66a2c;
 		color: #fff;
 		font-size: 12px;
 		line-height: 18px;
@@ -868,7 +1022,7 @@
 		white-space: nowrap;
 	}
 	.goods-line {
-		color: #d97706;
+		color: #12372a;
 	}
 	.chat-header {
 		height: 72px;
@@ -946,8 +1100,8 @@
 	.ghost-btn:hover,
 	.quick-btn:hover,
 	.link-btn:hover {
-		border-color: #fb7185;
-		color: #e11d48;
+		border-color: #cfe6d8;
+		color: #12372a;
 	}
 	.messages {
 		flex: 1;
@@ -1015,8 +1169,19 @@
 		word-break: break-word;
 	}
 	.message-row.mine .bubble {
-		background: linear-gradient(135deg, #ef4444, #f97316);
+		background: linear-gradient(135deg, #12372a, #1f5c43);
 		color: #fff;
+	}
+	.read-receipt {
+		display: block;
+		margin-top: 5px;
+		font-size: 11px;
+		color: #94a3b8;
+		text-align: right;
+	}
+	.read-receipt.read {
+		color: #12372a;
+		font-weight: 850;
 	}
 	.message-product-card {
 		width: 360px;
@@ -1031,7 +1196,7 @@
 		box-sizing: border-box;
 	}
 	.message-row.mine .message-product-card {
-		border-color: #fecaca;
+		border-color: #cfe6d8;
 	}
 	.card-thumb {
 		width: 84px;
@@ -1046,7 +1211,7 @@
 	.card-label {
 		display: block;
 		font-size: 12px;
-		color: #e11d48;
+		color: #12372a;
 		font-weight: 900;
 	}
 	.card-title {
@@ -1067,7 +1232,7 @@
 		margin-top: 10px;
 	}
 	.card-price {
-		color: #ef4444;
+		color: #12372a;
 		font-size: 18px;
 		font-weight: 950;
 	}
@@ -1076,8 +1241,8 @@
 	.mini-tag {
 		padding: 3px 7px;
 		border-radius: 999px;
-		background: #fff1f2;
-		color: #e11d48;
+		background: #e8f3ed;
+		color: #12372a;
 		font-size: 11px;
 		font-weight: 800;
 	}
@@ -1145,8 +1310,8 @@
 	}
 	.tool-btn.active,
 	.tool-btn:hover {
-		background: #fff1f2;
-		color: #e11d48;
+		background: #e8f3ed;
+		color: #12372a;
 	}
 	.counter {
 		margin-left: auto;
@@ -1198,8 +1363,8 @@
 		line-height: normal;
 	}
 	.emoji-tab.on {
-		background: #fff1f2;
-		color: #e11d48;
+		background: #e8f3ed;
+		color: #12372a;
 		font-weight: 900;
 	}
 	.emoji-grid {
@@ -1253,7 +1418,7 @@
 		width: 72px;
 		height: 34px;
 		border-radius: 8px;
-		background: #ef4444;
+		background: #12372a;
 		color: #fff;
 		font-size: 14px;
 		font-weight: 950;
@@ -1266,9 +1431,9 @@
 		box-shadow: none;
 	}
 	.send-btn.secondary:hover {
-		background: #fff7ed;
-		color: #ea580c;
-		border-color: #fed7aa;
+		background: #f8fbf9;
+		color: #12372a;
+		border-color: #cfe6d8;
 	}
 	.send-btn[disabled] {
 		background: #cbd5e1;
@@ -1284,8 +1449,8 @@
 		align-items: center;
 		padding: 12px;
 		border-radius: 10px;
-		background: linear-gradient(135deg, #fff7ed, #fff);
-		border: 1px solid #fed7aa;
+		background: linear-gradient(135deg, #f8fbf9, #fff);
+		border: 1px solid #cfe6d8;
 	}
 	.seller-avatar {
 		width: 54px;
@@ -1341,9 +1506,9 @@
 		font-weight: 850;
 	}
 	.text-btn:hover {
-		background: #fff7ed;
-		color: #ea580c;
-		border-color: #fed7aa;
+		background: #f8fbf9;
+		color: #12372a;
+		border-color: #cfe6d8;
 	}
 	.focus-product {
 		display: flex;
@@ -1385,7 +1550,7 @@
 	.focus-price {
 		display: block;
 		margin-top: 8px;
-		color: #ef4444;
+		color: #12372a;
 		font-size: 18px;
 		font-weight: 950;
 	}
@@ -1407,9 +1572,38 @@
 		box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
 	}
 	.link-btn:hover {
-		background: #fff7ed;
-		color: #ea580c;
-		border-color: #fed7aa;
+		background: #f8fbf9;
+		color: #12372a;
+		border-color: #cfe6d8;
+	}
+	.seller-action-grid,
+	.status-row {
+		display: grid;
+		gap: 8px;
+	}
+	.seller-action-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.seller-fn-btn,
+	.status-btn {
+		min-height: 36px;
+		padding: 0 10px;
+		border-radius: 8px;
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		color: #334155;
+		font-size: 12px;
+		font-weight: 850;
+	}
+	.seller-fn-btn:hover,
+	.status-btn:hover,
+	.status-btn.on {
+		background: #f8fbf9;
+		border-color: #cfe6d8;
+		color: #12372a;
+	}
+	.status-row {
+		grid-template-columns: 1fr;
 	}
 	.side-product-list {
 		max-height: 170px;
@@ -1427,8 +1621,8 @@
 		border: 1px solid #eef2f7;
 	}
 	.mini-product:hover {
-		border-color: #fed7aa;
-		background: #fff7ed;
+		border-color: #cfe6d8;
+		background: #f8fbf9;
 	}
 	.mini-product-img {
 		width: 52px;
@@ -1452,7 +1646,7 @@
 	.mini-product-price {
 		display: block;
 		margin-top: 5px;
-		color: #ef4444;
+		color: #12372a;
 		font-size: 13px;
 		font-weight: 950;
 	}

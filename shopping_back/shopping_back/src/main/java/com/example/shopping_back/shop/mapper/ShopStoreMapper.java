@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Result;
+import org.apache.ibatis.annotations.ResultMap;
 import org.apache.ibatis.annotations.Results;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -101,6 +102,35 @@ public interface ShopStoreMapper {
             @Result(property = "createdAt", column = "createdAt")
     })
     StoreRecord selectByName(@Param("storeName") String storeName);
+
+    @Select(STORE_SELECT + " WHERE s.seller_id = #{sellerId} ORDER BY s.store_id DESC LIMIT 1")
+    @ResultMap("StoreMapInline")
+    StoreRecord selectBySeller(@Param("sellerId") Integer sellerId);
+
+    @Insert("""
+            INSERT INTO store(seller_id, store_name, status, score, credit_score, violation_count, store_desc, badge, service_tags)
+            VALUES(#{sellerId}, #{storeName}, 'normal', 4.8, 100, 0, #{storeDesc}, #{badge}, #{serviceTags})
+            """)
+    int insertSellerStore(@Param("sellerId") Integer sellerId,
+                          @Param("storeName") String storeName,
+                          @Param("storeDesc") String storeDesc,
+                          @Param("badge") String badge,
+                          @Param("serviceTags") String serviceTags);
+
+    @Update("""
+            UPDATE store
+            SET store_name = #{storeName},
+                store_desc = #{storeDesc},
+                badge = #{badge},
+                service_tags = #{serviceTags}
+            WHERE store_id = #{storeId} AND seller_id = #{sellerId}
+            """)
+    int updateSellerStore(@Param("storeId") Integer storeId,
+                          @Param("sellerId") Integer sellerId,
+                          @Param("storeName") String storeName,
+                          @Param("storeDesc") String storeDesc,
+                          @Param("badge") String badge,
+                          @Param("serviceTags") String serviceTags);
 
     @Select("SELECT COUNT(*) FROM follow_store WHERE store_id = #{storeId}")
     int followerCount(@Param("storeId") Integer storeId);

@@ -12,7 +12,7 @@
     </view>
 
     <view class="role-nav">
-      <view v-for="item in tabs" :key="item.key" class="role-nav-item" :class="{ on: active === item.key }" @click="active = item.key">
+      <view v-for="item in tabs" :key="item.key" class="role-nav-item" :class="{ on: active === item.key }" @click="selectTab(item)">
         <text>{{ item.label }}</text>
       </view>
     </view>
@@ -56,6 +56,264 @@
       </view>
     </view>
 
+    <view v-if="active === 'store'" class="content">
+      <view class="section-head">
+        <text class="page-title">店铺管理</text>
+        <text class="link" @click="openPublicStore">买家视角预览</text>
+      </view>
+      <view class="store-manage-grid">
+        <view class="section store-form-card">
+          <text class="section-title">店铺资料</text>
+          <view class="store-form">
+            <view class="form-field">
+              <text class="form-label">店铺名称</text>
+              <input v-model="storeForm.name" class="form-input" placeholder="请输入店铺名称" />
+            </view>
+            <view class="form-field">
+              <text class="form-label">店铺简介</text>
+              <textarea v-model="storeForm.desc" class="form-textarea" maxlength="300" placeholder="介绍店铺主营、服务和交易方式" />
+            </view>
+            <view class="form-field">
+              <text class="form-label">店铺标识</text>
+              <input v-model="storeForm.badge" class="form-input" placeholder="例如 信用卖家 / 官方严选" />
+            </view>
+            <view class="form-field">
+              <text class="form-label">服务标签</text>
+              <input v-model="storeForm.serviceText" class="form-input" placeholder="用逗号分隔，例如 平台担保,真实商品" />
+            </view>
+            <button class="top-action form-action" :loading="savingStore" @click="saveStore">保存店铺</button>
+          </view>
+        </view>
+        <view class="section store-summary-card">
+          <text class="section-title">买家侧展示</text>
+          <view class="store-preview">
+            <text class="preview-name">{{ myStore.name || '我的店铺' }}</text>
+            <text class="preview-desc">{{ myStore.desc || '卖家暂未填写店铺介绍。' }}</text>
+            <view class="preview-tags">
+              <text v-for="item in storeServices" :key="item">{{ item }}</text>
+            </view>
+          </view>
+          <view class="store-stats">
+            <view class="store-stat"><text>{{ myStore.productCount || myProducts.length }}</text><text>在售商品</text></view>
+            <view class="store-stat"><text>{{ myStore.newCount || newProductCount }}</text><text>新品</text></view>
+            <view class="store-stat"><text>{{ myStore.usedCount || usedProductCount }}</text><text>二手闲置</text></view>
+            <view class="store-stat"><text>{{ myStore.creditScore || 100 }}</text><text>店铺信用</text></view>
+          </view>
+        </view>
+      </view>
+      <view class="section">
+        <view class="section-head">
+          <text class="section-title">店铺商品</text>
+          <text class="link" @click="goPublish">新增发布</text>
+        </view>
+        <view v-if="!myProducts.length" class="line">暂无商品，发布后会同步出现在买家店铺页。</view>
+        <view v-for="item in myProducts" :key="item.id" class="list-card">
+          <view>
+            <text class="item-title">{{ item.title }}</text>
+            <text class="item-desc">{{ item.scene === 'new' ? '新品' : '二手' }} · {{ item.category }} · ¥{{ item.price }}</text>
+          </view>
+          <text class="pill" :class="{ warn: item.status !== 'approved' }">{{ statusText(item) }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="active === 'messages'" class="content message-content">
+      <view class="seller-message-workspace">
+        <view class="seller-conversation-pane">
+          <view class="seller-pane-head">
+            <view>
+              <text class="seller-pane-kicker">Messages</text>
+              <text class="seller-pane-title">卖家消息</text>
+            </view>
+            <view class="seller-total-pill">{{ filteredConversations.length }}</view>
+          </view>
+          <view class="seller-search-box">
+            <text class="seller-search-icon">⌕</text>
+            <input v-model="messageKeyword" class="seller-search-input" placeholder="搜索买家或商品" />
+          </view>
+          <scroll-view class="seller-conversation-list" scroll-y :show-scrollbar="false">
+            <view
+              v-for="item in filteredConversations"
+              :key="item.covId"
+              class="seller-conversation-item"
+              :class="{ active: item.covId === activeCovId }"
+              @click="selectConversation(item)"
+            >
+              <view class="seller-avatar-wrap">
+                <image v-if="item.goodsImageUrl" class="seller-avatar-img" :src="item.goodsImageUrl" mode="aspectFill"></image>
+                <view v-else class="seller-avatar">{{ item.icon }}</view>
+                <text v-if="item.unreadCount > 0" class="seller-badge">{{ item.unreadCount }}</text>
+              </view>
+              <view class="seller-conversation-main">
+                <view class="seller-conversation-head">
+                  <text class="seller-conversation-name">{{ item.title }}</text>
+                  <text class="seller-conversation-time">{{ item.time }}</text>
+                </view>
+                <text class="seller-conversation-sub">{{ item.sub }}</text>
+                <text v-if="item.goodsName" class="seller-goods-line">{{ item.goodsName }}</text>
+              </view>
+            </view>
+            <view v-if="!messageLoadingList && filteredConversations.length === 0" class="seller-empty-list">
+              <text class="seller-empty-title">暂无会话</text>
+              <text class="seller-empty-sub">买家咨询你的店铺商品后，会话会出现在这里。</text>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view class="seller-chat-pane">
+          <template v-if="activeConversation">
+            <view class="seller-chat-header">
+              <view class="seller-chat-contact">
+                <view class="seller-chat-avatar">{{ activeConversation.icon }}</view>
+                <view>
+                  <text class="seller-chat-title">{{ activeConversation.title }}</text>
+                  <text class="seller-chat-subtitle">{{ activeConversation.goodsName || '正在咨询商品' }}</text>
+                </view>
+              </view>
+              <button class="seller-ghost-btn" @click="refreshConversation">刷新</button>
+            </view>
+
+            <scroll-view class="seller-messages" scroll-y :scroll-top="messageScrollTop" :show-scrollbar="false">
+              <view class="seller-session-tip">
+                <view class="seller-tip-line"></view>
+                <text>上次聊到这里</text>
+                <view class="seller-tip-line"></view>
+              </view>
+              <view
+                v-for="msg in parsedMessages"
+                :key="msg.cmId || `${msg.senderId}-${msg.createTime}`"
+                class="seller-message-row"
+                :class="{ mine: msg.senderId === messageUserId }"
+              >
+                <view v-if="msg.senderId !== messageUserId" class="seller-mini-avatar">{{ activeConversation.icon }}</view>
+                <view class="seller-bubble-wrap">
+                  <text class="seller-message-time">{{ formatTime(msg.createTime) }}</text>
+                  <view v-if="msg.card" class="seller-product-card" @click="openProductById(msg.card.id)">
+                    <image v-if="msg.card.cover" class="seller-card-thumb" :src="msg.card.cover" mode="aspectFill"></image>
+                    <view class="seller-card-body">
+                      <text class="seller-card-label">商品卡片</text>
+                      <text class="seller-card-title">{{ msg.card.title }}</text>
+                      <view class="seller-card-meta">
+                        <text class="seller-card-price">{{ priceLabel(msg.card.price) }}</text>
+                        <text v-if="msg.card.scene" class="seller-card-tag">{{ sceneLabel(msg.card.scene) }}</text>
+                      </view>
+                    </view>
+                  </view>
+                  <view v-else class="seller-bubble">
+                    <text>{{ msg.content }}</text>
+                  </view>
+                  <text v-if="msg.senderId === messageUserId" class="seller-read-receipt" :class="{ read: msg.isRead }">{{ msg.isRead ? '已读' : '未读' }}</text>
+                </view>
+              </view>
+              <view v-if="!messageLoadingMessages && parsedMessages.length === 0" class="seller-empty-chat">
+                <text class="seller-empty-title">没有聊天记录</text>
+                <text class="seller-empty-sub">选择会话后，可以直接回复买家的商品咨询。</text>
+              </view>
+            </scroll-view>
+
+            <scroll-view class="seller-quick-row" scroll-x :show-scrollbar="false">
+              <view class="seller-quick-track">
+                <button v-for="item in sellerQuickOptions" :key="item" class="seller-quick-btn" @click="sendQuick(item)">{{ item }}</button>
+              </view>
+            </scroll-view>
+            <view class="seller-composer">
+              <view v-if="showEmojiPicker" class="seller-emoji-panel">
+                <view class="seller-emoji-title">{{ currentEmojiGroupName }}</view>
+                <scroll-view class="seller-emoji-grid" scroll-y :show-scrollbar="false">
+                  <view class="seller-emoji-grid-inner">
+                    <button
+                      v-for="emoji in currentEmojiOptions"
+                      :key="emoji"
+                      class="seller-emoji-item"
+                      @click="chooseEmoji(emoji)"
+                    >{{ emoji }}</button>
+                  </view>
+                </scroll-view>
+                <view class="seller-emoji-tabs">
+                  <button
+                    v-for="group in emojiGroups"
+                    :key="group.key"
+                    class="seller-emoji-tab"
+                    :class="{ on: activeEmojiGroup === group.key }"
+                    @click="activeEmojiGroup = group.key"
+                  >{{ group.name }}</button>
+                </view>
+              </view>
+              <view class="seller-tool-row">
+                <button class="seller-tool-btn" :class="{ active: showEmojiPicker }" @click="toggleEmojiPicker">☺</button>
+                <text class="seller-counter">{{ messageInput.length }} / 500</text>
+              </view>
+              <textarea v-model="messageInput" class="seller-message-input" maxlength="500" placeholder="请输入回复买家的内容..." />
+              <view class="seller-composer-actions">
+                <button class="seller-send-btn secondary" @click="sendProductCard">发送商品</button>
+                <button class="seller-send-btn" :disabled="messageSending || !messageInput.trim()" @click="sendMessage">发送</button>
+              </view>
+            </view>
+          </template>
+          <view v-else class="seller-chat-empty-state">
+            <text class="seller-empty-title">请选择一个会话</text>
+            <text class="seller-empty-sub">左侧会展示买家对你店铺商品的咨询。</text>
+          </view>
+        </view>
+
+        <view class="seller-tools-pane">
+          <template v-if="activeConversation">
+            <view class="seller-side-card">
+              <view class="seller-side-avatar">{{ activeConversation.icon }}</view>
+              <view class="seller-side-main">
+                <text class="seller-side-name">{{ activeConversation.title }}</text>
+                <text class="seller-side-desc">{{ activeConversation.goodsName || '商品咨询' }}</text>
+              </view>
+            </view>
+            <view class="seller-side-section">
+              <text class="seller-block-title">卖家处理</text>
+              <view class="seller-action-grid">
+                <button class="seller-fn-btn" @click="appendText('您好，这件商品目前还在，可以继续沟通细节。')">回复在售</button>
+                <button class="seller-fn-btn" @click="appendText('支持平台担保交易，您可以放心下单。')">担保说明</button>
+                <button class="seller-fn-btn" @click="appendText('我可以补充商品细节图和配件说明。')">补充细节</button>
+                <button class="seller-fn-btn" @click="sendProductCard">发商品卡</button>
+              </view>
+            </view>
+            <view class="seller-side-section">
+              <text class="seller-block-title">会话状态</text>
+              <view class="seller-status-row">
+                <button class="seller-status-btn" :class="{ on: activeConversation.status === 'pending' }" @click="updateConversationStatus('pending')">待跟进</button>
+                <button class="seller-status-btn" :class="{ on: activeConversation.status === 'dealing' }" @click="updateConversationStatus('dealing')">沟通中</button>
+                <button class="seller-status-btn" :class="{ on: activeConversation.status === 'closed' }" @click="updateConversationStatus('closed')">已结束</button>
+              </view>
+            </view>
+            <view class="seller-side-section">
+              <view class="seller-section-head">
+                <text class="seller-block-title">咨询商品</text>
+                <button class="seller-text-btn" @click="openProduct">查看</button>
+              </view>
+              <view class="seller-focus-product" @click="openProduct">
+                <image v-if="focusProduct.cover" class="seller-focus-img" :src="focusProduct.cover" mode="aspectFill"></image>
+                <view v-else class="seller-focus-placeholder">商品</view>
+                <view class="seller-focus-main">
+                  <text class="seller-focus-title">{{ focusProduct.title || activeConversation.goodsName || '商品信息加载中' }}</text>
+                  <text class="seller-focus-price">{{ priceLabel(focusProduct.price || activeConversation.goodsPrice) }}</text>
+                  <view class="seller-tag-row">
+                    <text v-if="focusProduct.scene || activeConversation.goodsScene" class="seller-card-tag">{{ sceneLabel(focusProduct.scene || activeConversation.goodsScene) }}</text>
+                    <text v-if="focusProduct.category || activeConversation.goodsCategory" class="seller-card-tag muted">{{ focusProduct.category || activeConversation.goodsCategory }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <view class="seller-side-section">
+              <text class="seller-block-title">经营入口</text>
+              <button class="seller-link-btn" @click="active = 'store'">店铺管理</button>
+              <button class="seller-link-btn" @click="active = 'products'">我的发布</button>
+            </view>
+          </template>
+          <view v-else class="seller-side-empty">
+            <text class="seller-empty-title">没有选中的会话</text>
+            <text class="seller-empty-sub">选择会话后，这里会显示处理工具。</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <view v-if="active === 'orders'" class="content">
       <text class="page-title">&#35746;&#21333;&#21806;&#21518;</text>
       <view v-for="item in orders" :key="item.title" class="list-card">
@@ -64,26 +322,6 @@
           <text class="item-desc">{{ item.buyer }} · {{ item.price }}</text>
         </view>
         <text class="pill warn">{{ item.status }}</text>
-      </view>
-    </view>
-
-    <view v-if="active === 'messages'" class="content">
-      <view class="section-head">
-          <text class="page-title">交易消息</text>
-      </view>
-      <view v-for="item in messageList" :key="item.covId" class="list-card clickable" @click="goChat(item)">
-        <view class="avatar-wrapper">
-          <view class="avatar">{{ item.icon || '💬' }}</view>
-          <text v-if="item.unreadCount > 0" class="badge">{{ item.unreadCount }}</text>
-        </view>
-        <view class="body">
-            <text class="item-title">{{ item.title }}</text>
-            <text class="item-desc">{{ item.sub }}</text>
-            <text class="time">{{ item.time }}</text>
-        </view>
-        <view class="goods-thumb" v-if="item.goodsImageUrl">
-        		<image :src="item.goodsImageUrl" mode="aspectFill"></image>
-    		</view>
       </view>
     </view>
 
@@ -137,7 +375,7 @@
     </view>
 
     <view class="role-tabbar">
-      <view v-for="item in tabs" :key="item.key" class="tab" :class="{ on: active === item.key }" @click="active = item.key">
+      <view v-for="item in tabs" :key="item.key" class="tab" :class="{ on: active === item.key }" @click="selectTab(item)">
         <text>{{ item.label }}</text>
       </view>
     </view>
@@ -147,8 +385,10 @@
 <script>
 import { clearSession, getCachedUser } from '@/utils/auth.js'
 import { cancelSellerRealName, fetchSellerCenter, submitSellerRealName } from '@/services/center.js'
-import { get } from '@/utils/request.js'
-import { post } from '@/utils/request.js'
+import { fetchMyProducts, fetchMyStore, updateMyStore } from '@/services/shop.js'
+import { get, post, put } from '@/utils/request.js'
+
+const PRODUCT_CARD_PREFIX = '__PRODUCT_CARD__'
 
 export default {
   data() {
@@ -159,13 +399,41 @@ export default {
       showRealNamePanel: false,
       submittingRealName: false,
       cancelingRealName: false,
-      messageList: [],
+      savingStore: false,
+      myStore: {},
+      myProducts: [],
+      messageKeyword: '',
+      conversationList: [],
+      activeCovId: null,
+      messages: [],
+      messageInput: '',
+      messageUserId: null,
+      messageLoadingList: false,
+      messageLoadingMessages: false,
+      messageSending: false,
+      messagePollTimer: null,
+      messageScrollTop: 0,
+      showEmojiPicker: false,
+      activeEmojiGroup: 'face',
+      emojiGroups: [
+        { key: 'face', name: '经典', items: ['😀', '😁', '😂', '🤣', '😊', '😇', '🙂', '😉', '😍', '😘', '😋', '😜', '😎', '🤓', '🤔', '🤗', '😳', '🥺', '😭', '😤', '😡', '😱', '😴', '🤒', '😵', '🤯', '🥳', '😅', '😆', '😬', '🙄', '😏', '😌', '😔', '😮', '🤭', '🤫', '🤐', '😷', '🤧', '🥰', '😚', '😛', '😝', '🤤', '😪', '😫', '😈'] },
+        { key: 'hand', name: '手势', items: ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤙', '👋', '👏', '🙌', '🙏', '💪', '🤝', '🫶', '☝️', '👉', '👈', '👇', '👆', '✋', '🤚', '🖐️', '🫡', '🤲'] },
+        { key: 'trade', name: '交易', items: ['💬', '💰', '💸', '🧾', '📦', '🚚', '🎁', '🏷️', '💳', '✅', '❌', '⚠️', '📌', '🔍', '🛒', '⭐', '🔥', '💡', '📮', '⏰', '🧡', '💯', '📱', '💻', '🎧', '📚', '🏠', '☕'] },
+        { key: 'heart', name: '心情', items: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🤍', '🤎', '🖤', '💔', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '✨', '🌟', '🎉', '🌈', '☀️', '🌙', '🍀'] }
+      ],
+      storeForm: {
+        name: '',
+        desc: '',
+        badge: '',
+        serviceText: ''
+      },
       realNameForm: {
         realName: '',
         idCard: ''
       },
       tabs: [
         { key: 'home', label: '\u5de5\u4f5c\u53f0' },
+        { key: 'store', label: '\u5e97\u94fa' },
         { key: 'products', label: '\u5546\u54c1' },
         { key: 'orders', label: '\u8ba2\u5355' },
         { key: 'messages', label: '\u6d88\u606f' },
@@ -200,14 +468,83 @@ export default {
       if (status === 'pending') return '待审核'
       if (status === 'rejected') return '已驳回'
       return '未实名'
+    },
+    storeServices() {
+      return this.myStore.service && this.myStore.service.length ? this.myStore.service : ['平台担保', '真实商品', '信用卖家']
+    },
+    newProductCount() {
+      return this.myProducts.filter(item => item.scene === 'new').length
+    },
+    usedProductCount() {
+      return this.myProducts.filter(item => item.scene === 'used').length
+    },
+    filteredConversations() {
+      const word = this.messageKeyword.trim().toLowerCase()
+      if (!word) return this.conversationList
+      return this.conversationList.filter(item => [item.title, item.sub, item.goodsName].some(value => String(value || '').toLowerCase().includes(word)))
+    },
+    activeConversation() {
+      return this.conversationList.find(item => item.covId === this.activeCovId) || null
+    },
+    currentEmojiOptions() {
+      const group = this.emojiGroups.find(item => item.key === this.activeEmojiGroup)
+      return group ? group.items : []
+    },
+    currentEmojiGroupName() {
+      const group = this.emojiGroups.find(item => item.key === this.activeEmojiGroup)
+      return group ? group.name : '经典'
+    },
+    parsedMessages() {
+      return this.messages.map(item => ({
+        ...item,
+        card: this.parseProductCard(item.content)
+      }))
+    },
+    focusProduct() {
+      const active = this.activeConversation
+      if (!active) return {}
+      const found = this.myProducts.find(item => String(item.id) === String(active.goodsId))
+      if (found) return found
+      return {
+        id: active.goodsId,
+        title: active.goodsName,
+        price: active.goodsPrice,
+        cover: active.goodsImageUrl,
+        category: active.goodsCategory,
+        scene: active.goodsScene,
+        storeId: active.storeId
+      }
+    },
+    sellerQuickOptions() {
+      return ['您好，商品还在', '支持平台担保', '可以补充细节图', '今天可以发货', '配件信息如下', '价格可以小幅协商']
+    }
+  },
+  onLoad(query) {
+    if (query && query.tab && this.tabs.some(item => item.key === query.tab)) {
+      this.active = query.tab
     }
   },
   onShow() {
     this.user = getCachedUser() || {}
+    this.messageUserId = this.user.userId || this.user.id || null
     this.loadCenter()
-    this.fetchMessages()
+    this.loadStoreManage()
+    if (this.active === 'messages') {
+      this.loadSellerMessagesArea()
+    }
+  },
+  onHide() {
+    this.stopMessagePoll()
+  },
+  onUnload() {
+    this.stopMessagePoll()
   },
   methods: {
+    selectTab(item) {
+      if (this.active === 'messages' && item.key !== 'messages') this.stopMessagePoll()
+      this.active = item.key
+      if (item.key === 'messages') this.loadSellerMessagesArea()
+    },
     async loadCenter() {
       try {
         const body = await fetchSellerCenter()
@@ -223,6 +560,261 @@ export default {
           { title: '\u5e97\u94fa\u4fe1\u7528', value: this.user.credit || 100, desc: '\u5e97\u94fa\u7ecf\u8425\u4fe1\u7528' }
         ]
       }
+    },
+    async loadStoreManage() {
+      await Promise.all([this.loadMyStore(), this.loadMyProducts()])
+    },
+    async loadMyStore() {
+      try {
+        const body = await fetchMyStore()
+        if (body.code === 0 && body.data) {
+          this.myStore = body.data
+          this.storeForm = {
+            name: body.data.name || '',
+            desc: body.data.desc || '',
+            badge: body.data.badge || '',
+            serviceText: (body.data.service || []).join(',')
+          }
+        }
+      } catch (e) {
+        console.error('加载店铺失败', e)
+      }
+    },
+    async loadMyProducts() {
+      try {
+        const body = await fetchMyProducts()
+        this.myProducts = body.code === 0 && Array.isArray(body.data) ? body.data : []
+        if (this.myProducts.length) {
+          this.products = this.myProducts.map(item => ({
+            title: item.title,
+            desc: `${item.category || '未分类'} · ¥${item.price}`,
+            status: this.statusText(item)
+          }))
+        }
+      } catch (e) {
+        this.myProducts = []
+      }
+    },
+    async saveStore() {
+      if (!this.storeForm.name.trim()) {
+        uni.showToast({ title: '请填写店铺名称', icon: 'none' })
+        return
+      }
+      this.savingStore = true
+      try {
+        const body = await updateMyStore({
+          name: this.storeForm.name.trim(),
+          desc: this.storeForm.desc.trim(),
+          badge: this.storeForm.badge.trim(),
+          service: this.storeForm.serviceText.split(/[,，\s]+/).map(item => item.trim()).filter(Boolean)
+        })
+        if (body.code === 0 && body.data) {
+          this.myStore = body.data
+          uni.showToast({ title: '店铺已更新', icon: 'success' })
+        }
+      } catch (e) {
+        uni.showToast({ title: '保存失败，请稍后重试', icon: 'none' })
+      } finally {
+        this.savingStore = false
+      }
+    },
+    openPublicStore() {
+      const id = this.myStore.id || ''
+      if (!id) {
+        uni.showToast({ title: '店铺信息加载中', icon: 'none' })
+        return
+      }
+      uni.navigateTo({ url: '/pages/store/store?id=' + encodeURIComponent(id) })
+    },
+    statusText(item) {
+      if (item.status === 'pending') return '待审核'
+      if (item.status === 'rejected') return '已拒绝'
+      if (item.status === 'offline') return '已下架'
+      return '买家可见'
+    },
+    async loadSellerMessagesArea() {
+      this.messageUserId = this.user.userId || this.user.id || this.messageUserId
+      await Promise.all([this.loadMyProducts(), this.fetchConversationList(true)])
+      this.startMessagePoll()
+    },
+    async fetchConversationList(autoSelect = false) {
+      this.messageLoadingList = true
+      try {
+        const res = await get('/api/chat/conversations')
+        const body = res.data || res
+        const list = body.code === 0 && Array.isArray(body.data) ? body.data : []
+        this.conversationList = list.map(item => ({
+          ...item,
+          title: item.peerName || item.buyerName || item.sellerName || '买家',
+          sub: this.formatConversationLastMessage(item.lastMessage),
+          time: this.formatTime(item.lastTime),
+          icon: this.avatarText(item.peerName || item.buyerName || item.sellerName || '买家')
+        }))
+        if (autoSelect && !this.activeCovId && this.conversationList.length) {
+          await this.selectConversation(this.conversationList[0])
+        } else if (this.activeCovId && !this.conversationList.some(item => item.covId === this.activeCovId)) {
+          this.activeCovId = null
+          this.messages = []
+        }
+      } catch (e) {
+        this.conversationList = []
+      } finally {
+        this.messageLoadingList = false
+      }
+    },
+    async selectConversation(item) {
+      this.activeCovId = item.covId
+      await this.loadConversationMessages(item.covId)
+      this.markConversationRead(item.covId)
+    },
+    async loadConversationMessages(covId) {
+      if (!covId) return
+      this.messageLoadingMessages = true
+      try {
+        const res = await get(`/api/chat/conversations/${covId}/messages`)
+        const body = res.data || res
+        this.messages = body.code === 0 && Array.isArray(body.data) ? body.data : []
+        this.scrollToLatest()
+      } catch (e) {
+        this.messages = []
+      } finally {
+        this.messageLoadingMessages = false
+      }
+    },
+    async markConversationRead(covId) {
+      if (!covId) return
+      try {
+        await post(`/api/chat/${covId}/read`, {})
+        const current = this.conversationList.find(item => item.covId === covId)
+        if (current) current.unreadCount = 0
+      } catch (e) {}
+    },
+    async refreshConversation() {
+      await this.fetchConversationList(false)
+      if (this.activeCovId) await this.loadConversationMessages(this.activeCovId)
+    },
+    startMessagePoll() {
+      this.stopMessagePoll()
+      this.messagePollTimer = setInterval(() => {
+        if (this.active === 'messages') this.refreshConversation()
+      }, 8000)
+    },
+    stopMessagePoll() {
+      if (this.messagePollTimer) {
+        clearInterval(this.messagePollTimer)
+        this.messagePollTimer = null
+      }
+    },
+    async sendMessage() {
+      const content = this.messageInput.trim()
+      if (!content || !this.activeCovId || this.messageSending) return
+      this.messageSending = true
+      try {
+        const res = await post(`/api/chat/conversations/${this.activeCovId}/messages`, {
+          covId: this.activeCovId,
+          content,
+          type: 'CHAT_MESSAGE'
+        })
+        const body = res.data || res
+        if (body.code === 0) {
+          this.messageInput = ''
+          this.showEmojiPicker = false
+          await this.refreshConversation()
+        }
+      } catch (e) {
+        uni.showToast({ title: '发送失败，请稍后重试', icon: 'none' })
+      } finally {
+        this.messageSending = false
+      }
+    },
+    sendQuick(text) {
+      this.messageInput = text
+      this.sendMessage()
+    },
+    async sendProductCard() {
+      const product = this.focusProduct
+      if (!product || !product.id || !this.activeCovId) {
+        uni.showToast({ title: '暂无可发送的商品', icon: 'none' })
+        return
+      }
+      this.messageInput = PRODUCT_CARD_PREFIX + JSON.stringify({
+        id: product.id,
+        title: product.title,
+        price: product.price,
+        cover: product.cover,
+        scene: product.scene
+      })
+      await this.sendMessage()
+    },
+    appendText(text) {
+      this.messageInput = this.messageInput ? `${this.messageInput}\n${text}` : text
+    },
+    toggleEmojiPicker() {
+      this.showEmojiPicker = !this.showEmojiPicker
+    },
+    chooseEmoji(emoji) {
+      this.messageInput = `${this.messageInput}${emoji}`
+    },
+    async updateConversationStatus(status) {
+      if (!this.activeCovId) return
+      try {
+        const res = await put(`/api/chat/conversations/${this.activeCovId}/status`, { status })
+        const body = res.data || res
+        if (body.code === 0) {
+          const current = this.conversationList.find(item => item.covId === this.activeCovId)
+          if (current) current.status = status
+        }
+      } catch (e) {
+        uni.showToast({ title: '状态更新失败', icon: 'none' })
+      }
+    },
+    openProduct() {
+      const id = (this.focusProduct && this.focusProduct.id) || (this.activeConversation && this.activeConversation.goodsId)
+      if (id) this.openProductById(id)
+    },
+    openProductById(id) {
+      if (!id) return
+      uni.navigateTo({ url: '/pages/goods/detail?id=' + encodeURIComponent(id) })
+    },
+    parseProductCard(content) {
+      if (!content || typeof content !== 'string' || !content.startsWith(PRODUCT_CARD_PREFIX)) return null
+      try {
+        return JSON.parse(content.slice(PRODUCT_CARD_PREFIX.length))
+      } catch (e) {
+        return null
+      }
+    },
+    formatConversationLastMessage(content) {
+      const card = this.parseProductCard(content)
+      if (card) return `[商品卡片] ${card.title || '商品'}`
+      return content || '暂无消息'
+    },
+    formatTime(value) {
+      if (!value) return ''
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return ''
+      const now = new Date()
+      const hh = String(date.getHours()).padStart(2, '0')
+      const mm = String(date.getMinutes()).padStart(2, '0')
+      if (date.toDateString() === now.toDateString()) return `${hh}:${mm}`
+      return `${date.getMonth() + 1}-${date.getDate()}`
+    },
+    avatarText(name) {
+      return String(name || '买').slice(0, 1).toUpperCase()
+    },
+    scrollToLatest() {
+      this.$nextTick(() => {
+        this.messageScrollTop = this.messageScrollTop === 999999 ? 999998 : 999999
+      })
+    },
+    priceLabel(price) {
+      if (price === null || price === undefined || price === '') return '价格待确认'
+      return `¥${Number(price).toFixed(2)}`
+    },
+    sceneLabel(scene) {
+      if (scene === 'new') return '新品'
+      if (scene === 'used') return '二手'
+      return scene || ''
     },
     toggleRealNamePanel() {
       this.showRealNamePanel = !this.showRealNamePanel
@@ -267,44 +859,12 @@ export default {
         this.cancelingRealName = false
       }
     },
-    async fetchMessages() {
-      try {
-        const res = await get('/api/chat/conversations');
-        const rawList = (res.data && res.data.data) ? res.data.data : [];
-        this.messageList = rawList.map(item => ({
-          covId: item.covId,
-          icon: '💬', 
-          title: item.targetName || '用户',
-          time: this.formatTime(item.lastTime),
-          sub: item.lastMessage || '暂无消息',
-          unreadCount: item.unreadCount || 0,
-          goodsImageUrl: item.goodsImageUrl
-        }));
-      } catch (e) {
-        console.error("加载消息失败", e);
-      }
-    },
-    async goChat(item) {
-      try {
-          await post(`/api/chat/${item.covId}/read`);
-      } catch (e) { console.error(e); }
-      uni.navigateTo({ 
-          url: `/pages/chat/chat?covId=${item.covId}` 
-      });
-    },
-
     goPublish() {
       uni.navigateTo({ url: '/pages/publish/publish' })
     },
     logout() {
       clearSession()
       uni.reLaunch({ url: '/pages/home/home' })
-    },
-    formatTime(dateStr) {
-      if (!dateStr) return ''
-      const timePart = dateStr.split('T')[1].split('.')[0]
-    	const [h, m] = timePart.split(':')
-    	return `${h}:${m}`
     }
   }
 }

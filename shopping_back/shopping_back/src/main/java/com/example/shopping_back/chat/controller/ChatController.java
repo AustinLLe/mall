@@ -10,6 +10,8 @@ import com.example.shopping_back.chat.model.Conversation;
 import com.example.shopping_back.common.dto.ApiResult;
 import com.example.shopping_back.chat.dto.CreateConversationRequest;
 import com.example.shopping_back.chat.dto.ChatMessageDto;
+import com.example.shopping_back.chat.dto.AiBargainResponse;
+import com.example.shopping_back.chat.dto.AiBargainSuggestion;
 import com.example.shopping_back.chat.dto.UpdateConversationStatusRequest;
 import com.example.shopping_back.chat.dto.ConversationListDto;
 import java.util.List;
@@ -99,7 +101,7 @@ public class ChatController {
 
     //AI议价
     @PostMapping("/conversations/{covId}/ai-bargain")
-    public ApiResult<ChatMessage> triggerAiBargain(
+    public ApiResult<AiBargainResponse> triggerAiBargain(
         @PathVariable("covId") Integer covId,
         @RequestHeader(value = "Authorization", required = false) String authorization) {
     
@@ -109,14 +111,14 @@ public class ChatController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found");
         }
         authorizeConversationAccess(currentUser, conversation);
-        String suggestion = aiBargainService.getBargainSuggestion(covId, currentUser.getUserId());
+        AiBargainSuggestion suggestion = aiBargainService.getBargainSuggestion(covId, currentUser.getUserId());
         ChatMessageDto aiMessageDto = new ChatMessageDto();
         aiMessageDto.setCovId(covId);
-        aiMessageDto.setContent(suggestion);
+        aiMessageDto.setContent(suggestion.content());
         aiMessageDto.setSenderId(currentUser.getUserId());
         ChatMessage chatMessage = chatMessageService.sendMessageAndBroadcast(aiMessageDto);
         conversationService.updateLastActiveTime(covId);
-        return ApiResult.ok(chatMessage);
+        return ApiResult.ok(new AiBargainResponse(chatMessage, suggestion.source(), suggestion.sourceLabel()));
     }
 
     @PostMapping("/{covId}/read")

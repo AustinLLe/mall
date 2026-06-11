@@ -1,4 +1,6 @@
-import { del, get, post } from '@/utils/request.js'
+import { buildRequestUrl } from '@/config/env.js'
+import { getToken } from '@/utils/auth.js'
+import { del, get, post, put } from '@/utils/request.js'
 
 function unwrap(res) {
 	return res.data
@@ -22,6 +24,14 @@ export function fetchMyProducts() {
 
 export function fetchStores() {
 	return get('/api/stores').then(unwrap)
+}
+
+export function fetchMyStore() {
+	return get('/api/stores/mine').then(unwrap)
+}
+
+export function updateMyStore(payload) {
+	return put('/api/stores/mine', payload).then(unwrap)
 }
 
 export function fetchStore(id) {
@@ -50,6 +60,30 @@ export function fetchTopics(params = {}) {
 
 export function createTopic(payload) {
 	return post('/api/topics', payload).then(unwrap)
+}
+
+export function uploadImage(filePath) {
+	return new Promise((resolve, reject) => {
+		const token = getToken()
+		uni.uploadFile({
+			url: buildRequestUrl('/api/upload/image'),
+			filePath,
+			name: 'file',
+			header: token ? { Authorization: `Bearer ${token}` } : {},
+			success: (res) => {
+				if (res.statusCode < 200 || res.statusCode >= 300) {
+					reject(new Error(`HTTP ${res.statusCode}`))
+					return
+				}
+				try {
+					resolve(typeof res.data === 'string' ? JSON.parse(res.data) : res.data)
+				} catch (e) {
+					reject(e)
+				}
+			},
+			fail: reject
+		})
+	})
 }
 
 export function fetchTopic(id) {

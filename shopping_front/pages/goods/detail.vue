@@ -267,6 +267,7 @@
 		credit: 100,
 		location: '',
 		shopName: '',
+		storeId: '',
 		delivery: '',
 		service: [],
 		highlights: [],
@@ -487,7 +488,23 @@
 					}
 					const res = await post('/api/chat/conversations', { goodsId })
 					if (res.statusCode === 200 && res.data && res.data.data && res.data.data.covId) {
-						uni.navigateTo({ url: `/pages/chat/chat?covId=${res.data.data.covId}` })
+						uni.setStorageSync('pending_message_focus', {
+							covId: res.data.data.covId,
+							goodsId,
+							product: {
+								id: this.detail.id,
+								title: this.detail.title,
+								price: this.detail.price,
+								cover: this.detail.cover,
+								category: this.detail.category,
+								scene: this.detail.scene,
+								storeId: this.detail.storeId,
+								shopName: this.detail.shopName,
+								publisherName: this.detail.publisherName
+							},
+							time: Date.now()
+						})
+						uni.switchTab({ url: '/pages/message/message' })
 						return
 					}
 					uni.showToast({ title: '无法创建会话', icon: 'none' })
@@ -501,7 +518,10 @@
 				}
 			},
 			openStore() {
-				uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(this.detail.shopName || this.detail.publisherName || '') })
+				const query = this.detail.storeId
+					? '?id=' + encodeURIComponent(this.detail.storeId)
+					: '?name=' + encodeURIComponent(this.detail.shopName || this.detail.publisherName || '')
+				uni.navigateTo({ url: '/pages/store/store' + query })
 			},
 			async followStore() {
 				try {

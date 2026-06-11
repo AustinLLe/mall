@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 public class ProductRecord {
     private Integer goodsId;
     private Integer sellerId;
+    private Integer storeId;
     private String sellerName;
     private Integer sellerCredit;
     private String goodsName;
@@ -37,6 +38,14 @@ public class ProductRecord {
 
     public void setSellerId(Integer sellerId) {
         this.sellerId = sellerId;
+    }
+
+    public Integer getStoreId() {
+        return storeId;
+    }
+
+    public void setStoreId(Integer storeId) {
+        this.storeId = storeId;
     }
 
     public String getSellerName() {

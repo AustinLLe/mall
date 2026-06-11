@@ -47,12 +47,14 @@ public class ConversationService {
         return conversations.stream().map(c -> {
             ConversationListDto dto = new ConversationListDto();
             dto.setCovId(c.getCovId());
+            dto.setStatus(c.getStatus());
             Integer targetId = Objects.equals(c.getBuyerId(), userId) ? c.getSellerId() : c.getBuyerId();
             AuthUserView targetUser = authService.getUserById(targetId);
             dto.setTargetName(targetUser.getUsername());
             ProductRecord goods = shopProductMapper.selectById(c.getGoodsId());
             if (goods != null) {
                 dto.setGoodsId(goods.getGoodsId());
+                dto.setStoreId(goods.getStoreId() == null ? "" : String.valueOf(goods.getStoreId()));
                 dto.setGoodsName(goods.getGoodsName());
                 dto.setGoodsPrice(goods.getPrice());
                 dto.setGoodsCategory(goods.getCategory());

@@ -15,6 +15,7 @@ import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
 import com.example.shopping_back.shop.ShopDtos.ReviewRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
+import com.example.shopping_back.shop.ShopDtos.StoreUpdateRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
 import com.example.shopping_back.shop.ShopDtos.TopicActionRequest;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -69,6 +71,18 @@ public class ShopController {
     @GetMapping("/stores")
     public ApiResult<List<StoreView>> stores() {
         return ApiResult.ok(shopService.stores());
+    }
+
+    @GetMapping("/stores/mine")
+    public ApiResult<StoreDetailView> myStore(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.myStore(currentUserOrNull(authorization)));
+    }
+
+    @PutMapping("/stores/mine")
+    public ApiResult<StoreDetailView> updateMyStore(
+            @Valid @RequestBody StoreUpdateRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.updateMyStore(request, currentUserOrNull(authorization)));
     }
 
     @GetMapping("/stores/{id}")

@@ -1,7 +1,7 @@
 <template>
   <view class="me-page">
     <view class="topbar">
-      <view class="me-wrap topbar-inner">
+      <view class="content-wrap topbar-inner">
         <view class="brand" @click="navTo('/pages/home/home')">
           <view class="brand-mark">
             <image class="brand-logo" src="/static/logo.png" mode="aspectFit"></image>
@@ -35,7 +35,10 @@
       <view v-else class="account-layout">
         <view class="side">
           <view class="side-profile">
-            <view class="avatar">{{ avatar }}</view>
+            <view class="avatar avatar-clickable" @click="chooseAvatar">
+              <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill"></image>
+              <text v-else>{{ avatar }}</text>
+            </view>
             <view class="side-user">
               <text class="side-name">{{ user.username || '松果用户' }}</text>
               <text class="side-role">{{ roleLabel }} · 信用 {{ user.credit || 100 }}</text>
@@ -60,6 +63,11 @@
 
         <view class="main">
           <view class="profile-card">
+            <view class="profile-avatar avatar-clickable" @click="chooseAvatar">
+              <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill"></image>
+              <text v-else>{{ avatar }}</text>
+              <view class="avatar-edit">更换头像</view>
+            </view>
             <view class="profile-main">
               <text class="name">{{ user.username || '松果用户' }}</text>
               <text class="meta">{{ center.phoneMasked || user.phoneMasked || '未绑定手机' }} · {{ verifiedText }}</text>
@@ -190,10 +198,11 @@
 </template>
 
 <script>
-import { getToken, getCachedUser, clearSession, goRoleHome } from '@/utils/auth.js'
-import { fetchMe } from '@/services/auth.js'
+import { getToken, getCachedUser, clearSession, goRoleHome, setSession } from '@/utils/auth.js'
+import { fetchMe, updateProfile, uploadAvatarImage } from '@/services/auth.js'
 import { cancelRealName, cancelSellerRealName, clearBuyerItems, fetchBuyerCenter, fetchBuyerItems, fetchSellerCenter, submitRealName, submitSellerRealName } from '@/services/center.js'
 import { fetchOrders } from '@/services/shop.js'
+import { resolveImageUrl } from '@/utils/media.js'
 
 export default {
   data() {
@@ -230,6 +239,9 @@ export default {
     },
     avatar() {
       return (this.user.username || 'M').slice(0, 1).toUpperCase()
+    },
+    avatarUrl() {
+      return this.user.avatarUrl ? resolveImageUrl(this.user.avatarUrl) : ''
     },
     verifiedText() {
       const status = this.center.realName && this.center.realName.status
@@ -356,7 +368,7 @@ export default {
         if (body.code === 0 && body.data) {
           this.user = body.data
           this.loggedIn = true
-          uni.setStorageSync('auth_user', body.data)
+          setSession(token, body.data)
           if (this.user.role === 'buyer') {
             await Promise.all([this.loadBuyerCenter(), this.loadOrders()])
           } else if (this.user.role === 'seller') {
@@ -375,6 +387,40 @@ export default {
         this.center = body.code === 0 && body.data ? body.data : {}
       } catch (e) {
         this.center = {}
+      }
+    },
+    chooseAvatar() {
+      if (!this.loggedIn) return
+      uni.chooseImage({
+        count: 1,
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+        success: async (res) => {
+          const filePath = res.tempFilePaths && res.tempFilePaths[0]
+          if (!filePath) return
+          await this.saveAvatar(filePath)
+        }
+      })
+    },
+    async saveAvatar(filePath) {
+      uni.showLoading({ title: '上传头像中' })
+      try {
+        const uploaded = await uploadAvatarImage(filePath)
+        if (!uploaded || uploaded.code !== 0 || !uploaded.data) {
+          throw new Error(uploaded && uploaded.message ? uploaded.message : 'upload failed')
+        }
+        const body = await updateProfile({ avatarUrl: uploaded.data })
+        if (body.code === 0 && body.data) {
+          this.user = body.data
+          setSession(getToken(), body.data)
+          uni.showToast({ title: '头像已更新', icon: 'success' })
+        } else {
+          throw new Error(body && body.message ? body.message : 'save failed')
+        }
+      } catch (e) {
+        uni.showToast({ title: '头像更新失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
       }
     },
     async loadSellerCenter() {
@@ -517,7 +563,7 @@ export default {
 .me-page {
   min-height: 100vh;
   background: #f5f6f8;
-  padding: 22px;
+  padding: 0;
   padding-bottom: 84px;
   box-sizing: border-box;
   color: #17231d;
@@ -535,6 +581,10 @@ export default {
   backdrop-filter: blur(18px);
   border-bottom: 1px solid rgba(203, 213, 225, .55);
   box-shadow: 0 10px 40px rgba(60,64,67,.06);
+}
+.topbar + .me-wrap {
+  padding: 0 22px;
+  box-sizing: border-box;
 }
 .topbar-inner {
   display: grid;
@@ -619,8 +669,9 @@ export default {
 }
 .nav-link.on,
 .nav-link:hover {
-  background: #12372a;
-  color: #fff;
+  background: linear-gradient(135deg, #ffffff, #f5f7fa);
+  color: #12372a;
+  box-shadow: 0 10px 26px rgba(18, 55, 42, .14);
 }
 .login-card,
 .profile-card,
@@ -719,6 +770,45 @@ button::after {
   font-size: 24px;
   font-weight: 900;
   flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.avatar-clickable {
+  cursor: pointer;
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.profile-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 8px;
+  background: #12372a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: 900;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.avatar-edit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 55, 42, .82);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
 }
 .side-user {
   min-width: 0;
@@ -1052,11 +1142,14 @@ button::after {
 }
 @media screen and (max-width: 900px) {
   .me-page {
-    padding: 14px;
+    padding: 0;
     padding-bottom: 84px;
   }
   .topbar {
-    margin: -14px -14px 14px;
+    margin: 0 0 14px;
+  }
+  .topbar + .me-wrap {
+    padding: 0 14px;
   }
   .topbar-inner {
     display: flex;

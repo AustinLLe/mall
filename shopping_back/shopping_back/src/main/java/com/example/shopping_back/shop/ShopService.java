@@ -16,6 +16,7 @@ import com.example.shopping_back.shop.ShopDtos.ReviewView;
 import com.example.shopping_back.shop.ShopDtos.ReviewRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
+import com.example.shopping_back.shop.ShopDtos.StoreUpdateRequest;
 import com.example.shopping_back.shop.ShopDtos.TimelineNode;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
 import com.example.shopping_back.shop.ShopDtos.TopicCommentRequest;
@@ -55,6 +56,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ShopService {
@@ -141,7 +143,7 @@ public class ShopService {
         }
         String username = user == null ? "" : user.getUsername();
         return products.stream()
-                .filter(item -> item.publisherName() == null || username.isBlank() || username.equals(item.publisherName()))
+                .filter(item -> (userId != null && userId.equals(item.publisherId())) || (!username.isBlank() && username.equals(item.publisherName())))
                 .toList();
     }
 
@@ -151,6 +153,29 @@ public class ShopService {
         } catch (RuntimeException ignored) {
             return stores;
         }
+    }
+
+    public StoreDetailView myStore(AuthUserView user) {
+        StoreRecord store = ensureSellerStore(user);
+        List<ProductView> goods = storeProducts(String.valueOf(store.getStoreId()));
+        int followers = safeFollowerCount(store.getStoreId());
+        long newCount = goods.stream().filter(item -> "new".equals(item.scene())).count();
+        long usedCount = goods.stream().filter(item -> "used".equals(item.scene())).count();
+        return toStoreDetail(store, false, followers, goods.size(), newCount, usedCount);
+    }
+
+    public StoreDetailView updateMyStore(StoreUpdateRequest request, AuthUserView user) {
+        StoreRecord store = ensureSellerStore(user);
+        String storeName = defaultText(request == null ? "" : request.name(), defaultText(store.getStoreName(), user.getUsername() + " 的店铺"));
+        String desc = defaultText(request == null ? "" : request.desc(), defaultStoreDesc(store));
+        String badge = defaultText(request == null ? "" : request.badge(), defaultText(store.getBadge(), "信用店铺"));
+        String serviceTags = joinServiceTags(request == null ? null : request.service(), store.getServiceTags());
+        try {
+            storeMapper.updateSellerStore(store.getStoreId(), user.getUserId(), storeName, desc, badge, serviceTags);
+        } catch (RuntimeException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "店铺更新失败");
+        }
+        return myStore(user);
     }
 
     public StoreDetailView store(String id, AuthUserView user) {
@@ -399,6 +424,9 @@ public class ShopService {
 
     public ProductView publish(PublishRequest request, AuthUserView user) {
         validatePublish(request);
+        if (user != null && "seller".equals(user.getRole())) {
+            ensureSellerStore(user);
+        }
         ProductView dbCreated = publishToDatabase(request, user);
         if (dbCreated != null) {
             return dbCreated;
@@ -435,7 +463,8 @@ public class ShopService {
                 now,
                 "",
                 request.floorPrice(),
-                request.description()
+                request.description(),
+                ""
         );
         products.add(0, created);
         return created;
@@ -803,6 +832,36 @@ public class ShopService {
         }
     }
 
+    private StoreRecord ensureSellerStore(AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录卖家账号");
+        }
+        if (!"seller".equals(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前仅卖家可以管理店铺");
+        }
+        try {
+            StoreRecord existing = storeMapper.selectBySeller(user.getUserId());
+            if (existing != null) {
+                return existing;
+            }
+            String storeName = defaultText(user.getUsername(), "卖家") + " 的店铺";
+            storeMapper.insertSellerStore(
+                    user.getUserId(),
+                    storeName,
+                    storeName + "由卖家自主经营，商品经过平台记录，支持在站内沟通、关注和浏览。",
+                    "信用店铺",
+                    "平台担保,真实商品,信用卖家"
+            );
+            StoreRecord created = storeMapper.selectBySeller(user.getUserId());
+            if (created != null) {
+                return created;
+            }
+        } catch (RuntimeException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "店铺初始化失败");
+        }
+        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "店铺初始化失败");
+    }
+
     private StoreView toStoreView(StoreRecord record) {
         int followers = safeFollowerCount(record.getStoreId());
         return new StoreView(
@@ -852,6 +911,18 @@ public class ShopService {
                 .toList();
     }
 
+    private String joinServiceTags(List<String> tags, String fallback) {
+        if (tags == null || tags.isEmpty()) {
+            return defaultText(fallback, "平台担保,真实商品,信用卖家");
+        }
+        String joined = tags.stream()
+                .map(item -> item == null ? "" : item.trim())
+                .filter(item -> !item.isEmpty())
+                .limit(6)
+                .collect(Collectors.joining(","));
+        return defaultText(joined, defaultText(fallback, "平台担保,真实商品,信用卖家"));
+    }
+
     private String scoreText(BigDecimal score) {
         return score == null ? "4.8" : score.stripTrailingZeros().toPlainString();
     }
@@ -869,6 +940,7 @@ public class ShopService {
     }
 
     private ProductView toView(ProductRecord record) {
+        StoreRecord sellerStore = ensureStoreForProduct(record);
         String scene = normalizeScene(record.getScene());
         String status = normalizeStatus(record.getStatus());
         String title = defaultText(record.getGoodsName(), "未命名商品");
@@ -878,6 +950,10 @@ public class ShopService {
         BigDecimal originPrice = price.add("used".equals(scene) ? new BigDecimal("80") : new BigDecimal("120"));
         String publishedAt = formatTime(record.getCreateTime());
         String story = defaultText(record.getStory(), description);
+        String shopName = sellerStore == null
+                ? defaultText(record.getSellerName(), "个人卖家")
+                : defaultText(sellerStore.getStoreName(), defaultText(record.getSellerName(), "个人卖家"));
+        String storeId = sellerStore == null || sellerStore.getStoreId() == null ? "" : String.valueOf(sellerStore.getStoreId());
         return new ProductView(
                 String.valueOf(record.getGoodsId()),
                 scene,
@@ -891,7 +967,7 @@ public class ShopService {
                 condition,
                 record.getSellerCredit() == null ? 96 : record.getSellerCredit(),
                 defaultText(record.getAddress(), "未知地区"),
-                defaultText(record.getSellerName(), "个人卖家"),
+                shopName,
                 "发布后由卖家设置配送方式",
                 List.of("平台担保", statusTag(status)),
                 List.of("真实描述", "pending".equals(status) ? "待审核" : "平台审核记录"),
@@ -902,12 +978,36 @@ public class ShopService {
                 List.of("可询问成色和配件", "可生成验货清单", "可根据最低价辅助议价"),
                 status,
                 record.getSellerId(),
-                defaultText(record.getSellerName(), "个人卖家"),
+                shopName,
                 publishedAt,
                 defaultText(record.getRejectReason(), ""),
                 record.getFloorPrice(),
-                description
+                description,
+                storeId
         );
+    }
+
+    private StoreRecord ensureStoreForProduct(ProductRecord record) {
+        if (record == null || record.getSellerId() == null) {
+            return null;
+        }
+        try {
+            StoreRecord existing = storeMapper.selectBySeller(record.getSellerId());
+            if (existing != null) {
+                return existing;
+            }
+            String storeName = defaultText(record.getSellerName(), "卖家") + " 的店铺";
+            storeMapper.insertSellerStore(
+                    record.getSellerId(),
+                    storeName,
+                    storeName + "由卖家自主经营，商品经过平台记录，支持在站内沟通、关注和浏览。",
+                    "信用店铺",
+                    "平台担保,真实商品,信用卖家"
+            );
+            return storeMapper.selectBySeller(record.getSellerId());
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private void validatePublish(PublishRequest request) {
@@ -929,7 +1029,7 @@ public class ShopService {
                 item.location(), item.shopName(), item.delivery(), List.of("平台担保", statusTag(status)), item.highlights(),
                 item.story(), item.params(), item.reviews(), buildTimeline(item.scene(), item.story(), item.publishedAt(), reviewedAt),
                 item.aiTips(), status, item.publisherId(), item.publisherName(), item.publishedAt(), reason,
-                item.floorPrice(), item.description()
+                item.floorPrice(), item.description(), item.storeId()
         );
     }
 
@@ -1214,6 +1314,8 @@ public class ShopService {
         stores.add(new StoreView("store-1", "松果严选数码", "4.9", "1.2w", "新品数码与官方配件，售后响应快。", "官方严选"));
         stores.add(new StoreView("store-2", "南湖旧书摊", "4.8", "6.4k", "课程教材、考研资料和学长笔记流转地。", "校园认证"));
         stores.add(new StoreView("store-3", "榕树下的小店", "4.7", "4.1k", "家居生活闲置为主，重视真实描述。", "信用卖家"));
+        stores.add(new StoreView("store-4", "阿洛的桌面仓库", "4.9", "812", "数码桌搭和自用设备流转，支持细节沟通。", "个人卖家"));
+        stores.add(new StoreView("store-5", "松果生活馆", "4.8", "2.2k", "宿舍、桌面和生活用品，兼顾新品与实用体验。", "生活严选"));
 
         products.add(new ProductView(
             "airwave-pro", "new", "数码影音", "AirWave Pro 降噪耳机", "全新正品 · 48 小时发货 · 支持七天无理由",
@@ -1223,7 +1325,7 @@ public class ShopService {
             "适合通勤、学习和线上会议的轻量耳机，主打稳定、舒适和清晰通话。",
             List.of(new KeyValue("品牌", "AirWave"), new KeyValue("连接方式", "蓝牙 5.4"), new KeyValue("续航", "38 小时"), new KeyValue("质保", "一年官方质保")),
             List.of(new ReviewView("晨光买家", "降噪很稳，佩戴一下午也不夹耳。", "4.9", List.of("降噪好", "发货快"))),
-            List.of(), List.of("可询问保修政策", "可比较同价位耳机", "可查看发票与质保")
+            List.of(), List.of("可询问保修政策", "可比较同价位耳机", "可查看发票与质保"), "store-1"
         ));
         products.add(new ProductView(
             "songuo-pad", "new", "数码影音", "松果 Pad 11 学习平板", "新品首发 · 学习办公两用 · 赠保护套",
@@ -1233,7 +1335,7 @@ public class ShopService {
             "面向课程笔记、网课和轻办公场景，兼顾屏幕素质与续航。",
             List.of(new KeyValue("内存", "8GB + 256GB"), new KeyValue("屏幕", "11 英寸 2.5K"), new KeyValue("重量", "485g"), new KeyValue("网络", "Wi-Fi")),
             List.of(new ReviewView("期末冲刺中", "做笔记很顺手，续航够一天课。", "4.7", List.of("学习友好"))),
-            List.of(), List.of("可生成学习设备清单", "可估算分期预算")
+            List.of(), List.of("可生成学习设备清单", "可估算分期预算"), "store-1"
         ));
         products.add(new ProductView(
             "viewtop-monitor", "used", "数码影音", "ViewTop 27 英寸 2K 显示器", "二手 9 成新 · 无坏点 · 支持当面验货",
@@ -1244,7 +1346,7 @@ public class ShopService {
             List.of(new KeyValue("品牌", "ViewTop"), new KeyValue("分辨率", "2560 x 1440"), new KeyValue("接口", "HDMI / DP"), new KeyValue("成色", "9 成新")),
                 List.of(new ReviewView("桌搭玩家", "卖家说明很细，现场验货顺利。", "4.9", List.of("描述真实"))),
             List.of(new TimelineNode("2024.09", "入手第一天", "用于设计作业和剪辑练习。"), new TimelineNode("2025.06", "完成毕业项目", "屏幕一直稳定，无亮点坏点。"), new TimelineNode("2026.05", "准备流转", "已清洁打包，支持同城验货。")),
-                List.of("可帮你砍价到 620-650", "可生成验货清单")
+                List.of("可帮你砍价到 620-650", "可生成验货清单"), "store-4"
         ));
         products.add(new ProductView(
             "software-book", "used", "图书文创", "软件工程导论与项目管理笔记", "二手教材 · 含重点标注 · 适合课程复习",
@@ -1255,7 +1357,7 @@ public class ShopService {
             List.of(new KeyValue("版本", "第 3 版"), new KeyValue("语言", "中文"), new KeyValue("成色", "8.5 成新"), new KeyValue("附赠", "复习提纲")),
             List.of(new ReviewView("赶 ddl 的同学", "笔记很实用，重点划得很清楚。", "4.8", List.of("内容实用"))),
             List.of(new TimelineNode("2025.03", "开始软工课程", "第一章写下需求分析重点。"), new TimelineNode("2025.06", "项目答辩通过", "附带的用例模板帮了大忙。"), new TimelineNode("2026.05", "转给下一届", "希望继续发挥作用。")),
-            List.of("可提取重点页", "可生成复习计划")
+            List.of("可提取重点页", "可生成复习计划"), "store-2"
         ));
         products.add(new ProductView(
             "ergo-chair", "used", "家居生活", "人体工学椅 Pro", "二手 9 成新 · 腰托完整 · 适合宿舍/工位",
@@ -1266,7 +1368,7 @@ public class ShopService {
             List.of(new KeyValue("材质", "网布 + 金属脚"), new KeyValue("功能", "升降 / 后仰 / 腰托"), new KeyValue("成色", "9 成新"), new KeyValue("配送", "同城优先")),
             List.of(new ReviewView("新工位用户", "坐感不错，卖家帮忙叫了车。", "4.6", List.of("服务好"))),
             List.of(new TimelineNode("2024.11", "入驻工作室", "成为第一把正式办公椅。"), new TimelineNode("2025.12", "陪伴项目冲刺", "坐垫和腰托依旧稳定。"), new TimelineNode("2026.05", "搬家出闲置", "同城优先，欢迎试坐。")),
-            List.of("可协商同城运费", "可询问坐垫塌陷情况")
+            List.of("可协商同城运费", "可询问坐垫塌陷情况"), "store-3"
         ));
         products.add(new ProductView(
             "desk-lamp", "new", "家居生活", "折叠护眼台灯", "新品 · 宿舍桌面友好 · 三档色温",
@@ -1276,7 +1378,7 @@ public class ShopService {
             "为宿舍、书桌和夜间阅读设计的小型台灯，亮度柔和，收纳方便。",
             List.of(new KeyValue("供电", "USB-C"), new KeyValue("光源", "LED"), new KeyValue("色温", "三档调节"), new KeyValue("功率", "8W")),
             List.of(new ReviewView("夜读党", "光线柔和，不占桌面。", "4.7", List.of("护眼"))),
-            List.of(), List.of("可推荐宿舍桌搭组合", "可计算顺手买优惠")
+            List.of(), List.of("可推荐宿舍桌搭组合", "可计算顺手买优惠"), "store-5"
         ));
     }
 }

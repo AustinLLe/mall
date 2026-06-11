@@ -3,6 +3,7 @@ package com.example.shopping_back.auth;
 import com.example.shopping_back.auth.dto.AuthUserView;
 import com.example.shopping_back.auth.dto.LoginRequest;
 import com.example.shopping_back.auth.dto.LoginResponse;
+import com.example.shopping_back.auth.dto.ProfileUpdateRequest;
 import com.example.shopping_back.auth.dto.RegisterRequest;
 import com.example.shopping_back.auth.mapper.UserMapper;
 import com.example.shopping_back.auth.model.StoredUser;
@@ -55,6 +56,19 @@ public class AuthService {
     }
 
     public AuthUserView me(String token) {
+        StoredUser user = currentUser(token);
+        return toView(user);
+    }
+
+    public AuthUserView updateProfile(String token, ProfileUpdateRequest req) {
+        StoredUser user = currentUser(token);
+        String avatarUrl = req == null ? "" : cleanAvatarUrl(req.getAvatarUrl());
+        userMapper.updateAvatarUrl(user.getUserId(), avatarUrl);
+        user.setAvatarUrl(avatarUrl);
+        return toView(user);
+    }
+
+    private StoredUser currentUser(String token) {
         if (token == null || token.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
         }
@@ -66,7 +80,7 @@ public class AuthService {
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found");
         }
-        return toView(user);
+        return user;
     }
 
     public AuthUserView getUserById(Integer userId) {
@@ -102,6 +116,9 @@ public class AuthService {
         if (userMapper.countUserColumn("status") == 0) {
             userMapper.addStatusColumn();
         }
+        if (userMapper.countUserColumn("avatar_url") == 0) {
+            userMapper.addAvatarUrlColumn();
+        }
     }
 
     private void ensureSeedUser(String username, String password, String phone, String role) {
@@ -130,7 +147,22 @@ public class AuthService {
                 role,
                 roleLabel(role),
                 phone != null && phone.length() == 11,
-                user.getStatus() == null ? "normal" : user.getStatus());
+                user.getStatus() == null ? "normal" : user.getStatus(),
+                user.getAvatarUrl() == null ? "" : user.getAvatarUrl());
+    }
+
+    private static String cleanAvatarUrl(String avatarUrl) {
+        String value = avatarUrl == null ? "" : avatarUrl.trim();
+        if (value.length() > 500) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Avatar URL too long");
+        }
+        if (!value.isEmpty()
+                && !value.startsWith("/files/")
+                && !value.startsWith("http://")
+                && !value.startsWith("https://")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid avatar URL");
+        }
+        return value;
     }
 
     private static String normalizeRegisterRole(String raw) {

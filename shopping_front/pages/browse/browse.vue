@@ -8,7 +8,7 @@
           </view>
           <view>
             <text class="brand-name">松果集市</text>
-            <text class="brand-sub">话题、经验和真实商品讨论</text>
+            <text class="brand-sub">可信的新旧商品流转平台</text>
           </view>
         </view>
         <view class="web-nav">
@@ -24,7 +24,7 @@
             <input v-model="keyword" class="search-input" placeholder="搜索话题、标签、经验" confirm-type="search" @confirm="searchTopics" />
             <view class="search-action" @click="searchTopics">搜索</view>
           </view>
-          <view class="create-shortcut" @click="showCreatePanel = true">创建话题</view>
+          <view class="create-shortcut" @click="openCreateModal">创建话题</view>
         </view>
       </view>
     </view>
@@ -122,15 +122,7 @@
           <view class="aside-card create-card">
             <text class="aside-title">创建买家话题</text>
             <text class="create-desc">把新品推荐、避坑经验或宿舍好物整理成一个可讨论的话题合集。</text>
-            <view class="create-toggle" @click="showCreatePanel = !showCreatePanel">{{ showCreatePanel ? '收起表单' : '开始创建' }}</view>
-            <view v-if="showCreatePanel" class="create-form">
-              <input v-model="topicForm.title" class="form-input" placeholder="话题标题" />
-              <textarea v-model="topicForm.desc" class="form-textarea" maxlength="300" placeholder="一句话说明这个话题讨论什么" />
-              <input v-model="topicForm.type" class="form-input" placeholder="类型，例如 新品推荐" />
-              <input v-model="topicForm.tagsText" class="form-input" placeholder="标签，用逗号或空格分隔" />
-              <input v-model="topicForm.cover" class="form-input" placeholder="封面图地址，可选" />
-              <button class="create-submit" :disabled="creating" @click="submitTopic">{{ creating ? '创建中...' : '发布话题' }}</button>
-            </view>
+            <view class="create-toggle" @click="openCreateModal">开始创建</view>
           </view>
           <view class="aside-card">
             <text class="aside-title">话题玩法</text>
@@ -150,12 +142,88 @@
         </view>
       </view>
     </view>
+
+    <view v-if="showCreatePanel" class="modal-mask" @click="closeCreateModal">
+      <view class="topic-modal" @click.stop>
+        <view class="modal-head">
+          <view>
+            <text class="modal-kicker">Create Topic</text>
+            <text class="modal-title">创建买家话题</text>
+          </view>
+          <view class="modal-close" @click="closeCreateModal">×</view>
+        </view>
+        <view class="modal-body">
+          <view class="modal-main">
+            <view class="field">
+              <text class="field-label">话题标题</text>
+              <input v-model="topicForm.title" class="form-input" maxlength="40" placeholder="例如：宿舍桌搭避坑清单" />
+            </view>
+            <view class="field">
+              <view class="field-line">
+                <text class="field-label">话题简介</text>
+                <text class="field-count">{{ topicForm.desc.length }}/300</text>
+              </view>
+              <textarea v-model="topicForm.desc" class="form-textarea" maxlength="300" placeholder="说明这个话题适合讨论什么、能帮大家解决什么问题" />
+            </view>
+            <view class="modal-grid">
+              <view class="field">
+                <text class="field-label">话题类型</text>
+                <input v-model="topicForm.type" class="form-input" placeholder="例如 新品推荐" />
+              </view>
+              <view class="field">
+                <text class="field-label">封面图片</text>
+                <view class="cover-picker" @click="chooseCoverImage">
+                  <view class="cover-thumb" :class="{ 'has-image': isImageUrl(topicForm.cover) }">
+                    <image v-if="isImageUrl(topicForm.cover)" class="cover-img" :src="resolveImageUrl(topicForm.cover)" mode="aspectFill"></image>
+                    <text v-else>+</text>
+                  </view>
+                  <view class="cover-picker-copy">
+                    <text class="cover-picker-title">{{ topicForm.cover ? '更换封面图片' : '选择本地图片' }}</text>
+                    <text class="cover-picker-desc">{{ uploadingCover ? '上传中...' : '支持相册或拍照，自动上传为话题封面' }}</text>
+                  </view>
+                </view>
+                <view v-if="topicForm.cover" class="cover-remove" @click="clearCoverImage">移除封面</view>
+              </view>
+            </view>
+            <view class="field">
+              <text class="field-label">标签</text>
+              <input v-model="topicForm.tagsText" class="form-input" placeholder="用逗号或空格分隔，最多 6 个" />
+              <view v-if="topicTags().length" class="preview-tags">
+                <text v-for="tag in topicTags()" :key="tag" class="tag">{{ tag }}</text>
+              </view>
+            </view>
+          </view>
+          <view class="modal-preview">
+            <text class="preview-label">预览</text>
+            <view class="preview-card">
+              <view class="preview-cover" :class="{ 'has-image': isImageUrl(topicForm.cover) }">
+                <image v-if="isImageUrl(topicForm.cover)" class="cover-img" :src="resolveImageUrl(topicForm.cover)" mode="aspectFill"></image>
+                <text v-else>{{ topicForm.type || '话题' }}</text>
+              </view>
+              <view class="preview-content">
+                <view class="article-line">
+                  <text class="badge">{{ topicForm.type || '买家话题' }}</text>
+                  <text class="heat">新话题</text>
+                </view>
+                <text class="article-title">{{ topicForm.title || '给话题起一个清楚的名字' }}</text>
+                <text class="article-desc">{{ topicForm.desc || '写一句简介，让大家知道这个话题适合讨论什么。' }}</text>
+              </view>
+            </view>
+            <text class="preview-tip">发布后会进入话题详情，继续补充讨论内容。</text>
+          </view>
+        </view>
+        <view class="modal-actions">
+          <button class="modal-ghost" @click="closeCreateModal">取消</button>
+          <button class="modal-submit" :disabled="creating" :loading="creating" @click="submitTopic">{{ creating ? '创建中...' : '发布话题' }}</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script>
   import { buildGoodsDetailUrl, buildTopicDetailUrl } from '../../data/catalog.js'
-  import { createTopic, fetchProducts, fetchStores, fetchTopics } from '@/services/shop.js'
+  import { createTopic, fetchProducts, fetchStores, fetchTopics, uploadImage } from '@/services/shop.js'
   import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
   import { getCachedUser, normalizeRole, pickErrorMessage } from '@/utils/auth.js'
 
@@ -171,6 +239,7 @@
         storyGoodsList: [],
         showCreatePanel: false,
         creating: false,
+        uploadingCover: false,
         currentUser: null,
         topicForm: {
           title: '',
@@ -207,6 +276,14 @@
     onLoad() {
       this.currentUser = getCachedUser()
       this.loadAll()
+    },
+    onShow() {
+      this.currentUser = getCachedUser()
+      if (uni.getStorageSync('open_topic_create')) {
+        uni.removeStorageSync('open_topic_create')
+        this.activeTab = 'topics'
+        this.openCreateModal()
+      }
     },
     methods: {
       isImageUrl,
@@ -266,6 +343,48 @@
         this.keyword = ''
         this.activeTag = ''
         this.loadTopics()
+      },
+      openCreateModal() {
+        this.activeTab = 'topics'
+        this.showCreatePanel = true
+      },
+      closeCreateModal() {
+        if (this.creating) return
+        this.showCreatePanel = false
+      },
+      chooseCoverImage() {
+        if (this.uploadingCover) return
+        uni.chooseImage({
+          count: 1,
+          sizeType: ['compressed'],
+          sourceType: ['album', 'camera'],
+          success: async (res) => {
+            const filePath = res.tempFilePaths && res.tempFilePaths[0]
+            if (!filePath) return
+            await this.uploadCoverImage(filePath)
+          }
+        })
+      },
+      async uploadCoverImage(filePath) {
+        this.uploadingCover = true
+        uni.showLoading({ title: '上传封面中' })
+        try {
+          const body = await uploadImage(filePath)
+          if (!body || body.code !== 0 || !body.data) {
+            throw new Error(body && body.message ? body.message : 'upload failed')
+          }
+          this.topicForm.cover = body.data
+          uni.showToast({ title: '封面已上传', icon: 'success' })
+        } catch (e) {
+          uni.showToast({ title: pickErrorMessage(e) || '封面上传失败', icon: 'none' })
+        } finally {
+          this.uploadingCover = false
+          uni.hideLoading()
+        }
+      },
+      clearCoverImage() {
+        if (this.uploadingCover) return
+        this.topicForm.cover = ''
       },
       topicTags() {
         return this.topicForm.tagsText
@@ -328,12 +447,12 @@
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand-mark { width: 42px; height: 42px; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
   .brand-logo { width: 100%; height: 100%; }
-  .brand-name, .brand-sub, .kicker, .title, .desc, .side-value, .side-desc, .article-title, .article-desc, .store-meta, .aside-title, .mission-text, .toolbar-title, .toolbar-sub, .create-desc { display: block; }
+  .brand-name, .brand-sub, .kicker, .title, .desc, .side-value, .side-desc, .article-title, .article-desc, .store-meta, .aside-title, .mission-text, .toolbar-title, .toolbar-sub, .create-desc, .modal-kicker, .modal-title, .field-label, .field-count, .preview-label, .preview-tip { display: block; }
   .brand-name { font-size: 20px; font-weight: 900; color: #202124; }
   .brand-sub { margin-top: 2px; font-size: 12px; color: #667085; }
   .web-nav { justify-self: center; display: flex; align-items: center; gap: 4px; padding: 5px; height: 50px; border-radius: 999px; background: rgba(255,255,255,.72); border: 1px solid rgba(203,213,225,.72); box-sizing: border-box; box-shadow: 0 14px 38px rgba(60,64,67,.08); }
   .nav-link { width: 82px; height: 38px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #5f6b85; font-size: 13px; font-weight: 800; }
-  .nav-link.on, .nav-link:hover { background: #12372a; color: #fff; }
+  .nav-link.on, .nav-link:hover { background: linear-gradient(135deg, #ffffff, #f5f7fa); color: #12372a; box-shadow: 0 10px 26px rgba(18, 55, 42, .14); }
   .top-actions { justify-self: end; display: flex; align-items: center; gap: 12px; min-width: 0; }
   .search { width: clamp(220px, 20vw, 300px); height: 44px; border-radius: 12px; background: rgba(255,255,255,.82); border: 1px solid rgba(203,213,225,.78); display: flex; align-items: center; padding: 0 8px 0 14px; min-width: 0; box-shadow: 0 12px 30px rgba(60,64,67,.06); transition: box-shadow .22s ease, border-color .22s ease; }
   .search:focus-within { border-color: rgba(66,133,244,.32); box-shadow: 0 16px 38px rgba(60,64,67,.1); }
@@ -380,13 +499,43 @@
   .aside-title { color: #12372a; font-size: 17px; font-weight: 900; }
   .create-card { border-color: #d8e8dd; background: #fbfdfb; }
   .create-desc { margin-top: 8px; color: #667085; font-size: 13px; line-height: 1.65; }
-  .create-toggle, .create-submit { margin-top: 12px; height: 38px; border-radius: 8px; background: #12372a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; }
-  .create-form { display: grid; gap: 10px; margin-top: 12px; }
+  .create-toggle { margin-top: 12px; height: 38px; border-radius: 8px; background: #12372a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; }
   .form-input, .form-textarea { width: 100%; box-sizing: border-box; border-radius: 8px; background: #fff; border: 1px solid #dfe6e2; color: #17231d; font-size: 13px; }
-  .form-input { height: 38px; padding: 0 12px; }
-  .form-textarea { height: 86px; padding: 10px 12px; line-height: 1.55; }
-  button.create-submit { margin: 0; padding: 0; border: 0; }
-  button.create-submit::after { border: 0; }
+  .form-input { height: 42px; padding: 0 12px; }
+  .form-textarea { height: 132px; padding: 10px 12px; line-height: 1.55; }
+  .cover-picker { min-height: 68px; padding: 8px; border-radius: 8px; border: 1px dashed #cfded4; background: #f8fbf9; display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 12px; align-items: center; box-sizing: border-box; }
+  .cover-picker:hover { border-color: #9bc5a9; background: #f3f8f5; }
+  .cover-thumb { width: 58px; height: 52px; border-radius: 8px; background: #e8f0eb; color: #12372a; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 24px; font-weight: 900; }
+  .cover-picker-copy { min-width: 0; }
+  .cover-picker-title, .cover-picker-desc { display: block; }
+  .cover-picker-title { color: #12372a; font-size: 13px; font-weight: 900; }
+  .cover-picker-desc { margin-top: 5px; color: #667085; font-size: 12px; line-height: 1.45; }
+  .cover-remove { width: fit-content; margin-top: 8px; color: #b95420; font-size: 12px; font-weight: 900; }
+  .modal-mask { position: fixed; inset: 0; z-index: 50; padding: 28px; box-sizing: border-box; background: rgba(15, 23, 42, .42); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; }
+  .topic-modal { width: min(960px, 100%); max-height: calc(100vh - 56px); overflow: auto; border-radius: 8px; background: #fff; border: 1px solid rgba(226,232,240,.96); box-shadow: 0 28px 90px rgba(15,23,42,.24); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px 18px; border-bottom: 1px solid #eef1ee; }
+  .modal-kicker { color: #1f5c43; font-size: 12px; font-weight: 900; letter-spacing: 0; }
+  .modal-title { margin-top: 4px; color: #12372a; font-size: 24px; font-weight: 900; }
+  .modal-close { width: 36px; height: 36px; border-radius: 50%; background: #f3f6f4; color: #344054; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; flex-shrink: 0; }
+  .modal-body { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; padding: 22px 24px; }
+  .modal-main { display: grid; gap: 14px; min-width: 0; }
+  .field { display: grid; gap: 8px; }
+  .field-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .field-label { color: #344054; font-size: 13px; font-weight: 900; }
+  .field-count { color: #98a2b3; font-size: 12px; }
+  .modal-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 12px; }
+  .preview-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+  .modal-preview { min-width: 0; }
+  .preview-label { color: #344054; font-size: 13px; font-weight: 900; margin-bottom: 8px; }
+  .preview-card { overflow: hidden; border-radius: 8px; background: #fff; border: 1px solid #e4e9e5; box-shadow: 0 14px 38px rgba(17,38,28,.06); }
+  .preview-cover { height: 160px; background: #edf3ef; color: #12372a; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 26px; font-weight: 900; }
+  .preview-content { padding: 16px; }
+  .preview-tip { margin-top: 12px; color: #667085; font-size: 12px; line-height: 1.6; }
+  .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 18px 24px 22px; border-top: 1px solid #eef1ee; }
+  .modal-ghost, .modal-submit { margin: 0; width: 112px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; box-sizing: border-box; }
+  .modal-ghost { background: #fff; color: #12372a; border: 1px solid #dfe6e2; }
+  .modal-submit { background: #12372a; color: #fff; border: 0; }
+  .modal-ghost::after, .modal-submit::after { border: 0; }
   .empty-topics { grid-column: 1 / -1; padding: 38px; text-align: center; color: #667085; background: #fff; border: 1px dashed #d8e8dd; border-radius: 8px; }
   .cloud-tag.on { background: #12372a; color: #fff; }
   .mission-line { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; padding: 12px 0; border-top: 1px solid #eef1ee; }
@@ -399,5 +548,11 @@
     .aside { margin-top: 0; }
     .topic-grid { grid-template-columns: 1fr; }
     .title { font-size: 26px; }
+    .modal-mask { padding: 14px; align-items: flex-end; }
+    .topic-modal { max-height: calc(100vh - 28px); }
+    .modal-body, .modal-grid { grid-template-columns: 1fr; }
+    .modal-body { padding: 18px; }
+    .modal-actions { padding: 14px 18px 18px; }
+    .modal-ghost, .modal-submit { width: 50%; }
   }
 </style>

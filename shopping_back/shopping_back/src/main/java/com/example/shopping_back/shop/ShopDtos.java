@@ -37,7 +37,8 @@ public final class ShopDtos {
             String publishedAt,
             String rejectReason,
             BigDecimal floorPrice,
-            String description
+            String description,
+            String storeId
     ) {
         public ProductView(
                 String id,
@@ -63,8 +64,36 @@ public final class ShopDtos {
                 List<String> aiTips
         ) {
             this(id, scene, category, title, subtitle, price, originPrice, cover, tag, condition, credit,
+                    location, shopName, delivery, service, highlights, story, params, reviews, timeline, aiTips, "");
+        }
+
+        public ProductView(
+                String id,
+                String scene,
+                String category,
+                String title,
+                String subtitle,
+                BigDecimal price,
+                BigDecimal originPrice,
+                String cover,
+                String tag,
+                String condition,
+                int credit,
+                String location,
+                String shopName,
+                String delivery,
+                List<String> service,
+                List<String> highlights,
+                String story,
+                List<KeyValue> params,
+                List<ReviewView> reviews,
+                List<TimelineNode> timeline,
+                List<String> aiTips,
+                String storeId
+        ) {
+            this(id, scene, category, title, subtitle, price, originPrice, cover, tag, condition, credit,
                     location, shopName, delivery, service, highlights, story, params, reviews, timeline, aiTips,
-                    "approved", null, shopName, "", "", null, story);
+                    "approved", null, shopName, "", "", null, story, storeId);
         }
     }
 
@@ -209,6 +238,14 @@ public final class ShopDtos {
             String story,
             BigDecimal floorPrice,
             String location
+    ) {
+    }
+
+    public record StoreUpdateRequest(
+            @NotBlank(message = "店铺名称不能为空") String name,
+            String desc,
+            String badge,
+            List<String> service
     ) {
     }
 

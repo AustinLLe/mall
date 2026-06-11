@@ -14,6 +14,7 @@ public interface ShopProductMapper {
     String BASE_SELECT = """
             SELECT g.goods_id AS goodsId,
                    g.seller_id AS sellerId,
+                   s.store_id AS storeId,
                    COALESCE(s.store_name, u.username, '个人卖家') AS sellerName,
                    COALESCE(u.credit, 96) AS sellerCredit,
                    g.goods_name AS goodsName,

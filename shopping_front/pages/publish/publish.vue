@@ -100,6 +100,7 @@
     import { publishProduct, requestPublishSuggestion } from '@/services/shop.js'
     import { buildRequestUrl } from '../../config/env.js'
     import { resolveImageUrl } from '@/utils/media.js'
+    import { getCachedUser, normalizeRole } from '@/utils/auth.js'
 
     export default {
         data() {
@@ -130,8 +131,23 @@
             }
         },
 
+        onShow() {
+            this.ensureSeller()
+        },
+
         methods: {
+            ensureSeller() {
+                const user = getCachedUser()
+                if (normalizeRole(user && user.role) === 'seller') return true
+                uni.showToast({ title: '请使用卖家账号发布商品', icon: 'none' })
+                setTimeout(() => {
+                    uni.switchTab({ url: '/pages/user/index' })
+                }, 300)
+                return false
+            },
+
             uploadImage() {
+                if (!this.ensureSeller()) return;
                 if (this.uploadLoading) return;
                 uni.chooseImage({
                     count: 1,
@@ -199,6 +215,7 @@
             },
 
             handlePublish() {
+                if (!this.ensureSeller()) return;
                 const error = this.validateForm();
                 if (error) {
                     return uni.showToast({ title: error, icon: 'none' });
@@ -236,6 +253,7 @@
             },
 
             async fillByAi() {
+                if (!this.ensureSeller()) return;
                 if (this.aiLoading) return;
                 this.aiLoading = true;
                 this.aiStatus = '正在调用后端 AI 发布建议接口...';

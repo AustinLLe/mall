@@ -17,7 +17,9 @@ public class ConversationListDto {
     private String targetName;         
     private String lastMessage;     
     private Date lastTime;        
+    private String status;
     private Integer goodsId;
+    private String storeId;
     private String goodsName;
     private BigDecimal goodsPrice;
     private String goodsCategory;

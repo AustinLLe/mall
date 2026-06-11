@@ -21,10 +21,36 @@
 				<view class="top-actions">
 					<view class="search">
 						<text class="search-icon">⌕</text>
-						<input v-model="keyword" class="search-input" placeholder="搜索商品、店铺、关键词" confirm-type="search" @confirm="applySearch" />
+						<input
+							v-model="keyword"
+							class="search-input"
+							placeholder="搜索商品、店铺、关键词"
+							confirm-type="search"
+							@focus="searchFocused = true"
+							@blur="hideSearchSuggestions"
+							@confirm="applySearch"
+						/>
 						<view class="search-action" @click="applySearch">搜索</view>
+						<view v-if="showSearchSuggestions" class="suggest-panel">
+							<view
+								v-for="item in searchSuggestions"
+								:key="item.type + '-' + item.value"
+								class="suggest-item"
+								@click="pickSuggestion(item)"
+							>
+								<text class="suggest-type">{{ item.typeLabel }}</text>
+								<text class="suggest-title">{{ item.label }}</text>
+								<text class="suggest-meta">{{ item.meta }}</text>
+							</view>
+						</view>
 					</view>
-					<view class="publish-btn" @click="goPublish">发布闲置</view>
+					<view v-if="currentUser" class="user-chip" @click="navTo('/pages/user/index')">
+						<view class="user-avatar">
+							<image v-if="avatarUrl" class="user-avatar-img" :src="avatarUrl" mode="aspectFill"></image>
+							<text v-else>{{ avatarText }}</text>
+						</view>
+						<text class="user-name">{{ currentUser.username || '松果用户' }}</text>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -36,6 +62,11 @@
 						<text class="eyebrow">New goods · Second life · Credit first</text>
 						<text class="hero-title">精选新品与优质闲置，一站式安心交易平台。</text>
 						<text class="hero-desc">买家可以放心选购与下单，卖家可以发布商品、管理订单，管理员负责审核商品与维护交易秩序。</text>
+						<view class="hero-chips">
+							<text class="hero-chip" @click="setScene('new')">新品严选</text>
+							<text class="hero-chip" @click="setScene('used')">闲置好物</text>
+							<text class="hero-chip" @click="activeSort = 'credit'">信用优先</text>
+						</view>
 						<view class="hero-actions">
 							<view class="primary-btn" @click="setScene('new')">看新品</view>
 							<view class="secondary-btn" @click="setScene('used')">淘二手</view>
@@ -180,6 +211,7 @@
 	import { fetchProducts } from '@/services/shop.js'
 	import WanderingTimeline from '@/components/wandering-timeline/wandering-timeline.vue'
 	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
+	import { getCachedUser } from '@/utils/auth.js'
 
 	const EMPTY_PRODUCT = {
 		id: '',
@@ -206,13 +238,22 @@
 				activeSort: 'recommend',
 				activeCategory: '全部',
 				keyword: '',
+				searchFocused: false,
+				searchBlurTimer: null,
 				goodsList: [],
 				loadError: false,
 				homeRecommendCount: 0,
-				homeSideSpacer: 0
+				homeSideSpacer: 0,
+				currentUser: null
 			}
 		},
 		computed: {
+			avatarUrl() {
+				return this.currentUser && this.currentUser.avatarUrl ? resolveImageUrl(this.currentUser.avatarUrl) : ''
+			},
+			avatarText() {
+				return String((this.currentUser && this.currentUser.username) || 'M').slice(0, 1).toUpperCase()
+			},
 			sceneTabs() {
 				return [
 					{ key: 'all', label: '全部' },
@@ -230,6 +271,32 @@
 			categories() {
 				return ['全部'].concat(Array.from(new Set(this.goodsList.map((item) => item.category))))
 			},
+			showSearchSuggestions() {
+				return this.searchFocused && this.searchSuggestions.length > 0
+			},
+			searchSuggestions() {
+				const kw = this.keyword.trim().toLowerCase()
+				if (!kw) return []
+				const result = []
+				const seen = new Set()
+				const push = (item) => {
+					const key = item.type + ':' + item.value
+					if (seen.has(key)) return
+					seen.add(key)
+					result.push(item)
+				}
+				this.goodsList.forEach((item) => {
+					const title = item.title || ''
+					const category = item.category || ''
+					const shopName = item.shopName || ''
+					const haystack = [title, item.subtitle, category, shopName].join(' ').toLowerCase()
+					if (!haystack.includes(kw)) return
+					if (title) push({ type: 'goods', typeLabel: '商品', value: title, label: title, meta: `${category || '未分类'} · ¥${item.price || 0}` })
+					if (category && category.toLowerCase().includes(kw)) push({ type: 'category', typeLabel: '分类', value: category, label: category, meta: '按分类筛选' })
+					if (shopName && shopName.toLowerCase().includes(kw)) push({ type: 'store', typeLabel: '店铺', value: shopName, label: shopName, meta: '按店铺/卖家搜索' })
+				})
+				return result.slice(0, 6)
+			},
 			metrics() {
 				return [
 					{ label: '信用卖家', value: '128' },
@@ -241,8 +308,7 @@
 				return [
 					{ icon: '✓', title: '新品严选', desc: '正品与售后', scene: 'new' },
 					{ icon: '↻', title: '闲置好物', desc: '信用可见', scene: 'used' },
-					{ icon: 'AI', title: '议价助手', desc: '生成验货清单', path: '/pages/message/message' },
-					{ icon: '+', title: '发布商品', desc: '快速上架', path: '/pages/publish/publish' }
+					{ icon: 'AI', title: '议价助手', desc: '生成验货清单', path: '/pages/message/message' }
 				]
 			},
 			guardrails() {
@@ -300,8 +366,15 @@
 		onLoad() {
 			const sys = uni.getWindowInfo()
 			this.statusBarHeight = sys.statusBarHeight || 24
+			this.currentUser = getCachedUser()
 			this.loadProducts()
 			this.$nextTick(() => this.syncHomeSideLength())
+		},
+		onShow() {
+			this.currentUser = getCachedUser()
+		},
+		beforeDestroy() {
+			if (this.searchBlurTimer) clearTimeout(this.searchBlurTimer)
 		},
 		methods: {
 			isImageUrl,
@@ -358,17 +431,31 @@
 			},
 			applySearch() {
 				this.loadProducts()
+				this.searchFocused = false
 				uni.showToast({ title: this.keyword ? '已筛选相关商品' : '请输入搜索关键词', icon: 'none' })
+			},
+			hideSearchSuggestions() {
+				if (this.searchBlurTimer) clearTimeout(this.searchBlurTimer)
+				this.searchBlurTimer = setTimeout(() => {
+					this.searchFocused = false
+				}, 160)
+			},
+			pickSuggestion(item) {
+				if (!item) return
+				if (this.searchBlurTimer) clearTimeout(this.searchBlurTimer)
+				this.keyword = item.value
+				if (item.type === 'category') {
+					this.activeCategory = item.value
+				}
+				this.searchFocused = false
+				this.loadProducts()
 			},
 			quickOpen(item) {
 				if (item.scene) {
 					this.setScene(item.scene)
 					return
 				}
-				uni.navigateTo({ url: item.path })
-			},
-			goPublish() {
-				uni.navigateTo({ url: '/pages/publish/publish' })
+				this.navTo(item.path)
 			},
 			navTo(url) {
 				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
@@ -398,7 +485,10 @@
 				}
 			},
 			openStore(item) {
-				uni.navigateTo({ url: '/pages/store/store?name=' + encodeURIComponent(item.shopName) })
+				const query = item.storeId
+					? '?id=' + encodeURIComponent(item.storeId)
+					: '?name=' + encodeURIComponent(item.shopName || '')
+				uni.navigateTo({ url: '/pages/store/store' + query })
 			}
 		}
 	}
@@ -582,6 +672,7 @@
 		min-width: 0;
 		box-shadow: 0 12px 30px rgba(60, 64, 67, .06);
 		transition: box-shadow .22s ease, border-color .22s ease;
+		position: relative;
 	}
 	.search:focus-within {
 		border-color: rgba(66, 133, 244, .32);
@@ -598,7 +689,6 @@
 		font-size: 14px;
 	}
 	.search-action,
-	.publish-btn,
 	.primary-btn,
 	.secondary-btn,
 	.story-link {
@@ -615,13 +705,101 @@
 		background: #12372a;
 		color: #fff;
 	}
-	.publish-btn {
+	.suggest-panel {
+		position: absolute;
+		top: 52px;
+		left: 0;
+		right: 0;
+		z-index: 30;
+		padding: 8px;
+		border-radius: 8px;
+		background: #fff;
+		border: 1px solid #dfe8e3;
+		box-shadow: 0 18px 48px rgba(17, 38, 28, .14);
+	}
+	.suggest-item {
+		display: grid;
+		grid-template-columns: 42px minmax(0, 1fr);
+		grid-template-areas:
+			"type title"
+			"type meta";
+		column-gap: 10px;
+		padding: 9px 8px;
+		border-radius: 8px;
+	}
+	.suggest-item:hover {
+		background: #f3f8f5;
+	}
+	.suggest-type {
+		grid-area: type;
+		align-self: center;
+		height: 24px;
+		border-radius: 999px;
+		background: #eef5f0;
+		color: #12372a;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 11px;
+		font-weight: 900;
+	}
+	.suggest-title {
+		grid-area: title;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 13px;
+		font-weight: 900;
+		color: #17231d;
+	}
+	.suggest-meta {
+		grid-area: meta;
+		margin-top: 3px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 12px;
+		color: #667085;
+	}
+	.user-chip {
 		height: 44px;
-		padding: 0 18px;
+		padding: 0 12px 0 6px;
+		border-radius: 999px;
+		background: #fff;
+		border: 1px solid rgba(203, 213, 225, .82);
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-width: 0;
+		box-shadow: 0 12px 30px rgba(60, 64, 67, .06);
+	}
+	.user-avatar {
+		width: 34px;
+		height: 34px;
+		border-radius: 50%;
 		background: #12372a;
 		color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 14px;
+		font-weight: 900;
+		overflow: hidden;
 		flex-shrink: 0;
-		box-shadow: 0 14px 34px rgba(18, 55, 42, .16);
+	}
+	.user-avatar-img {
+		width: 100%;
+		height: 100%;
+		display: block;
+	}
+	.user-name {
+		max-width: 96px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 13px;
+		font-weight: 900;
+		color: #17231d;
 	}
 	.scroll-shell {
 		height: calc(100vh - 74px);
@@ -632,7 +810,7 @@
 	}
 	.hero {
 		display: grid;
-		grid-template-columns: minmax(0, 1.45fr) minmax(360px, .85fr);
+		grid-template-columns: minmax(0, 1.38fr) minmax(340px, .82fr);
 		gap: 20px;
 	}
 	.hero-copy,
@@ -647,7 +825,7 @@
 		transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
 	}
 	.hero-copy {
-		padding: 48px 50px;
+		padding: 34px 38px;
 		background:
 			radial-gradient(circle at 85% 12%, rgba(66, 133, 244, .08), transparent 30%),
 			radial-gradient(circle at 18% 80%, rgba(52, 168, 83, .05), transparent 32%),
@@ -659,24 +837,38 @@
 		font-weight: 900;
 	}
 	.hero-title {
-		margin-top: 16px;
+		margin-top: 12px;
 		max-width: 760px;
-		font-size: 36px;
-		line-height: 1.22;
+		font-size: 32px;
+		line-height: 1.2;
 		font-weight: 850;
 		color: #202124;
 	}
 	.hero-desc {
-		margin-top: 18px;
+		margin-top: 12px;
 		max-width: 720px;
 		font-size: 15px;
-		line-height: 1.8;
+		line-height: 1.65;
 		color: #4b5563;
+	}
+	.hero-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+		margin-top: 16px;
+	}
+	.hero-chip {
+		padding: 8px 12px;
+		border-radius: 999px;
+		background: #eef5f0;
+		color: #12372a;
+		font-size: 13px;
+		font-weight: 850;
 	}
 	.hero-actions {
 		display: flex;
 		gap: 12px;
-		margin-top: 28px;
+		margin-top: 20px;
 	}
 	.primary-btn,
 	.secondary-btn {
@@ -694,11 +886,11 @@
 		border: 1px solid rgba(95, 99, 104, .22);
 	}
 	.hero-board {
-		padding: 24px;
+		padding: 20px;
 		display: flex;
 		flex-direction: column;
 		justify-content: space-between;
-		min-height: 270px;
+		min-height: 242px;
 	}
 	.board-head,
 	.price-row,
@@ -722,17 +914,17 @@
 	.metric-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		gap: 10px;
-		margin-top: 18px;
+		gap: 8px;
+		margin-top: 14px;
 	}
 	.metric {
 		background: linear-gradient(180deg, #f7faf8, #eef5f0);
 		border-radius: 8px;
-		padding: 14px 8px;
+		padding: 10px 6px;
 		text-align: center;
 	}
 	.metric-value {
-		font-size: 22px;
+		font-size: 20px;
 		font-weight: 900;
 		color: #1f5c43;
 	}
@@ -742,8 +934,8 @@
 		color: #667085;
 	}
 	.focus-item {
-		margin-top: 18px;
-		padding: 18px;
+		margin-top: 14px;
+		padding: 14px;
 		border-radius: 8px;
 		background:
 			radial-gradient(circle at 16% 20%, rgba(255,255,255,.16), transparent 26%),
@@ -759,8 +951,8 @@
 		transform: translateY(-2px);
 	}
 	.focus-cover {
-		width: 76px;
-		height: 76px;
+		width: 68px;
+		height: 68px;
 		border-radius: 8px;
 		background:
 			radial-gradient(circle at 34% 28%, rgba(255,255,255,.34), transparent 24%),
@@ -812,12 +1004,20 @@
 	}
 	.quick-grid {
 		display: grid;
-		grid-template-columns: repeat(4, 1fr);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 12px;
 		margin-top: 16px;
 	}
 	.quick-card {
-		padding: 18px;
+		min-height: 72px;
+		padding: 14px 16px;
+		display: grid;
+		grid-template-columns: 40px minmax(0, 1fr);
+		grid-template-areas:
+			"icon title"
+			"icon desc";
+		column-gap: 12px;
+		align-items: center;
 		animation: softIn .5s ease both;
 	}
 	.quick-card:nth-child(2) {
@@ -837,8 +1037,9 @@
 		border-color: rgba(31, 92, 67, .18);
 	}
 	.quick-icon {
-		width: 34px;
-		height: 34px;
+		grid-area: icon;
+		width: 38px;
+		height: 38px;
 		border-radius: 8px;
 		background: linear-gradient(135deg, #f5f7fa, #ffffff);
 		color: #12372a;
@@ -849,13 +1050,15 @@
 		font-weight: 900;
 	}
 	.quick-title {
-		margin-top: 13px;
+		grid-area: title;
+		margin-top: 0;
 		font-size: 16px;
 		font-weight: 850;
 		color: #17231d;
 	}
 	.quick-desc {
-		margin-top: 5px;
+		grid-area: desc;
+		margin-top: 3px;
 		font-size: 13px;
 		color: #667085;
 	}
@@ -1123,8 +1326,18 @@
 		color: #12372a;
 		margin-bottom: 8px;
 	}
+	.timeline-side-card {
+		background:
+			radial-gradient(circle at 90% 0%, rgba(240, 164, 92, .18), transparent 34%),
+			linear-gradient(180deg, #fffaf4 0%, #ffffff 100%);
+		border-color: #f0dfce;
+	}
+	.timeline-side-card .side-title {
+		padding-left: 10px;
+		border-left: 4px solid #d66a2c;
+	}
 	.timeline-side-card .wandering-timeline {
-		margin-top: 6px;
+		margin-top: 8px;
 	}
 	.story-link {
 		margin-top: 10px;
@@ -1190,9 +1403,13 @@
 		}
 		.brand-sub,
 		.web-nav,
-		.publish-btn,
 		.side {
 			display: none;
+		}
+		.top-actions {
+			width: 100%;
+			justify-content: flex-start;
+			flex-wrap: wrap;
 		}
 		.hero-copy {
 			padding: 32px 24px;
@@ -1237,6 +1454,7 @@
 	.top-actions {
 		width: 100%;
 		justify-content: center;
+		flex-wrap: wrap;
 	}
 	.search {
 		width: calc(100vw - 68px);
@@ -1258,6 +1476,10 @@
 		height: 36px;
 		font-size: 13px;
 		flex-shrink: 0;
+	}
+	.user-chip {
+		height: 38px;
+		max-width: calc(100vw - 68px);
 	}
 	.scroll-shell {
 		height: auto;

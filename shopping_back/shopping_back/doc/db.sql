@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS `users` (
     `credit` INT NOT NULL DEFAULT 100,
     `role` VARCHAR(20) NOT NULL DEFAULT 'buyer',
     `status` VARCHAR(20) NOT NULL DEFAULT 'normal',
+    `avatar_url` VARCHAR(500) DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
@@ -247,6 +248,7 @@ DELIMITER ;
 
 CALL `ensure_column`('users', 'role', '`role` VARCHAR(20) NOT NULL DEFAULT ''buyer''');
 CALL `ensure_column`('users', 'status', '`status` VARCHAR(20) NOT NULL DEFAULT ''normal''');
+CALL `ensure_column`('users', 'avatar_url', '`avatar_url` VARCHAR(500) DEFAULT NULL');
 
 CALL `ensure_column`('goods', 'seller_id', '`seller_id` INT NOT NULL DEFAULT 2');
 CALL `ensure_column`('goods', 'goods_name', '`goods_name` VARCHAR(255) NOT NULL DEFAULT ''-''');

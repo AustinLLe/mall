@@ -4,11 +4,13 @@ import com.example.shopping_back.common.dto.ApiResult;
 import com.example.shopping_back.auth.dto.AuthUserView;
 import com.example.shopping_back.auth.dto.LoginRequest;
 import com.example.shopping_back.auth.dto.LoginResponse;
+import com.example.shopping_back.auth.dto.ProfileUpdateRequest;
 import com.example.shopping_back.auth.dto.RegisterRequest;
 import java.util.List;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,6 +41,13 @@ public class AuthController {
     public ApiResult<AuthUserView> me(@RequestHeader(value = "Authorization", required = false) String authorization) {
         String token = bearerToken(authorization);
         return ApiResult.ok(authService.me(token));
+    }
+
+    @PutMapping("/me/profile")
+    public ApiResult<AuthUserView> updateProfile(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                                 @RequestBody ProfileUpdateRequest body) {
+        String token = bearerToken(authorization);
+        return ApiResult.ok(authService.updateProfile(token, body));
     }
 
     @GetMapping("/search-users")
