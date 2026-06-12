@@ -196,7 +196,8 @@ public interface CenterMapper {
     @Insert("INSERT INTO browse_history(user_id, goods_id, item_title) VALUES(#{userId}, 1, #{title})")
     int addBrowse(@Param("userId") Integer userId, @Param("title") String title);
 
-    @Insert("INSERT INTO follow_store(user_id, store_id, store_name) VALUES(#{userId}, 1, #{storeName})")
+    @Insert("INSERT IGNORE INTO follow_store(user_id, store_id, store_name) " +
+            "SELECT #{userId}, store_id, store_name FROM store WHERE store_name = #{storeName} ORDER BY store_id LIMIT 1")
     int addFollow(@Param("userId") Integer userId, @Param("storeName") String storeName);
 
     @Delete("DELETE FROM favorite_goods WHERE user_id = #{userId}")

@@ -10,9 +10,10 @@ public class AuthUserView {
     private final String roleLabel;
     private final Boolean realNameVerified;
     private final String status;
+    private final String avatarUrl;
 
     public AuthUserView(Integer userId, String username, String phoneMasked, Integer credit,
-                        String role, String roleLabel, Boolean realNameVerified, String status) {
+                        String role, String roleLabel, Boolean realNameVerified, String status, String avatarUrl) {
         this.userId = userId;
         this.username = username;
         this.phoneMasked = phoneMasked;
@@ -21,6 +22,7 @@ public class AuthUserView {
         this.roleLabel = roleLabel;
         this.realNameVerified = realNameVerified;
         this.status = status;
+        this.avatarUrl = avatarUrl;
     }
 
     public Integer getUserId() {
@@ -53,5 +55,9 @@ public class AuthUserView {
 
     public String getStatus() {
         return status;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
     }
 }

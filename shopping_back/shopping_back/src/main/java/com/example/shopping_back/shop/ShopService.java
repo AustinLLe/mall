@@ -7,16 +7,34 @@ import com.example.shopping_back.shop.ShopDtos.AiPublishSuggestionRequest;
 import com.example.shopping_back.shop.ShopDtos.AiPublishSuggestionResponse;
 import com.example.shopping_back.shop.ShopDtos.AuditRequest;
 import com.example.shopping_back.shop.ShopDtos.AuditResult;
+import com.example.shopping_back.shop.ShopDtos.CreateOrderRequest;
 import com.example.shopping_back.shop.ShopDtos.KeyValue;
 import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
 import com.example.shopping_back.shop.ShopDtos.ReviewView;
+import com.example.shopping_back.shop.ShopDtos.ReviewRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
+import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
+import com.example.shopping_back.shop.ShopDtos.StoreUpdateRequest;
 import com.example.shopping_back.shop.ShopDtos.TimelineNode;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
+import com.example.shopping_back.shop.ShopDtos.TopicCommentRequest;
+import com.example.shopping_back.shop.ShopDtos.TopicCommentView;
+import com.example.shopping_back.shop.ShopDtos.TopicCreateRequest;
+import com.example.shopping_back.shop.ShopDtos.TopicPostRequest;
+import com.example.shopping_back.shop.ShopDtos.TopicPostView;
+import com.example.shopping_back.shop.mapper.ShopOrderMapper;
 import com.example.shopping_back.shop.mapper.ShopProductMapper;
+import com.example.shopping_back.shop.mapper.ShopStoreMapper;
+import com.example.shopping_back.shop.mapper.ShopTopicMapper;
+import com.example.shopping_back.shop.model.OrderRecord;
 import com.example.shopping_back.shop.model.ProductRecord;
+import com.example.shopping_back.shop.model.ProductReviewRecord;
+import com.example.shopping_back.shop.model.StoreRecord;
+import com.example.shopping_back.shop.model.TopicCommentRecord;
+import com.example.shopping_back.shop.model.TopicPostRecord;
+import com.example.shopping_back.shop.model.TopicRecord;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +56,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ShopService {
@@ -45,8 +64,10 @@ public class ShopService {
 
     private final List<ProductView> products = new ArrayList<>();
     private final List<StoreView> stores = new ArrayList<>();
-    private final List<TopicView> topics = new ArrayList<>();
     private final ShopProductMapper productMapper;
+    private final ShopStoreMapper storeMapper;
+    private final ShopOrderMapper orderMapper;
+    private final ShopTopicMapper topicMapper;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final String openAiApiKey;
@@ -58,6 +79,9 @@ public class ShopService {
 
     public ShopService(
             ShopProductMapper productMapper,
+            ShopStoreMapper storeMapper,
+            ShopOrderMapper orderMapper,
+            ShopTopicMapper topicMapper,
             ObjectMapper objectMapper,
             @Value("${openai.api.key:}") String openAiApiKey,
             @Value("${openai.model:gpt-4.1-mini}") String openAiModel,
@@ -67,6 +91,9 @@ public class ShopService {
             @Value("${dashscope.chat.url:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}") String dashScopeChatUrl
     ) {
         this.productMapper = productMapper;
+        this.storeMapper = storeMapper;
+        this.orderMapper = orderMapper;
+        this.topicMapper = topicMapper;
         this.objectMapper = objectMapper;
         this.openAiApiKey = openAiApiKey == null ? "" : openAiApiKey.trim();
         this.openAiModel = openAiModel == null || openAiModel.isBlank() ? "gpt-4.1-mini" : openAiModel.trim();
@@ -81,30 +108,26 @@ public class ShopService {
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
         seed();
         ensureProductSchema();
+        ensureStoreSchema();
+        ensureOrderSchema();
+        ensureTopicSchema();
     }
 
     public List<ProductView> products(String scene, String keyword) {
         try {
             List<ProductRecord> records = productMapper.selectApproved(scene, keyword);
-            if (!records.isEmpty()) {
-                return records.stream().map(this::toView).toList();
-            }
+            return records.stream().map(this::toView).toList();
         } catch (RuntimeException ignored) {
+            return List.of();
         }
-        String kw = keyword == null ? "" : keyword.trim().toLowerCase();
-        return products.stream()
-                .filter(item -> scene == null || scene.isBlank() || "all".equals(scene) || item.scene().equals(scene))
-                .filter(item -> "approved".equals(item.status()) || item.status() == null)
-                .filter(item -> kw.isBlank() || (item.title() + item.subtitle() + item.category() + item.shopName()).toLowerCase().contains(kw))
-                .toList();
     }
 
     public ProductView product(String id) {
-        ProductView byDb = productFromDatabase(id);
-        if (byDb != null) {
-            return byDb;
+        ProductRecord record = productMapper.selectById(parseDbId(id));
+        if (record == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "商品不存在");
         }
-        return products.stream().filter(item -> item.id().equals(id)).findFirst().orElse(products.get(0));
+        return toView(record);
     }
 
     public List<ProductView> myProducts(AuthUserView user) {
@@ -120,27 +143,290 @@ public class ShopService {
         }
         String username = user == null ? "" : user.getUsername();
         return products.stream()
-                .filter(item -> item.publisherName() == null || username.isBlank() || username.equals(item.publisherName()))
+                .filter(item -> (userId != null && userId.equals(item.publisherId())) || (!username.isBlank() && username.equals(item.publisherName())))
                 .toList();
     }
 
     public List<StoreView> stores() {
-        return stores;
+        try {
+            return storeMapper.selectNormalStores().stream().map(this::toStoreView).toList();
+        } catch (RuntimeException ignored) {
+            return stores;
+        }
     }
 
-    public List<TopicView> topics() {
-        return topics;
+    public StoreDetailView myStore(AuthUserView user) {
+        StoreRecord store = ensureSellerStore(user);
+        List<ProductView> goods = storeProducts(String.valueOf(store.getStoreId()));
+        int followers = safeFollowerCount(store.getStoreId());
+        long newCount = goods.stream().filter(item -> "new".equals(item.scene())).count();
+        long usedCount = goods.stream().filter(item -> "used".equals(item.scene())).count();
+        return toStoreDetail(store, false, followers, goods.size(), newCount, usedCount);
     }
 
-    public List<OrderView> orders() {
-        return List.of(
-                new OrderView("o1", "松果严选数码", "待收货", "AirWave Pro 降噪耳机", "/static/goods/airwave-pro.jpg", "新品", "平台担保", new BigDecimal("699")),
-                new OrderView("o2", "阿洛的桌面仓库", "待评价", "ViewTop 27 英寸 2K 显示器", "/static/goods/viewtop-monitor.jpg", "二手", "同城验货", new BigDecimal("680"))
-        );
+    public StoreDetailView updateMyStore(StoreUpdateRequest request, AuthUserView user) {
+        StoreRecord store = ensureSellerStore(user);
+        String storeName = defaultText(request == null ? "" : request.name(), defaultText(store.getStoreName(), user.getUsername() + " 的店铺"));
+        String desc = defaultText(request == null ? "" : request.desc(), defaultStoreDesc(store));
+        String badge = defaultText(request == null ? "" : request.badge(), defaultText(store.getBadge(), "信用店铺"));
+        String serviceTags = joinServiceTags(request == null ? null : request.service(), store.getServiceTags());
+        try {
+            storeMapper.updateSellerStore(store.getStoreId(), user.getUserId(), storeName, desc, badge, serviceTags);
+        } catch (RuntimeException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "店铺更新失败");
+        }
+        return myStore(user);
+    }
+
+    public StoreDetailView store(String id, AuthUserView user) {
+        StoreRecord store = findStore(id);
+        if (store == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found");
+        }
+        List<ProductView> goods = storeProducts(id);
+        int followers = safeFollowerCount(store.getStoreId());
+        boolean followed = user != null && storeMapper.isFollowed(user.getUserId(), store.getStoreId()) > 0;
+        long newCount = goods.stream().filter(item -> "new".equals(item.scene())).count();
+        long usedCount = goods.stream().filter(item -> "used".equals(item.scene())).count();
+        return toStoreDetail(store, followed, followers, goods.size(), newCount, usedCount);
+    }
+
+    public List<ProductView> storeProducts(String id) {
+        StoreRecord store = findStore(id);
+        if (store == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found");
+        }
+        try {
+            return productMapper.selectBySeller(store.getSellerId()).stream()
+                    .filter(item -> "approved".equals(normalizeStatus(item.getStatus())))
+                    .map(this::toView)
+                    .toList();
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    public StoreDetailView followStore(String id, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Please login first");
+        }
+        StoreRecord store = findStore(id);
+        if (store == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found");
+        }
+        storeMapper.follow(user.getUserId(), store.getStoreId(), store.getStoreName());
+        return store(id, user);
+    }
+
+    public StoreDetailView unfollowStore(String id, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Please login first");
+        }
+        StoreRecord store = findStore(id);
+        if (store == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found");
+        }
+        storeMapper.unfollow(user.getUserId(), store.getStoreId());
+        return store(id, user);
+    }
+
+    public List<TopicView> topics(String tag, String keyword) {
+        try {
+            ensureTopicSchema();
+            return topicMapper.selectTopics(tag, keyword).stream().map(this::toTopicView).toList();
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    public TopicView topic(String id) {
+        ensureTopicSchema();
+        TopicRecord record = topicMapper.selectTopic(parseDbId(id));
+        if (record == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "话题不存在");
+        }
+        return toTopicView(record);
+    }
+
+    public TopicView createTopic(TopicCreateRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后创建话题");
+        }
+        if (!"buyer".equals(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "当前仅买家可以创建话题");
+        }
+        String title = request == null ? "" : defaultText(request.title(), "").trim();
+        String desc = request == null ? "" : defaultText(request.desc(), "").trim();
+        if (title.isBlank() || desc.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "话题标题和简介不能为空");
+        }
+        TopicRecord record = new TopicRecord();
+        record.setType(defaultText(request.type(), "买家话题"));
+        record.setTitle(title);
+        record.setTopicDesc(desc);
+        record.setAuthor(defaultText(user.getUsername(), "买家"));
+        record.setCover(defaultText(request.cover(), "/static/goods/viewtop-monitor.jpg"));
+        record.setTags(joinTopicTags(request.tags()));
+        record.setStatus("normal");
+        ensureTopicSchema();
+        topicMapper.insertTopic(record);
+        TopicRecord created = topicMapper.selectTopic(record.getTopicId());
+        return toTopicView(created == null ? record : created);
+    }
+
+    public List<TopicPostView> topicPosts(String topicId, AuthUserView user) {
+        ensureTopicSchema();
+        Integer id = parseDbId(topicId);
+        Integer userId = user == null ? null : user.getUserId();
+        return topicMapper.selectPosts(id, userId).stream().map(this::toTopicPostView).toList();
+    }
+
+    public List<TopicPostView> createTopicPost(String topicId, TopicPostRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后发帖");
+        }
+        ensureTopicSchema();
+        Integer id = parseDbId(topicId);
+        if (topicMapper.selectTopic(id) == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "话题不存在");
+        }
+        String content = request == null ? "" : defaultText(request.content(), "").trim();
+        if (content.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "帖子内容不能为空");
+        }
+        String images = request == null || request.images() == null ? "" : String.join(",", request.images());
+        Integer productId = request == null || isBlank(request.productId()) ? null : parseDbId(request.productId());
+        Integer storeId = request == null || isBlank(request.storeId()) ? null : parseDbId(request.storeId());
+        if (productId != null && productMapper.selectById(productId) == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "推荐商品不存在");
+        }
+        if (storeId != null && storeMapper.selectById(storeId) == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "推荐店铺不存在");
+        }
+        topicMapper.insertPost(id, user.getUserId(), productId, storeId, content, images);
+        return topicPosts(topicId, user);
+    }
+
+    public List<TopicPostView> createTopicComment(String postId, TopicCommentRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后评论");
+        }
+        ensureTopicSchema();
+        Integer id = parseDbId(postId);
+        Integer topicId = topicMapper.topicIdByPost(id);
+        if (topicId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
+        }
+        String content = request == null ? "" : defaultText(request.content(), "").trim();
+        if (content.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评论内容不能为空");
+        }
+        topicMapper.insertComment(id, user.getUserId(), content);
+        return topicPosts(String.valueOf(topicId), user);
+    }
+
+    public List<TopicPostView> toggleTopicPostAction(String postId, String actionType, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后操作");
+        }
+        ensureTopicSchema();
+        Integer id = parseDbId(postId);
+        Integer topicId = topicMapper.topicIdByPost(id);
+        if (topicId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
+        }
+        String action = normalizeTopicAction(actionType);
+        if (topicMapper.actionExists(id, user.getUserId(), action) > 0) {
+            topicMapper.deleteAction(id, user.getUserId(), action);
+        } else {
+            topicMapper.insertAction(id, user.getUserId(), action);
+        }
+        return topicPosts(String.valueOf(topicId), user);
+    }
+
+    public List<TopicPostView> toggleTopicPostLike(String postId, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后点赞");
+        }
+        ensureTopicSchema();
+        Integer id = parseDbId(postId);
+        Integer topicId = topicMapper.topicIdByPost(id);
+        if (topicId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
+        }
+        if (topicMapper.likeExists(id, user.getUserId()) > 0) {
+            topicMapper.deleteLike(id, user.getUserId());
+        } else {
+            topicMapper.insertLike(id, user.getUserId());
+        }
+        return topicPosts(String.valueOf(topicId), user);
+    }
+
+    public List<OrderView> orders(AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后查看订单");
+        }
+        ensureOrderSchema();
+        return orderMapper.selectBuyerOrders(user.getUserId()).stream().map(this::toOrderView).toList();
+    }
+
+    public List<OrderView> createOrders(CreateOrderRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后下单");
+        }
+        if (request == null || request.items() == null || request.items().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "订单商品不能为空");
+        }
+        ensureOrderSchema();
+        for (ShopDtos.CreateOrderItem item : request.items()) {
+            Integer goodsId = parseDbId(item.goodsId());
+            ProductRecord product = productMapper.selectById(goodsId);
+            if (product == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "商品不存在");
+            }
+            if (user.getUserId().equals(product.getSellerId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能购买自己发布的商品");
+            }
+            int quantity = item.quantity() == null || item.quantity() <= 0 ? 1 : item.quantity();
+            BigDecimal price = product.getPrice() == null ? BigDecimal.ZERO : product.getPrice();
+            orderMapper.insertOrder(user.getUserId(), product.getSellerId(), goodsId, "completed", price.multiply(new BigDecimal(quantity)));
+        }
+        return orders(user);
+    }
+
+    public OrderView reviewOrder(String orderId, ReviewRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后评价");
+        }
+        ensureOrderSchema();
+        Integer id = parseDbId(orderId);
+        OrderRecord order = orderMapper.selectOrder(id);
+        if (order == null || !user.getUserId().equals(order.getBuyerId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "订单不存在");
+        }
+        if (!"completed".equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "订单完成后才能评价");
+        }
+        if (orderMapper.reviewCountByOrder(id) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该订单已评价");
+        }
+        int productScore = normalizeScore(request == null ? null : request.productScore());
+        int sellerScore = normalizeScore(request == null ? null : request.sellerScore());
+        String content = request == null ? "" : defaultText(request.content(), "").trim();
+        if (content.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评价内容不能为空");
+        }
+        orderMapper.insertReview(id, order.getGoodsId(), user.getUserId(), order.getSellerId(), productScore, sellerScore, content);
+        orderMapper.refreshSellerCredit(order.getSellerId());
+        orderMapper.refreshStoreCredit(order.getSellerId());
+        return toOrderView(orderMapper.selectOrder(id));
     }
 
     public ProductView publish(PublishRequest request, AuthUserView user) {
         validatePublish(request);
+        if (user != null && "seller".equals(user.getRole())) {
+            ensureSellerStore(user);
+        }
         ProductView dbCreated = publishToDatabase(request, user);
         if (dbCreated != null) {
             return dbCreated;
@@ -177,7 +463,8 @@ public class ShopService {
                 now,
                 "",
                 request.floorPrice(),
-                request.description()
+                request.description(),
+                ""
         );
         products.add(0, created);
         return created;
@@ -433,6 +720,50 @@ public class ShopService {
         }
     }
 
+    private void ensureStoreSchema() {
+        try {
+            if (storeMapper.countStoreColumn("store_desc") == 0) {
+                storeMapper.addStoreDescColumn();
+            }
+            if (storeMapper.countStoreColumn("badge") == 0) {
+                storeMapper.addBadgeColumn();
+            }
+            if (storeMapper.countStoreColumn("service_tags") == 0) {
+                storeMapper.addServiceTagsColumn();
+            }
+            if (storeMapper.countFollowUniqueIndex() == 0) {
+                storeMapper.dedupeFollows();
+                storeMapper.addFollowUniqueIndex();
+            }
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private void ensureOrderSchema() {
+        try {
+            orderMapper.createOrdersTable();
+            orderMapper.createReviewTable();
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private void ensureTopicSchema() {
+        try {
+            topicMapper.createTopicTable();
+            topicMapper.createPostTable();
+            topicMapper.createCommentTable();
+            topicMapper.createLikeTable();
+            topicMapper.createActionTable();
+            if (topicMapper.countPostColumn("product_id") == 0) {
+                topicMapper.addPostProductIdColumn();
+            }
+            if (topicMapper.countPostColumn("store_id") == 0) {
+                topicMapper.addPostStoreIdColumn();
+            }
+        } catch (RuntimeException ignored) {
+        }
+    }
+
     private boolean usesWideGoodsStatus() {
         try {
             Integer length = productMapper.statusColumnLength();
@@ -486,7 +817,130 @@ public class ShopService {
         }
     }
 
+    private StoreRecord findStore(String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        try {
+            try {
+                return storeMapper.selectById(Integer.parseInt(id));
+            } catch (NumberFormatException ignored) {
+                return storeMapper.selectByName(id);
+            }
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private StoreRecord ensureSellerStore(AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录卖家账号");
+        }
+        if (!"seller".equals(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前仅卖家可以管理店铺");
+        }
+        try {
+            StoreRecord existing = storeMapper.selectBySeller(user.getUserId());
+            if (existing != null) {
+                return existing;
+            }
+            String storeName = defaultText(user.getUsername(), "卖家") + " 的店铺";
+            storeMapper.insertSellerStore(
+                    user.getUserId(),
+                    storeName,
+                    storeName + "由卖家自主经营，商品经过平台记录，支持在站内沟通、关注和浏览。",
+                    "信用店铺",
+                    "平台担保,真实商品,信用卖家"
+            );
+            StoreRecord created = storeMapper.selectBySeller(user.getUserId());
+            if (created != null) {
+                return created;
+            }
+        } catch (RuntimeException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "店铺初始化失败");
+        }
+        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "店铺初始化失败");
+    }
+
+    private StoreView toStoreView(StoreRecord record) {
+        int followers = safeFollowerCount(record.getStoreId());
+        return new StoreView(
+                String.valueOf(record.getStoreId()),
+                defaultText(record.getStoreName(), "店铺"),
+                scoreText(record.getScore()),
+                formatFans(followers),
+                defaultText(record.getStoreDesc(), defaultStoreDesc(record)),
+                defaultText(record.getBadge(), "信用店铺")
+        );
+    }
+
+    private StoreDetailView toStoreDetail(StoreRecord record, boolean followed, int followers, long productCount, long newCount, long usedCount) {
+        return new StoreDetailView(
+                String.valueOf(record.getStoreId()),
+                record.getSellerId(),
+                defaultText(record.getSellerName(), "卖家"),
+                defaultText(record.getStoreName(), "店铺"),
+                scoreText(record.getScore()),
+                record.getCreditScore() == null ? 100 : record.getCreditScore(),
+                formatFans(followers),
+                defaultText(record.getStoreDesc(), defaultStoreDesc(record)),
+                defaultText(record.getBadge(), "信用店铺"),
+                parseServiceTags(record.getServiceTags()),
+                followed,
+                productCount,
+                newCount,
+                usedCount
+        );
+    }
+
+    private int safeFollowerCount(Integer storeId) {
+        try {
+            return storeMapper.followerCount(storeId);
+        } catch (RuntimeException ignored) {
+            return 0;
+        }
+    }
+
+    private List<String> parseServiceTags(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of("平台担保", "真实商品", "信用卖家");
+        }
+        return List.of(raw.split(",")).stream()
+                .map(String::trim)
+                .filter(item -> !item.isEmpty())
+                .toList();
+    }
+
+    private String joinServiceTags(List<String> tags, String fallback) {
+        if (tags == null || tags.isEmpty()) {
+            return defaultText(fallback, "平台担保,真实商品,信用卖家");
+        }
+        String joined = tags.stream()
+                .map(item -> item == null ? "" : item.trim())
+                .filter(item -> !item.isEmpty())
+                .limit(6)
+                .collect(Collectors.joining(","));
+        return defaultText(joined, defaultText(fallback, "平台担保,真实商品,信用卖家"));
+    }
+
+    private String scoreText(BigDecimal score) {
+        return score == null ? "4.8" : score.stripTrailingZeros().toPlainString();
+    }
+
+    private String formatFans(int count) {
+        if (count >= 10000) {
+            return String.format(Locale.ROOT, "%.1fw", count / 10000.0);
+        }
+        return String.valueOf(count);
+    }
+
+    private String defaultStoreDesc(StoreRecord record) {
+        String name = defaultText(record.getStoreName(), "这家店铺");
+        return name + "由卖家自主经营，商品经过平台记录，支持在站内沟通、关注和浏览。";
+    }
+
     private ProductView toView(ProductRecord record) {
+        StoreRecord sellerStore = ensureStoreForProduct(record);
         String scene = normalizeScene(record.getScene());
         String status = normalizeStatus(record.getStatus());
         String title = defaultText(record.getGoodsName(), "未命名商品");
@@ -496,6 +950,10 @@ public class ShopService {
         BigDecimal originPrice = price.add("used".equals(scene) ? new BigDecimal("80") : new BigDecimal("120"));
         String publishedAt = formatTime(record.getCreateTime());
         String story = defaultText(record.getStory(), description);
+        String shopName = sellerStore == null
+                ? defaultText(record.getSellerName(), "个人卖家")
+                : defaultText(sellerStore.getStoreName(), defaultText(record.getSellerName(), "个人卖家"));
+        String storeId = sellerStore == null || sellerStore.getStoreId() == null ? "" : String.valueOf(sellerStore.getStoreId());
         return new ProductView(
                 String.valueOf(record.getGoodsId()),
                 scene,
@@ -509,23 +967,47 @@ public class ShopService {
                 condition,
                 record.getSellerCredit() == null ? 96 : record.getSellerCredit(),
                 defaultText(record.getAddress(), "未知地区"),
-                defaultText(record.getSellerName(), "个人卖家"),
+                shopName,
                 "发布后由卖家设置配送方式",
                 List.of("平台担保", statusTag(status)),
                 List.of("真实描述", "pending".equals(status) ? "待审核" : "平台审核记录"),
                 story,
                 buildParamsFromRecord(record, status),
-                List.of(),
+                reviewsForGoods(record.getGoodsId()),
                 buildTimeline(scene, story, publishedAt, record.getReviewedAt()),
                 List.of("可询问成色和配件", "可生成验货清单", "可根据最低价辅助议价"),
                 status,
                 record.getSellerId(),
-                defaultText(record.getSellerName(), "个人卖家"),
+                shopName,
                 publishedAt,
                 defaultText(record.getRejectReason(), ""),
                 record.getFloorPrice(),
-                description
+                description,
+                storeId
         );
+    }
+
+    private StoreRecord ensureStoreForProduct(ProductRecord record) {
+        if (record == null || record.getSellerId() == null) {
+            return null;
+        }
+        try {
+            StoreRecord existing = storeMapper.selectBySeller(record.getSellerId());
+            if (existing != null) {
+                return existing;
+            }
+            String storeName = defaultText(record.getSellerName(), "卖家") + " 的店铺";
+            storeMapper.insertSellerStore(
+                    record.getSellerId(),
+                    storeName,
+                    storeName + "由卖家自主经营，商品经过平台记录，支持在站内沟通、关注和浏览。",
+                    "信用店铺",
+                    "平台担保,真实商品,信用卖家"
+            );
+            return storeMapper.selectBySeller(record.getSellerId());
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private void validatePublish(PublishRequest request) {
@@ -547,7 +1029,7 @@ public class ShopService {
                 item.location(), item.shopName(), item.delivery(), List.of("平台担保", statusTag(status)), item.highlights(),
                 item.story(), item.params(), item.reviews(), buildTimeline(item.scene(), item.story(), item.publishedAt(), reviewedAt),
                 item.aiTips(), status, item.publisherId(), item.publisherName(), item.publishedAt(), reason,
-                item.floorPrice(), item.description()
+                item.floorPrice(), item.description(), item.storeId()
         );
     }
 
@@ -592,6 +1074,167 @@ public class ShopService {
                 new TimelineNode(reviewTime, "审核通过", reviewedAt == null ? "管理员正在核验描述、图片和价格合理性。" : "平台审核通过，商品流转信息已记录。", "✅"),
                 new TimelineNode("进行中", "等待新主人", "等待合适的买家接手，继续延长物品的使用价值。", "🏠")
         );
+    }
+
+    private List<ReviewView> reviewsForGoods(Integer goodsId) {
+        if (goodsId == null) {
+            return List.of();
+        }
+        try {
+            ensureOrderSchema();
+            return orderMapper.selectProductReviews(goodsId).stream()
+                    .map(this::toReviewView)
+                    .toList();
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    private ReviewView toReviewView(ProductReviewRecord record) {
+        return new ReviewView(
+                defaultText(record.getBuyerName(), "买家"),
+                defaultText(record.getContent(), "买家未填写文字评价"),
+                String.valueOf(record.getProductScore() == null ? 5 : record.getProductScore()),
+                List.of("商品 " + safeScore(record.getProductScore()) + " 星", "卖家 " + safeScore(record.getSellerScore()) + " 星")
+        );
+    }
+
+    private OrderView toOrderView(OrderRecord record) {
+        boolean reviewed = record.getReviewedAt() != null || record.getProductScore() != null;
+        boolean completed = "completed".equals(record.getStatus());
+        String status = reviewed ? "已评价" : completed ? "已完成" : "待收货";
+        return new OrderView(
+                String.valueOf(record.getOrderId()),
+                defaultText(record.getSellerName(), "卖家"),
+                status,
+                defaultText(record.getGoodsName(), "商品"),
+                defaultText(record.getGoodsImage(), ""),
+                "new".equals(record.getScene()) ? "新品" : "二手",
+                "平台担保",
+                record.getAmount() == null ? BigDecimal.ZERO : record.getAmount(),
+                record.getGoodsId() == null ? "" : String.valueOf(record.getGoodsId()),
+                completed && !reviewed,
+                reviewed,
+                record.getProductScore(),
+                record.getSellerScore(),
+                defaultText(record.getReviewContent(), "")
+        );
+    }
+
+    private TopicView toTopicView(TopicRecord record) {
+        int postCount = record.getPostCount() == null ? 0 : record.getPostCount();
+        int likeCount = record.getLikeCount() == null ? 0 : record.getLikeCount();
+        String heat = postCount + " 帖 · " + likeCount + " 赞";
+        return new TopicView(
+                String.valueOf(record.getTopicId()),
+                defaultText(record.getType(), "话题"),
+                defaultText(record.getTitle(), "未命名话题"),
+                defaultText(record.getTopicDesc(), "一起讨论这个话题。"),
+                heat,
+                defaultText(record.getAuthor(), "松果社区"),
+                defaultText(record.getCover(), "/static/goods/viewtop-monitor.jpg"),
+                parseTags(record.getTags()),
+                postCount,
+                likeCount
+        );
+    }
+
+    private TopicPostView toTopicPostView(TopicPostRecord record) {
+        return new TopicPostView(
+                String.valueOf(record.getPostId()),
+                String.valueOf(record.getTopicId()),
+                defaultText(record.getUsername(), "松果用户"),
+                defaultText(record.getContent(), ""),
+                parseImages(record.getImages()),
+                postProduct(record.getProductId()),
+                postStore(record.getStoreId()),
+                formatTime(record.getCreatedAt()),
+                record.getLikeCount() == null ? 0 : record.getLikeCount(),
+                record.getWantCount() == null ? 0 : record.getWantCount(),
+                record.getCollectCount() == null ? 0 : record.getCollectCount(),
+                record.getCommentCount() == null ? 0 : record.getCommentCount(),
+                record.getLiked() != null && record.getLiked() > 0,
+                record.getWanted() != null && record.getWanted() > 0,
+                record.getCollected() != null && record.getCollected() > 0,
+                topicMapper.selectComments(record.getPostId()).stream().map(this::toTopicCommentView).toList()
+        );
+    }
+
+    private ProductView postProduct(Integer productId) {
+        if (productId == null) {
+            return null;
+        }
+        ProductRecord record = productMapper.selectById(productId);
+        return record == null ? null : toView(record);
+    }
+
+    private StoreView postStore(Integer storeId) {
+        if (storeId == null) {
+            return null;
+        }
+        StoreRecord record = storeMapper.selectById(storeId);
+        return record == null ? null : toStoreView(record);
+    }
+
+    private TopicCommentView toTopicCommentView(TopicCommentRecord record) {
+        return new TopicCommentView(
+                String.valueOf(record.getCommentId()),
+                defaultText(record.getUsername(), "松果用户"),
+                defaultText(record.getContent(), ""),
+                formatTime(record.getCreatedAt())
+        );
+    }
+
+    private List<String> parseTags(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return List.of(raw.replace("，", ",").split(",")).stream()
+                .map(String::trim)
+                .filter(item -> !item.isEmpty())
+                .toList();
+    }
+
+    private String joinTopicTags(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return "买家话题";
+        }
+        return tags.stream()
+                .map(item -> defaultText(item, "").trim())
+                .filter(item -> !item.isEmpty())
+                .distinct()
+                .limit(6)
+                .reduce((left, right) -> left + "," + right)
+                .orElse("买家话题");
+    }
+
+    private List<String> parseImages(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return List.of(raw.split(",")).stream()
+                .map(String::trim)
+                .filter(item -> !item.isEmpty())
+                .toList();
+    }
+
+    private String normalizeTopicAction(String actionType) {
+        String value = defaultText(actionType, "").toLowerCase(Locale.ROOT);
+        if ("want".equals(value) || "collect".equals(value)) {
+            return value;
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不支持的操作");
+    }
+
+    private int normalizeScore(Integer score) {
+        if (score == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评分不能为空");
+        }
+        return Math.max(1, Math.min(5, score));
+    }
+
+    private int safeScore(Integer score) {
+        return score == null ? 5 : Math.max(1, Math.min(5, score));
     }
 
     private BigDecimal estimateUsedPrice(String category, String condition) {
@@ -671,9 +1314,8 @@ public class ShopService {
         stores.add(new StoreView("store-1", "松果严选数码", "4.9", "1.2w", "新品数码与官方配件，售后响应快。", "官方严选"));
         stores.add(new StoreView("store-2", "南湖旧书摊", "4.8", "6.4k", "课程教材、考研资料和学长笔记流转地。", "校园认证"));
         stores.add(new StoreView("store-3", "榕树下的小店", "4.7", "4.1k", "家居生活闲置为主，重视真实描述。", "信用卖家"));
-
-        topics.add(new TopicView("topic-1", "好物清单", "宿舍桌面升级，哪些二手数码最值得淘？", "整理低预算但体验提升明显的桌面清单。", "2.3w 浏览", "松果编辑部", "🧩", List.of("宿舍桌搭", "二手数码")));
-        topics.add(new TopicView("topic-2", "避雷经验", "买二手大件前，最好确认这 5 件事", "验货、物流、瑕疵、售后协商和平台担保。", "1.8w 讨论", "同城交易观察", "🛡️", List.of("交易保障", "验货清单")));
+        stores.add(new StoreView("store-4", "阿洛的桌面仓库", "4.9", "812", "数码桌搭和自用设备流转，支持细节沟通。", "个人卖家"));
+        stores.add(new StoreView("store-5", "松果生活馆", "4.8", "2.2k", "宿舍、桌面和生活用品，兼顾新品与实用体验。", "生活严选"));
 
         products.add(new ProductView(
             "airwave-pro", "new", "数码影音", "AirWave Pro 降噪耳机", "全新正品 · 48 小时发货 · 支持七天无理由",
@@ -683,7 +1325,7 @@ public class ShopService {
             "适合通勤、学习和线上会议的轻量耳机，主打稳定、舒适和清晰通话。",
             List.of(new KeyValue("品牌", "AirWave"), new KeyValue("连接方式", "蓝牙 5.4"), new KeyValue("续航", "38 小时"), new KeyValue("质保", "一年官方质保")),
             List.of(new ReviewView("晨光买家", "降噪很稳，佩戴一下午也不夹耳。", "4.9", List.of("降噪好", "发货快"))),
-            List.of(), List.of("可询问保修政策", "可比较同价位耳机", "可查看发票与质保")
+            List.of(), List.of("可询问保修政策", "可比较同价位耳机", "可查看发票与质保"), "store-1"
         ));
         products.add(new ProductView(
             "songuo-pad", "new", "数码影音", "松果 Pad 11 学习平板", "新品首发 · 学习办公两用 · 赠保护套",
@@ -693,7 +1335,7 @@ public class ShopService {
             "面向课程笔记、网课和轻办公场景，兼顾屏幕素质与续航。",
             List.of(new KeyValue("内存", "8GB + 256GB"), new KeyValue("屏幕", "11 英寸 2.5K"), new KeyValue("重量", "485g"), new KeyValue("网络", "Wi-Fi")),
             List.of(new ReviewView("期末冲刺中", "做笔记很顺手，续航够一天课。", "4.7", List.of("学习友好"))),
-            List.of(), List.of("可生成学习设备清单", "可估算分期预算")
+            List.of(), List.of("可生成学习设备清单", "可估算分期预算"), "store-1"
         ));
         products.add(new ProductView(
             "viewtop-monitor", "used", "数码影音", "ViewTop 27 英寸 2K 显示器", "二手 9 成新 · 无坏点 · 支持当面验货",
@@ -704,7 +1346,7 @@ public class ShopService {
             List.of(new KeyValue("品牌", "ViewTop"), new KeyValue("分辨率", "2560 x 1440"), new KeyValue("接口", "HDMI / DP"), new KeyValue("成色", "9 成新")),
                 List.of(new ReviewView("桌搭玩家", "卖家说明很细，现场验货顺利。", "4.9", List.of("描述真实"))),
             List.of(new TimelineNode("2024.09", "入手第一天", "用于设计作业和剪辑练习。"), new TimelineNode("2025.06", "完成毕业项目", "屏幕一直稳定，无亮点坏点。"), new TimelineNode("2026.05", "准备流转", "已清洁打包，支持同城验货。")),
-                List.of("可帮你砍价到 620-650", "可生成验货清单")
+                List.of("可帮你砍价到 620-650", "可生成验货清单"), "store-4"
         ));
         products.add(new ProductView(
             "software-book", "used", "图书文创", "软件工程导论与项目管理笔记", "二手教材 · 含重点标注 · 适合课程复习",
@@ -715,7 +1357,7 @@ public class ShopService {
             List.of(new KeyValue("版本", "第 3 版"), new KeyValue("语言", "中文"), new KeyValue("成色", "8.5 成新"), new KeyValue("附赠", "复习提纲")),
             List.of(new ReviewView("赶 ddl 的同学", "笔记很实用，重点划得很清楚。", "4.8", List.of("内容实用"))),
             List.of(new TimelineNode("2025.03", "开始软工课程", "第一章写下需求分析重点。"), new TimelineNode("2025.06", "项目答辩通过", "附带的用例模板帮了大忙。"), new TimelineNode("2026.05", "转给下一届", "希望继续发挥作用。")),
-            List.of("可提取重点页", "可生成复习计划")
+            List.of("可提取重点页", "可生成复习计划"), "store-2"
         ));
         products.add(new ProductView(
             "ergo-chair", "used", "家居生活", "人体工学椅 Pro", "二手 9 成新 · 腰托完整 · 适合宿舍/工位",
@@ -726,7 +1368,7 @@ public class ShopService {
             List.of(new KeyValue("材质", "网布 + 金属脚"), new KeyValue("功能", "升降 / 后仰 / 腰托"), new KeyValue("成色", "9 成新"), new KeyValue("配送", "同城优先")),
             List.of(new ReviewView("新工位用户", "坐感不错，卖家帮忙叫了车。", "4.6", List.of("服务好"))),
             List.of(new TimelineNode("2024.11", "入驻工作室", "成为第一把正式办公椅。"), new TimelineNode("2025.12", "陪伴项目冲刺", "坐垫和腰托依旧稳定。"), new TimelineNode("2026.05", "搬家出闲置", "同城优先，欢迎试坐。")),
-            List.of("可协商同城运费", "可询问坐垫塌陷情况")
+            List.of("可协商同城运费", "可询问坐垫塌陷情况"), "store-3"
         ));
         products.add(new ProductView(
             "desk-lamp", "new", "家居生活", "折叠护眼台灯", "新品 · 宿舍桌面友好 · 三档色温",
@@ -736,7 +1378,7 @@ public class ShopService {
             "为宿舍、书桌和夜间阅读设计的小型台灯，亮度柔和，收纳方便。",
             List.of(new KeyValue("供电", "USB-C"), new KeyValue("光源", "LED"), new KeyValue("色温", "三档调节"), new KeyValue("功率", "8W")),
             List.of(new ReviewView("夜读党", "光线柔和，不占桌面。", "4.7", List.of("护眼"))),
-            List.of(), List.of("可推荐宿舍桌搭组合", "可计算顺手买优惠")
+            List.of(), List.of("可推荐宿舍桌搭组合", "可计算顺手买优惠"), "store-5"
         ));
     }
 }

@@ -17,11 +17,11 @@ public interface UserMapper {
     int insertUser(StoredUser user);
 
     @Select("SELECT user_id AS userId, username, password_hash AS passwordHash, phone, credit, role, " +
-            "COALESCE(status, 'normal') AS status " +
-            "FROM users WHERE username = #{username}")
+            "COALESCE(status, 'normal') AS status, avatar_url AS avatarUrl " +
+            "FROM users WHERE username = #{username} ORDER BY user_id LIMIT 1")
     StoredUser findByUsername(String username);
 
-    @Select("SELECT user_id AS userId, username, phone, credit, role, COALESCE(status, 'normal') AS status " +
+    @Select("SELECT user_id AS userId, username, phone, credit, role, COALESCE(status, 'normal') AS status, avatar_url AS avatarUrl " +
             "FROM users WHERE username LIKE CONCAT('%', #{keyword}, '%')")
     List<StoredUser> searchUsersByKeyword(@Param("keyword") String keyword);
 
@@ -38,6 +38,12 @@ public interface UserMapper {
     @Update("ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'normal' COMMENT 'normal/disabled'")
     void addStatusColumn();
 
+    @Update("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500) DEFAULT NULL")
+    void addAvatarUrlColumn();
+
     @Update("UPDATE users SET role = #{role} WHERE username = #{username}")
     int updateRoleByUsername(@Param("username") String username, @Param("role") String role);
+
+    @Update("UPDATE users SET avatar_url = #{avatarUrl} WHERE user_id = #{userId}")
+    int updateAvatarUrl(@Param("userId") Integer userId, @Param("avatarUrl") String avatarUrl);
 }

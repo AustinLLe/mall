@@ -193,60 +193,6 @@ export const goodsCatalog = [
   }
 ]
 
-export const topicFeed = [
-  {
-    id: 'topic-1',
-    type: '好物清单',
-    title: '宿舍桌面升级，哪些二手数码最值得淘？',
-    desc: '从显示器、台灯到耳机，整理一份低预算但体验提升明显的桌面清单。',
-    heat: '2.3w 浏览',
-    author: '松果编辑部',
-    cover: '/static/discover/topic-desk-setup.jpg',
-    fallbackCover: '/static/goods/viewtop-monitor.jpg',
-    tags: ['宿舍桌搭', '二手数码', '避坑指南'],
-    relatedGoods: ['viewtop-monitor', 'desk-lamp', 'airwave-pro'],
-    sections: [
-      { title: '优先看显示器和台灯', text: '二手显示器的价格弹性大，台灯和耳机适合补齐桌面体验。优先选择支持当面验货、配件齐全、售后说清楚的商品。' },
-      { title: '预算放在体验差异上', text: '同样预算下，屏幕尺寸、护眼灯光和降噪能力比外观噱头更影响日常学习效率。' },
-      { title: '下单前确认三张照片', text: '请卖家补充接口、屏幕亮屏和外观边角照片，再结合平台担保下单。' }
-    ]
-  },
-  {
-    id: 'topic-2',
-    type: '避坑经验',
-    title: '买二手大件前，最好确认这 5 件事',
-    desc: '验货、物流、瑕疵、售后协商和平台担保，一个都不要漏。',
-    heat: '1.8w 讨论',
-    author: '同城交易观察',
-    cover: '/static/discover/topic-used-checklist.jpg',
-    fallbackCover: '/static/goods/ergo-chair.jpg',
-    tags: ['交易保障', '同城自提', '验货清单'],
-    relatedGoods: ['ergo-chair', 'viewtop-monitor', 'software-book'],
-    sections: [
-      { title: '先问清楚瑕疵', text: '大件商品要把划痕、异响、维修史和配件缺失写进聊天记录，后续售后协商才有依据。' },
-      { title: '优先同城验货', text: '椅子、显示器这类商品建议现场确认功能和外观，确需快递时提前约定包装和运费责任。' },
-      { title: '使用担保订单', text: '不要绕开平台转账。确认收货前资金由平台托管，可以降低交易纠纷成本。' }
-    ]
-  },
-  {
-    id: 'topic-3',
-    type: '新品推荐',
-    title: '开学季新品数码榜：稳定比参数更重要',
-    desc: '适合学习、网课和轻办公的设备推荐，兼顾预算与售后。',
-    heat: '9.6k 收藏',
-    author: '数码研究所',
-    cover: '/static/discover/topic-new-gadgets.jpg',
-    fallbackCover: '/static/goods/songuo-pad.jpg',
-    tags: ['新品', '学生党', '排行'],
-    relatedGoods: ['songuo-pad', 'airwave-pro', 'desk-lamp'],
-    sections: [
-      { title: '先看售后和续航', text: '学习设备每天都要用，稳定发货、官方质保和真实续航比单项参数更重要。' },
-      { title: '按场景组合购买', text: '平板适合网课与笔记，耳机覆盖自习和会议，台灯解决宿舍夜间阅读。' },
-      { title: '保留对比清单', text: '收藏候选商品，比较价格、服务和评价，再选择最适合自己的组合。' }
-    ]
-  }
-]
-
 export const hotStores = [
   {
     id: 'store-1',
@@ -300,11 +246,7 @@ export function buildGoodsDetailUrl(item = {}) {
 }
 
 export function buildTopicDetailUrl(item = {}) {
-  return '/pages/topic/detail?id=' + encodeURIComponent(item.id || 'topic-1')
-}
-
-export function getTopicCover(item = {}) {
-  return item.cover || item.fallbackCover || '/static/goods/viewtop-monitor.jpg'
+  return '/pages/topic/detail?id=' + encodeURIComponent(item.id || '')
 }
 
 export function getStoreCover(store = {}) {
@@ -313,10 +255,6 @@ export function getStoreCover(store = {}) {
 
 export function findStoreByName(name) {
   return hotStores.find((item) => item.name === name) || null
-}
-
-export function findTopicById(id) {
-  return topicFeed.find((item) => item.id === id) || null
 }
 
 export function productsByStore(name) {

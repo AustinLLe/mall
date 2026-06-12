@@ -1,37 +1,43 @@
-CREATE DATABASE IF NOT EXISTS `shop_db` DEFAULT CHARACTER SET = utf8mb4 DEFAULT COLLATE = utf8mb4_general_ci;
+SET NAMES utf8mb4;
+
+CREATE DATABASE IF NOT EXISTS `shop_db`
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_general_ci;
 
 USE `shop_db`;
 
 CREATE TABLE IF NOT EXISTS `users` (
-    `user_id` INT(11) NOT NULL AUTO_INCREMENT,
-    `username` VARCHAR(50) NOT NULL COMMENT '用户名',
-    `password_hash` VARCHAR(255) NOT NULL COMMENT '加密后的密码哈希',
-    `phone` VARCHAR(20) DEFAULT NULL COMMENT '联系电话',
-    `credit` INT(5) NOT NULL DEFAULT 100 COMMENT '信用分',
-    `role` VARCHAR(20) NOT NULL DEFAULT 'buyer' COMMENT 'buyer/seller/admin',
-    `status` VARCHAR(20) NOT NULL DEFAULT 'normal' COMMENT 'normal/disabled',
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
+    `user_id` INT NOT NULL AUTO_INCREMENT,
+    `username` VARCHAR(50) NOT NULL,
+    `password_hash` VARCHAR(255) NOT NULL,
+    `phone` VARCHAR(20) DEFAULT NULL,
+    `credit` INT NOT NULL DEFAULT 100,
+    `role` VARCHAR(20) NOT NULL DEFAULT 'buyer',
+    `status` VARCHAR(20) NOT NULL DEFAULT 'normal',
+    `avatar_url` VARCHAR(500) DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='用户基础信息表';
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `goods` (
-    `goods_id` INT(11) NOT NULL AUTO_INCREMENT,
-    `seller_id` INT(11) NOT NULL COMMENT '卖家ID',
-    `goods_name` VARCHAR(255) NOT NULL COMMENT '商品名称/标题',
-    `category` VARCHAR(100) DEFAULT NULL COMMENT '商品分类',
-    `goods_desc` TEXT COMMENT '商品描述',
-    `goods_condition` VARCHAR(100) DEFAULT NULL COMMENT '成色/状态',
-    `story` TEXT COMMENT '二手故事或新品卖点',
-    `price` DECIMAL(10, 2) NOT NULL COMMENT '当前售价',
-    `floor_price` DECIMAL(10, 2) DEFAULT NULL COMMENT '最低可接受价',
-    `scene` VARCHAR(20) NOT NULL COMMENT 'new: 新品 used: 闲置',
-    `address` VARCHAR(255) DEFAULT NULL COMMENT '所在地/发货地址',
-    `image` TEXT DEFAULT NULL COMMENT '商品图片',
-    `status` VARCHAR(2) DEFAULT '0' COMMENT '0:在售 1:下架 2:审核中',
-    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    PRIMARY KEY (`goods_id`),
-    CONSTRAINT `fk_goods_user` FOREIGN KEY (`seller_id`) REFERENCES `users` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='商品基础信息表';
+    `goods_id` INT NOT NULL AUTO_INCREMENT,
+    `seller_id` INT NOT NULL,
+    `goods_name` VARCHAR(255) NOT NULL,
+    `category` VARCHAR(100) DEFAULT NULL,
+    `goods_desc` TEXT,
+    `goods_condition` VARCHAR(100) DEFAULT NULL,
+    `story` TEXT,
+    `price` DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    `floor_price` DECIMAL(10, 2) DEFAULT NULL,
+    `scene` VARCHAR(20) NOT NULL DEFAULT 'used',
+    `address` VARCHAR(255) DEFAULT NULL,
+    `image` TEXT DEFAULT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT 'approved',
+    `reject_reason` VARCHAR(255) DEFAULT NULL,
+    `reviewed_at` DATETIME DEFAULT NULL,
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`goods_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `user_realname_auth` (
     `id` INT NOT NULL AUTO_INCREMENT,
@@ -44,7 +50,7 @@ CREATE TABLE IF NOT EXISTS `user_realname_auth` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `reviewed_at` TIMESTAMP NULL DEFAULT NULL,
     PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='实名模拟审核';
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `favorite_goods` (
     `id` INT NOT NULL AUTO_INCREMENT,
@@ -53,7 +59,7 @@ CREATE TABLE IF NOT EXISTS `favorite_goods` (
     `item_title` VARCHAR(255) DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='买家收藏';
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `browse_history` (
     `id` INT NOT NULL AUTO_INCREMENT,
@@ -62,7 +68,7 @@ CREATE TABLE IF NOT EXISTS `browse_history` (
     `item_title` VARCHAR(255) DEFAULT NULL,
     `viewed_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='买家足迹';
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `follow_store` (
     `id` INT NOT NULL AUTO_INCREMENT,
@@ -71,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `follow_store` (
     `store_name` VARCHAR(255) DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='关注店铺';
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `store` (
     `store_id` INT NOT NULL AUTO_INCREMENT,
@@ -81,9 +87,12 @@ CREATE TABLE IF NOT EXISTS `store` (
     `score` DECIMAL(3,1) NOT NULL DEFAULT 4.8,
     `credit_score` INT NOT NULL DEFAULT 100,
     `violation_count` INT NOT NULL DEFAULT 0,
+    `store_desc` VARCHAR(500) DEFAULT NULL,
+    `badge` VARCHAR(60) DEFAULT NULL,
+    `service_tags` VARCHAR(255) DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`store_id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='卖家店铺';
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `orders` (
     `order_id` INT NOT NULL AUTO_INCREMENT,
@@ -94,7 +103,23 @@ CREATE TABLE IF NOT EXISTS `orders` (
     `amount` DECIMAL(10,2) NOT NULL DEFAULT 0,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`order_id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='订单概览';
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `product_review` (
+    `review_id` INT NOT NULL AUTO_INCREMENT,
+    `order_id` INT NOT NULL,
+    `goods_id` INT NOT NULL,
+    `buyer_id` INT NOT NULL,
+    `seller_id` INT NOT NULL,
+    `product_score` INT NOT NULL,
+    `seller_score` INT NOT NULL,
+    `content` VARCHAR(1000) NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`review_id`),
+    UNIQUE KEY `uk_review_order` (`order_id`),
+    INDEX `idx_review_goods` (`goods_id`, `created_at`),
+    INDEX `idx_review_seller` (`seller_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `credit_record` (
     `id` INT NOT NULL AUTO_INCREMENT,
@@ -103,8 +128,7 @@ CREATE TABLE IF NOT EXISTS `credit_record` (
     `reason` VARCHAR(255) NOT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='信用分记录';
-
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `chat_message` (
     `cm_id` INT NOT NULL AUTO_INCREMENT,
@@ -113,20 +137,323 @@ CREATE TABLE IF NOT EXISTS `chat_message` (
     `content` TEXT NOT NULL,
     `price_value` DECIMAL(10,2) DEFAULT NULL,
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `is_read` TINYINT(1) DEFAULT 0 COMMENT '0:未读, 1:已读',
+    `is_read` TINYINT(1) DEFAULT 0,
     PRIMARY KEY (`cm_id`),
     INDEX `idx_cov_id_create_time` (`cov_id`, `create_time` DESC)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='聊天消息表';
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `conversation` (
-    `cov_id` INT NOT NULL AUTO_INCREMENT COMMENT '会话ID',
-    `buyer_id` INT NOT NULL COMMENT '买家ID',
-    `seller_id` INT NOT NULL COMMENT '卖家ID',
-    `goods_id` INT NOT NULL COMMENT '商品ID',
-    `status` VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT '会话状态: pending, bargaining, agreed, closed',
-    `create_time` DATETIME NOT NULL COMMENT '创建时间',
-    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+    `cov_id` INT NOT NULL AUTO_INCREMENT,
+    `buyer_id` INT NOT NULL,
+    `seller_id` INT NOT NULL,
+    `goods_id` INT NOT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
+    `create_time` DATETIME NOT NULL,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`cov_id`),
     INDEX `idx_update_time` (`update_time` DESC),
     INDEX `idx_buyer_seller_goods` (`buyer_id`, `seller_id`, `goods_id`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COMMENT='会话表';
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `community_topic` (
+    `topic_id` INT NOT NULL AUTO_INCREMENT,
+    `type` VARCHAR(60) NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `topic_desc` VARCHAR(1000) NOT NULL,
+    `author` VARCHAR(80) DEFAULT '松果社区',
+    `cover` TEXT DEFAULT NULL,
+    `tags` VARCHAR(500) DEFAULT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT 'normal',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`topic_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `topic_post` (
+    `post_id` INT NOT NULL AUTO_INCREMENT,
+    `topic_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `product_id` INT DEFAULT NULL,
+    `store_id` INT DEFAULT NULL,
+    `content` TEXT NOT NULL,
+    `images` TEXT DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`post_id`),
+    INDEX `idx_topic_post` (`topic_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `topic_comment` (
+    `comment_id` INT NOT NULL AUTO_INCREMENT,
+    `post_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `content` VARCHAR(1000) NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`comment_id`),
+    INDEX `idx_post_comment` (`post_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `topic_post_like` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `post_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_topic_post_like` (`post_id`, `user_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `topic_post_action` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `post_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `action_type` VARCHAR(20) NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_topic_post_action` (`post_id`, `user_id`, `action_type`),
+    INDEX `idx_topic_post_action` (`post_id`, `action_type`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+ALTER TABLE `users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `goods` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `store` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `conversation` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `chat_message` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `product_review` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `community_topic` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `topic_post` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `topic_comment` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `topic_post_like` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `topic_post_action` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+DROP PROCEDURE IF EXISTS `ensure_column`;
+DELIMITER //
+CREATE PROCEDURE `ensure_column`(
+    IN p_table_name VARCHAR(64),
+    IN p_column_name VARCHAR(64),
+    IN p_column_definition TEXT
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = p_table_name
+          AND COLUMN_NAME = p_column_name
+    ) THEN
+        SET @ddl = CONCAT('ALTER TABLE `', p_table_name, '` ADD COLUMN ', p_column_definition);
+        PREPARE stmt FROM @ddl;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END//
+DELIMITER ;
+
+CALL `ensure_column`('users', 'role', '`role` VARCHAR(20) NOT NULL DEFAULT ''buyer''');
+CALL `ensure_column`('users', 'status', '`status` VARCHAR(20) NOT NULL DEFAULT ''normal''');
+CALL `ensure_column`('users', 'avatar_url', '`avatar_url` VARCHAR(500) DEFAULT NULL');
+
+CALL `ensure_column`('goods', 'seller_id', '`seller_id` INT NOT NULL DEFAULT 2');
+CALL `ensure_column`('goods', 'goods_name', '`goods_name` VARCHAR(255) NOT NULL DEFAULT ''-''');
+CALL `ensure_column`('goods', 'category', '`category` VARCHAR(100) DEFAULT NULL');
+CALL `ensure_column`('goods', 'goods_desc', '`goods_desc` TEXT');
+CALL `ensure_column`('goods', 'goods_condition', '`goods_condition` VARCHAR(100) DEFAULT NULL');
+CALL `ensure_column`('goods', 'story', '`story` TEXT');
+CALL `ensure_column`('goods', 'price', '`price` DECIMAL(10,2) NOT NULL DEFAULT 0');
+CALL `ensure_column`('goods', 'floor_price', '`floor_price` DECIMAL(10,2) DEFAULT NULL');
+CALL `ensure_column`('goods', 'scene', '`scene` VARCHAR(20) NOT NULL DEFAULT ''used''');
+CALL `ensure_column`('goods', 'address', '`address` VARCHAR(255) DEFAULT NULL');
+CALL `ensure_column`('goods', 'image', '`image` TEXT');
+CALL `ensure_column`('goods', 'status', '`status` VARCHAR(20) NOT NULL DEFAULT ''approved''');
+CALL `ensure_column`('goods', 'reject_reason', '`reject_reason` VARCHAR(255) DEFAULT NULL');
+CALL `ensure_column`('goods', 'reviewed_at', '`reviewed_at` DATETIME DEFAULT NULL');
+CALL `ensure_column`('goods', 'create_time', '`create_time` DATETIME DEFAULT CURRENT_TIMESTAMP');
+
+CALL `ensure_column`('topic_post', 'product_id', '`product_id` INT DEFAULT NULL');
+CALL `ensure_column`('topic_post', 'store_id', '`store_id` INT DEFAULT NULL');
+
+ALTER TABLE `goods`
+    MODIFY COLUMN `status` VARCHAR(20) NOT NULL DEFAULT 'approved';
+
+CALL `ensure_column`('store', 'seller_id', '`seller_id` INT NOT NULL DEFAULT 2');
+CALL `ensure_column`('store', 'store_name', '`store_name` VARCHAR(100) NOT NULL DEFAULT ''-''');
+CALL `ensure_column`('store', 'status', '`status` VARCHAR(20) NOT NULL DEFAULT ''normal''');
+CALL `ensure_column`('store', 'score', '`score` DECIMAL(3,1) NOT NULL DEFAULT 4.8');
+CALL `ensure_column`('store', 'credit_score', '`credit_score` INT NOT NULL DEFAULT 100');
+CALL `ensure_column`('store', 'violation_count', '`violation_count` INT NOT NULL DEFAULT 0');
+CALL `ensure_column`('store', 'store_desc', '`store_desc` VARCHAR(500) DEFAULT NULL');
+CALL `ensure_column`('store', 'badge', '`badge` VARCHAR(60) DEFAULT NULL');
+CALL `ensure_column`('store', 'service_tags', '`service_tags` VARCHAR(255) DEFAULT NULL');
+CALL `ensure_column`('store', 'created_at', '`created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+
+DROP PROCEDURE IF EXISTS `ensure_column`;
+
+DELETE f1 FROM `follow_store` f1
+JOIN `follow_store` f2
+  ON f1.`user_id` = f2.`user_id`
+ AND f1.`store_id` = f2.`store_id`
+ AND f1.`id` > f2.`id`;
+
+SET @follow_unique_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'follow_store'
+      AND INDEX_NAME = 'uk_follow_user_store'
+);
+SET @follow_unique_sql := IF(
+    @follow_unique_exists = 0,
+    'ALTER TABLE `follow_store` ADD UNIQUE KEY `uk_follow_user_store` (`user_id`, `store_id`)',
+    'SELECT 1'
+);
+PREPARE follow_unique_stmt FROM @follow_unique_sql;
+EXECUTE follow_unique_stmt;
+DEALLOCATE PREPARE follow_unique_stmt;
+
+UPDATE `users`
+SET `username` = CONCAT(`username`, '_', `user_id`)
+WHERE `username` IN ('demo', 'seller', 'admin', 'life_seller', 'book_seller')
+  AND `user_id` NOT IN (1, 2, 3, 4, 5);
+
+INSERT INTO `users` (`user_id`, `username`, `password_hash`, `phone`, `credit`, `role`, `status`)
+VALUES
+    (1, 'demo', '$2a$10$PHFjrb52oM7qB7uBtDvIQuStxmQNjLJl2HEMmIYINTvPD1JDTQd0u', '13800138000', 100, 'buyer', 'normal'),
+    (2, 'seller', '$2a$10$HTaLKmKv.9oAaH6Y/9Pc.ODCxiXddLzVZyiStWmOjJOTOn8tcdqUW', '13700000000', 99, 'seller', 'normal'),
+    (3, 'admin', '$2a$10$e4sV.5OgJ9rj.vHi0x9WXOrlXwedmpUS.BEAsaN9t3l2luoPY1VN6', '13900000000', 100, 'admin', 'normal'),
+    (4, 'life_seller', '$2a$10$HTaLKmKv.9oAaH6Y/9Pc.ODCxiXddLzVZyiStWmOjJOTOn8tcdqUW', '13600000000', 96, 'seller', 'normal'),
+    (5, 'book_seller', '$2a$10$HTaLKmKv.9oAaH6Y/9Pc.ODCxiXddLzVZyiStWmOjJOTOn8tcdqUW', '13500000000', 98, 'seller', 'normal')
+ON DUPLICATE KEY UPDATE
+    `username` = VALUES(`username`),
+    `password_hash` = VALUES(`password_hash`),
+    `phone` = VALUES(`phone`),
+    `credit` = VALUES(`credit`),
+    `role` = VALUES(`role`),
+    `status` = VALUES(`status`);
+
+INSERT INTO `store` (`store_id`, `seller_id`, `store_name`, `status`, `score`, `credit_score`, `violation_count`, `store_desc`, `badge`, `service_tags`)
+VALUES
+    (1, 2, '松果严选数码', 'normal', 4.9, 100, 0, '主营数码影音、学习设备和官方严选配件，商品经过平台记录，适合学生与通勤用户。', '官方严选', '正品保障,平台担保,快速发货,售后响应'),
+    (2, 5, '南湖旧书摊', 'normal', 4.8, 99, 0, '课程教材、考研资料、专业笔记和图书文创集中流转，适合校园面交与低成本复习。', '校园认证', '真实笔记,校园面交,平台担保,可拍内页'),
+    (3, 4, '榕树下的小店', 'normal', 4.7, 96, 0, '家居生活、桌面用品和二手闲置为主，强调真实成色、同城沟通和稳定售后。', '信用卖家', '同城优先,真实描述,议价空间,平台担保')
+ON DUPLICATE KEY UPDATE
+    `seller_id` = VALUES(`seller_id`),
+    `store_name` = VALUES(`store_name`),
+    `status` = VALUES(`status`),
+    `score` = VALUES(`score`),
+    `credit_score` = VALUES(`credit_score`),
+    `violation_count` = VALUES(`violation_count`),
+    `store_desc` = VALUES(`store_desc`),
+    `badge` = VALUES(`badge`),
+    `service_tags` = VALUES(`service_tags`);
+
+INSERT INTO `goods` (`goods_id`, `seller_id`, `goods_name`, `category`, `goods_desc`, `goods_condition`, `story`, `price`, `floor_price`, `scene`, `address`, `image`, `status`, `reviewed_at`)
+VALUES
+    (1001, 2, 'AirWave Pro 降噪耳机', '数码影音', '全新正品，45dB 主动降噪，38 小时续航，适合通勤、自习和线上会议。', '全新', '官方严选新品，支持一年质保和平台担保。', 699.00, 659.00, 'new', '上海', '/static/goods/airwave-pro.jpg', 'approved', NOW()),
+    (1002, 2, '松果 Pad 11 学习平板', '数码影音', '11 英寸 2.5K 护眼屏，8GB+256GB，适合网课、笔记和轻办公。', '全新', '新品首发，赠保护套，适合开学季学习场景。', 2299.00, 2199.00, 'new', '杭州', '/static/goods/songuo-pad.jpg', 'approved', NOW()),
+    (1003, 2, 'ViewTop 27 英寸 2K 显示器', '数码影音', '二手 9 成新，无坏点，HDMI/DP 接口齐全，支持当面验货。', '9 成新', '上一任主人用于设计作业和剪辑练习，屏幕状态稳定，现桌面升级转让。', 680.00, 620.00, 'used', '广州大学城', '/static/goods/viewtop-monitor.jpg', 'approved', NOW()),
+    (1004, 5, '软件工程导论与项目管理笔记', '学习资料', '二手教材，含重点标注和课程项目复习提纲，适合期末复习。', '8.5 成新', '上任主人用它完成软工课程项目，夹带需求评审清单和测试用例模板。', 18.00, 15.00, 'used', '武汉', '/static/goods/software-book.jpg', 'approved', NOW()),
+    (1005, 4, '人体工学椅 Pro', '家居生活', '二手 9 成新，腰托完整，坐垫回弹正常，适合宿舍或工位。', '9 成新', '陪伴过多个项目冲刺，椅背和扶手状态良好，搬家出闲置。', 420.00, 380.00, 'used', '成都', '/static/goods/ergo-chair.jpg', 'approved', NOW()),
+    (1006, 4, '折叠护眼台灯', '家居生活', '全新护眼台灯，USB-C 供电，三档色温，宿舍桌面友好。', '全新', '新品卖点围绕护眼、便携和收纳，适合夜间阅读。', 89.00, 79.00, 'new', '深圳', '/static/goods/desk-lamp.jpg', 'approved', NOW()),
+    (1007, 2, '蓝牙机械键盘 K68', '数码影音', '全新 68 键蓝牙机械键盘，三模连接，适合宿舍桌搭。', '全新', '新品现货，轻巧布局，兼顾平板和电脑输入。', 199.00, 179.00, 'new', '上海', '/static/goods/airwave-pro.jpg', 'approved', NOW()),
+    (1008, 5, '高数复习讲义套装', '图书文创', '二手复习讲义，章节标注完整，附往年题型整理。', '8 成新', '学长考前整理资料，适合快速查漏补缺。', 26.00, 20.00, 'used', '武汉', '/static/goods/software-book.jpg', 'approved', NOW())
+ON DUPLICATE KEY UPDATE
+    `seller_id` = VALUES(`seller_id`),
+    `goods_name` = VALUES(`goods_name`),
+    `category` = VALUES(`category`),
+    `goods_desc` = VALUES(`goods_desc`),
+    `goods_condition` = VALUES(`goods_condition`),
+    `story` = VALUES(`story`),
+    `price` = VALUES(`price`),
+    `floor_price` = VALUES(`floor_price`),
+    `scene` = VALUES(`scene`),
+    `address` = VALUES(`address`),
+    `image` = VALUES(`image`),
+    `status` = VALUES(`status`),
+    `reviewed_at` = VALUES(`reviewed_at`);
+
+INSERT INTO `orders` (`order_id`, `buyer_id`, `seller_id`, `goods_id`, `status`, `amount`)
+VALUES
+    (9001, 1, 2, 1003, 'completed', 680.00),
+    (9002, 1, 5, 1004, 'completed', 18.00),
+    (9003, 1, 4, 1005, 'completed', 420.00)
+ON DUPLICATE KEY UPDATE
+    `buyer_id` = VALUES(`buyer_id`),
+    `seller_id` = VALUES(`seller_id`),
+    `goods_id` = VALUES(`goods_id`),
+    `status` = VALUES(`status`),
+    `amount` = VALUES(`amount`);
+
+INSERT INTO `product_review` (`review_id`, `order_id`, `goods_id`, `buyer_id`, `seller_id`, `product_score`, `seller_score`, `content`)
+VALUES
+    (9101, 9001, 1003, 1, 2, 5, 5, '显示器和描述一致，屏幕没有坏点，卖家沟通很及时，当面验货很顺利。'),
+    (9102, 9002, 1004, 1, 5, 4, 5, '教材重点标注很清楚，复习提纲有帮助，书角有轻微磨损但不影响使用。')
+ON DUPLICATE KEY UPDATE
+    `product_score` = VALUES(`product_score`),
+    `seller_score` = VALUES(`seller_score`),
+    `content` = VALUES(`content`);
+
+UPDATE `users` u
+JOIN (
+    SELECT `seller_id`, ROUND(AVG(`seller_score`) * 20) AS `credit_value`
+    FROM `product_review`
+    GROUP BY `seller_id`
+) r ON r.`seller_id` = u.`user_id`
+SET u.`credit` = r.`credit_value`;
+
+UPDATE `store` s
+JOIN (
+    SELECT `seller_id`, ROUND(AVG(`seller_score`), 1) AS `score_value`, ROUND(AVG(`seller_score`) * 20) AS `credit_value`
+    FROM `product_review`
+    GROUP BY `seller_id`
+) r ON r.`seller_id` = s.`seller_id`
+SET s.`score` = r.`score_value`, s.`credit_score` = r.`credit_value`;
+
+INSERT INTO `community_topic` (`topic_id`, `type`, `title`, `topic_desc`, `author`, `cover`, `tags`, `status`)
+VALUES
+    (7001, '新品推荐', '开学新品推荐：哪些数码配件真正提升效率？', '围绕耳机、平板、键盘、台灯等新品，讨论真实使用体验、预算区间和避坑点。', '松果编辑部', '/static/goods/songuo-pad.jpg', '新品推荐,数码影音,学生党,效率工具', 'normal'),
+    (7002, '宿舍好物推荐', '宿舍好物推荐：桌面、收纳和二手小家具合集', '分享宿舍里真正用得上的好物，也欢迎晒出自己的桌搭和改造经验。', '宿舍改造小组', '/static/goods/ergo-chair.jpg', '宿舍好物,家居生活,二手闲置,桌搭', 'normal'),
+    (7003, '防晒避雷帖', '防晒避雷帖：夏季通勤和军训怎么选才不踩坑？', '防晒、遮阳、清洁和晒后修护相关经验集中讨论，少花冤枉钱。', '生活经验社', '/static/goods/desk-lamp.jpg', '防晒避雷,生活经验,新品推荐,避坑', 'normal'),
+    (7004, '学习资料合集', '期末和考研资料流转：哪些资料值得买二手？', '教材、讲义、笔记和题集的购买经验与资料交换讨论。', '南湖旧书摊', '/static/goods/software-book.jpg', '学习资料,图书文创,二手闲置,期末复习', 'normal')
+ON DUPLICATE KEY UPDATE
+    `type` = VALUES(`type`),
+    `title` = VALUES(`title`),
+    `topic_desc` = VALUES(`topic_desc`),
+    `author` = VALUES(`author`),
+    `cover` = VALUES(`cover`),
+    `tags` = VALUES(`tags`),
+    `status` = VALUES(`status`);
+
+INSERT INTO `topic_post` (`post_id`, `topic_id`, `user_id`, `product_id`, `store_id`, `content`, `images`)
+VALUES
+    (7201, 7001, 1, 1007, 1, '刚换了 68 键蓝牙键盘，宿舍桌面一下清爽很多。建议优先看连接稳定性和键帽高度，别只看颜值。', '/static/goods/airwave-pro.jpg'),
+    (7202, 7002, 1, 1005, 3, '二手人体工学椅真的要当面试坐，腰托和升降比外观更重要。我的经验是先问使用年限，再看底盘有没有异响。', '/static/goods/ergo-chair.jpg'),
+    (7203, 7003, 1, NULL, NULL, '防晒别盲目囤大瓶，通勤和运动需求不一样。大家可以把空瓶体验和踩雷点发在这里，后面买的人少踩坑。', ''),
+    (7204, 7004, 1, 1004, 2, '软件工程课本如果带项目笔记会很值，单纯教材就看价格。买之前可以让卖家拍目录和重点页。', '/static/goods/software-book.jpg')
+ON DUPLICATE KEY UPDATE
+    `topic_id` = VALUES(`topic_id`),
+    `user_id` = VALUES(`user_id`),
+    `product_id` = VALUES(`product_id`),
+    `store_id` = VALUES(`store_id`),
+    `content` = VALUES(`content`),
+    `images` = VALUES(`images`);
+
+INSERT INTO `topic_comment` (`comment_id`, `post_id`, `user_id`, `content`)
+VALUES
+    (7301, 7201, 2, '同意，三模切换稳定比灯效重要多了。'),
+    (7302, 7202, 5, '椅子还要看轮子，宿舍地面不平的话很影响体验。'),
+    (7303, 7204, 2, '资料类最好让卖家说明有没有缺页和水渍。')
+ON DUPLICATE KEY UPDATE
+    `post_id` = VALUES(`post_id`),
+    `user_id` = VALUES(`user_id`),
+    `content` = VALUES(`content`);
+
+INSERT IGNORE INTO `topic_post_like` (`post_id`, `user_id`)
+VALUES
+    (7201, 1),
+    (7201, 2),
+    (7202, 1),
+    (7204, 1);
+
+INSERT IGNORE INTO `topic_post_action` (`post_id`, `user_id`, `action_type`)
+VALUES
+    (7201, 2, 'want'),
+    (7201, 1, 'collect'),
+    (7202, 5, 'want'),
+    (7204, 2, 'collect');

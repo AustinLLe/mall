@@ -9,16 +9,27 @@ import com.example.shopping_back.shop.ShopDtos.AiAssistRequest;
 import com.example.shopping_back.shop.ShopDtos.AiAssistResponse;
 import com.example.shopping_back.shop.ShopDtos.AuditRequest;
 import com.example.shopping_back.shop.ShopDtos.AuditResult;
+import com.example.shopping_back.shop.ShopDtos.CreateOrderRequest;
 import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
+import com.example.shopping_back.shop.ShopDtos.ReviewRequest;
+import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
+import com.example.shopping_back.shop.ShopDtos.StoreUpdateRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
+import com.example.shopping_back.shop.ShopDtos.TopicActionRequest;
+import com.example.shopping_back.shop.ShopDtos.TopicCommentRequest;
+import com.example.shopping_back.shop.ShopDtos.TopicCreateRequest;
+import com.example.shopping_back.shop.ShopDtos.TopicPostRequest;
+import com.example.shopping_back.shop.ShopDtos.TopicPostView;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,14 +73,119 @@ public class ShopController {
         return ApiResult.ok(shopService.stores());
     }
 
+    @GetMapping("/stores/mine")
+    public ApiResult<StoreDetailView> myStore(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.myStore(currentUserOrNull(authorization)));
+    }
+
+    @PutMapping("/stores/mine")
+    public ApiResult<StoreDetailView> updateMyStore(
+            @Valid @RequestBody StoreUpdateRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.updateMyStore(request, currentUserOrNull(authorization)));
+    }
+
+    @GetMapping("/stores/{id}")
+    public ApiResult<StoreDetailView> store(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.store(id, currentUserOrNull(authorization)));
+    }
+
+    @GetMapping("/stores/{id}/products")
+    public ApiResult<List<ProductView>> storeProducts(@PathVariable String id) {
+        return ApiResult.ok(shopService.storeProducts(id));
+    }
+
+    @PostMapping("/stores/{id}/follow")
+    public ApiResult<StoreDetailView> followStore(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.followStore(id, currentUserOrNull(authorization)));
+    }
+
+    @DeleteMapping("/stores/{id}/follow")
+    public ApiResult<StoreDetailView> unfollowStore(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.unfollowStore(id, currentUserOrNull(authorization)));
+    }
+
     @GetMapping("/topics")
-    public ApiResult<List<TopicView>> topics() {
-        return ApiResult.ok(shopService.topics());
+    public ApiResult<List<TopicView>> topics(
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) String keyword) {
+        return ApiResult.ok(shopService.topics(tag, keyword));
+    }
+
+    @GetMapping("/topics/{id}")
+    public ApiResult<TopicView> topic(@PathVariable String id) {
+        return ApiResult.ok(shopService.topic(id));
+    }
+
+    @PostMapping("/topics")
+    public ApiResult<TopicView> createTopic(
+            @Valid @RequestBody TopicCreateRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.createTopic(request, currentUserOrNull(authorization)));
+    }
+
+    @GetMapping("/topics/{id}/posts")
+    public ApiResult<List<TopicPostView>> topicPosts(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.topicPosts(id, currentUserOrNull(authorization)));
+    }
+
+    @PostMapping("/topics/{id}/posts")
+    public ApiResult<List<TopicPostView>> createTopicPost(
+            @PathVariable String id,
+            @Valid @RequestBody TopicPostRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.createTopicPost(id, request, currentUserOrNull(authorization)));
+    }
+
+    @PostMapping("/topic-posts/{id}/comments")
+    public ApiResult<List<TopicPostView>> createTopicComment(
+            @PathVariable String id,
+            @Valid @RequestBody TopicCommentRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.createTopicComment(id, request, currentUserOrNull(authorization)));
+    }
+
+    @PostMapping("/topic-posts/{id}/like")
+    public ApiResult<List<TopicPostView>> toggleTopicPostLike(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.toggleTopicPostLike(id, currentUserOrNull(authorization)));
+    }
+
+    @PostMapping("/topic-posts/{id}/action")
+    public ApiResult<List<TopicPostView>> toggleTopicPostAction(
+            @PathVariable String id,
+            @Valid @RequestBody TopicActionRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.toggleTopicPostAction(id, request.actionType(), currentUserOrNull(authorization)));
     }
 
     @GetMapping("/orders")
-    public ApiResult<List<OrderView>> orders() {
-        return ApiResult.ok(shopService.orders());
+    public ApiResult<List<OrderView>> orders(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.orders(currentUserOrNull(authorization)));
+    }
+
+    @PostMapping("/orders")
+    public ApiResult<List<OrderView>> createOrders(
+            @RequestBody CreateOrderRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.createOrders(request, currentUserOrNull(authorization)));
+    }
+
+    @PostMapping("/orders/{id}/review")
+    public ApiResult<OrderView> reviewOrder(
+            @PathVariable String id,
+            @Valid @RequestBody ReviewRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.reviewOrder(id, request, currentUserOrNull(authorization)));
     }
 
     @PostMapping("/products")

@@ -106,7 +106,6 @@
 
 <script>
 	import { getCartItems, updateCartItem, removeCartItem, groupCartByShop } from '@/utils/cart.js'
-	import { goodsCatalog } from '../../data/catalog.js'
 	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 
 	export default {
@@ -137,26 +136,10 @@
 			isImageUrl,
 			resolveImageUrl,
 			resolvedCover(item) {
-				if (isImageUrl(item.cover)) return item.cover
-				const id = String(item.id || '').trim()
-				const title = String(item.title || '').trim()
-				const source = goodsCatalog.find((g) => g.id === id || g.title === title || g.title === id || (title && title.includes(g.title)) || (title && g.title.includes(title)))
-				return (source && source.cover) ? source.cover : item.cover
+				return item.cover
 			},
 			loadData() {
-				const list = getCartItems()
-				list.forEach((item) => {
-					if (!isImageUrl(item.cover)) {
-						const id = String(item.id || '').trim()
-						const title = String(item.title || '').trim()
-						const source = goodsCatalog.find((g) => g.id === id || g.title === title || g.title === id || (title && title.includes(g.title)) || (title && g.title.includes(title)))
-						if (source && source.cover) {
-							updateCartItem(item.id, { cover: source.cover })
-							item.cover = source.cover
-						}
-					}
-				})
-				this.items = list
+				this.items = getCartItems()
 			},
 			goBrowse() {
 				uni.switchTab({ url: '/pages/browse/browse' })

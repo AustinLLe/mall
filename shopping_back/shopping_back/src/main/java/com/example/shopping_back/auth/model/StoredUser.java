@@ -8,6 +8,7 @@ public class StoredUser {
     private Integer credit;
     private String role;
     private String status;
+    private String avatarUrl;
 
     public StoredUser() {
     }
@@ -73,5 +74,13 @@ public class StoredUser {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 }

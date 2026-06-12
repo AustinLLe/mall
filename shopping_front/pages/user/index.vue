@@ -1,7 +1,7 @@
 <template>
   <view class="me-page">
     <view class="topbar">
-      <view class="me-wrap topbar-inner">
+      <view class="content-wrap topbar-inner">
         <view class="brand" @click="navTo('/pages/home/home')">
           <view class="brand-mark">
             <image class="brand-logo" src="/static/logo.png" mode="aspectFit"></image>
@@ -18,113 +18,191 @@
           <text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
           <text class="nav-link on">我的</text>
         </view>
+        <view class="top-actions"></view>
       </view>
     </view>
+
     <view class="me-wrap">
-    <view v-if="!loggedIn" class="login-card">
-      <text class="login-title">&#30331;&#24405;&#26494;&#26524;&#38598;&#24066;</text>
-      <text class="login-desc">&#30331;&#24405;&#21518;&#26597;&#30475;&#35746;&#21333;&#12289;&#25910;&#34255;&#12289;&#36275;&#36857;&#21644;&#20449;&#29992;&#20998;&#12290;</text>
-      <view class="login-actions">
-        <button class="primary" @click="goLogin">&#30331;&#24405;</button>
-        <button class="ghost" @click="goRegister">&#27880;&#20876;</button>
-      </view>
-    </view>
-
-    <view v-else-if="user.role === 'seller' || user.role === 'admin'" class="login-card">
-      <text class="login-title">{{ user.roleLabel }}&#24037;&#20316;&#21488;</text>
-      <text class="login-desc">&#20320;&#24403;&#21069;&#30331;&#24405;&#20026;{{ user.roleLabel }}&#65292;&#21487;&#36827;&#20837;&#23545;&#24212;&#31471;&#30340;&#22235;&#20837;&#21475;&#39029;&#38754;&#12290;</text>
-      <view class="login-actions">
-        <button class="primary" @click="enterRoleHome">&#36827;&#20837;&#24037;&#20316;&#21488;</button>
-        <button class="ghost" @click="logout">&#36864;&#20986;</button>
-      </view>
-    </view>
-
-    <view v-else>
-      <view class="profile-card">
-        <view class="avatar">{{ avatar }}</view>
-        <view class="profile-main">
-          <text class="name">{{ user.username || '松果用户' }}</text>
-          <text class="meta">{{ center.phoneMasked || user.phoneMasked || '&#26410;&#32465;&#23450;&#25163;&#26426;' }} · {{ verifiedText }}</text>
-          <view class="chips">
-            <text class="chip">&#20080;&#23478;</text>
-            <text class="chip">&#20449;&#29992; {{ user.credit || 100 }}</text>
-            <text class="chip">{{ center.accountStatus || '正常' }}</text>
-          </view>
+      <view v-if="!loggedIn" class="login-card">
+        <text class="login-title">登录松果集市</text>
+        <text class="login-desc">登录后查看订单、收藏、足迹、店铺关注和信用记录。</text>
+        <view class="login-actions">
+          <button class="primary" @click="goLogin">登录</button>
+          <button class="ghost" @click="goRegister">注册</button>
         </view>
       </view>
 
-      <view class="stat-grid">
-        <view v-for="item in modules" :key="item.title" class="stat-card" :class="{ clickable: moduleType(item) }" @click="openModule(item)">
-          <text class="stat-value">{{ item.value }}</text>
-          <text class="stat-label">{{ item.title }}</text>
-          <text class="stat-hint">{{ item.desc }}</text>
-        </view>
-      </view>
-
-      <view v-if="activeModule === 'credit' || activeModule === 'favorite' || activeModule === 'history' || activeModule === 'follow'" class="section interaction-panel">
-        <view class="section-head">
-          <text class="section-title">{{ activePanelTitle }}</text>
-          <text class="section-more">数据库同步</text>
-        </view>
-        <view v-if="activeModule !== 'credit'" class="panel-actions">
-          <button class="ghost small" :loading="panelLoading" @click="clearInteraction">清空记录</button>
-        </view>
-        <view class="interaction-list">
-          <view v-if="!interactionItems.length" class="empty-line">暂无记录，去首页收藏商品、进商品详情浏览，或进入店铺关注后会自动同步</view>
-          <view v-for="item in interactionItems" :key="item.type + '-' + item.id" class="interaction-row">
-            <view>
-              <text class="interaction-title">{{ item.title }}</text>
-              <text class="interaction-desc">{{ item.desc }} · {{ item.createdAt }}</text>
+      <view v-else class="account-layout">
+        <view class="side">
+          <view class="side-profile">
+            <view class="avatar avatar-clickable" @click="chooseAvatar">
+              <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill"></image>
+              <text v-else>{{ avatar }}</text>
             </view>
-            <text class="interaction-type">{{ item.type }}</text>
+            <view class="side-user">
+              <text class="side-name">{{ user.username || '松果用户' }}</text>
+              <text class="side-role">{{ roleLabel }} · 信用 {{ user.credit || 100 }}</text>
+            </view>
           </view>
-        </view>
-      </view>
 
-      <view v-if="activeModule === 'realname'" class="section realname-panel">
-        <view class="section-head">
-          <text class="section-title">&#23454;&#21517;&#35748;&#35777;&#27169;&#25311;</text>
-          <text class="section-more">{{ verifiedText }}</text>
-        </view>
-        <view class="realname-detail">
-          <view class="detail-row">
-            <text class="detail-label">认证状态</text>
-            <text class="detail-value">{{ verifiedText }}</text>
-          </view>
-          <view class="detail-row">
-            <text class="detail-label">脱敏姓名</text>
-            <text class="detail-value">{{ realNameInfo.realName || '暂未提交' }}</text>
-          </view>
-          <view class="detail-row">
-            <text class="detail-label">脱敏证件号</text>
-            <text class="detail-value">{{ realNameInfo.idCardMasked || '暂未提交' }}</text>
+          <view v-for="group in navGroups" :key="group.title" class="nav-group">
+            <view class="group-title">{{ group.title }}</view>
+            <view
+              v-for="item in group.items"
+              :key="item.key"
+              class="side-item"
+              :class="{ active: activeNav === item.key }"
+              @click="handleNav(item)"
+            >
+              <text class="side-icon">{{ item.icon }}</text>
+              <text class="side-text">{{ item.label }}</text>
+              <text v-if="item.badge" class="side-badge">{{ item.badge }}</text>
+            </view>
           </view>
         </view>
-        <view class="realname-form">
-          <input v-model="realNameForm.realName" class="realname-input" placeholder="真实姓名" />
-          <input v-model="realNameForm.idCard" class="realname-input" placeholder="身份证号，提交后只保存脱敏值" />
-          <button class="primary small" :loading="submittingRealName" @click="submitRealNameForm">提交实名</button>
-        </view>
-        <view class="realname-actions">
-          <button class="ghost small" :disabled="!hasRealName" :loading="cancelingRealName" @click="cancelRealNameForm">取消认证</button>
-        </view>
-      </view>
 
-      <view class="menu-grid">
-        <view v-for="item in menus" :key="item.title" class="menu-card" @click="openMenu(item)">
-          <text class="menu-title">{{ item.title }}</text>
-          <text class="menu-desc">{{ item.desc }}</text>
+        <view class="main">
+          <view class="profile-card">
+            <view class="profile-avatar avatar-clickable" @click="chooseAvatar">
+              <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill"></image>
+              <text v-else>{{ avatar }}</text>
+              <view class="avatar-edit">更换头像</view>
+            </view>
+            <view class="profile-main">
+              <text class="name">{{ user.username || '松果用户' }}</text>
+              <text class="meta">{{ center.phoneMasked || user.phoneMasked || '未绑定手机' }} · {{ verifiedText }}</text>
+              <view class="chips">
+                <text class="chip">{{ roleLabel }}</text>
+                <text class="chip">信用 {{ user.credit || 100 }}</text>
+                <text class="chip">{{ center.accountStatus || '正常' }}</text>
+              </view>
+            </view>
+            <view class="profile-actions">
+              <button v-if="isBuyer" class="primary small" @click="goOrders">我的订单</button>
+              <button v-if="isSeller" class="primary small" @click="enterRoleHome">卖家工作台</button>
+              <button v-if="isAdmin" class="primary small" @click="enterRoleHome">管理后台</button>
+              <button class="ghost small" @click="logout">退出登录</button>
+            </view>
+          </view>
+
+          <view v-if="activeNav === 'overview'" class="dashboard">
+            <view v-if="isBuyer" class="panel order-panel">
+              <view class="section-head">
+                <text class="section-title">我的订单</text>
+                <text class="section-more" @click="goOrders">查看全部</text>
+              </view>
+              <view class="order-grid">
+                <view v-for="item in buyerOrderCards" :key="item.label" class="order-item" @click="openOrderTab(item)">
+                  <text class="order-icon">{{ item.icon }}</text>
+                  <text class="order-label">{{ item.label }}</text>
+                  <text v-if="item.count" class="order-count">{{ item.count }}</text>
+                </view>
+              </view>
+            </view>
+
+            <view v-if="isSeller" class="panel order-panel">
+              <view class="section-head">
+                <text class="section-title">卖家经营</text>
+                <text class="section-more" @click="enterRoleHome">进入工作台</text>
+              </view>
+              <view class="seller-actions-grid">
+                <view class="seller-action" @click="enterRoleHome">
+                  <text class="action-title">订单概览</text>
+                  <text class="action-desc">查看买家订单和售后</text>
+                </view>
+                <view class="seller-action" @click="navTo('/pages/publish/publish')">
+                  <text class="action-title">发布商品</text>
+                  <text class="action-desc">新品或二手上架审核</text>
+                </view>
+                <view class="seller-action" @click="navTo('/pages/user/published')">
+                  <text class="action-title">我的发布</text>
+                  <text class="action-desc">管理审核状态和在售商品</text>
+                </view>
+              </view>
+            </view>
+
+            <view class="stat-grid">
+              <view v-for="item in summaryCards" :key="item.title" class="stat-card" @click="handleSummary(item)">
+                <text class="stat-value">{{ item.value }}</text>
+                <text class="stat-label">{{ item.title }}</text>
+                <text class="stat-hint">{{ item.desc }}</text>
+              </view>
+            </view>
+
+            <view v-if="isBuyer" class="panel">
+              <view class="section-head">
+                <text class="section-title">足迹收藏</text>
+                <text class="section-more">数据库同步</text>
+              </view>
+              <view class="shortcut-grid">
+                <view v-for="item in buyerShortcuts" :key="item.key" class="shortcut" @click="handleNav(item)">
+                  <text class="shortcut-title">{{ item.label }}</text>
+                  <text class="shortcut-desc">{{ item.desc }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view v-if="['credit', 'favorite', 'history', 'follow'].includes(activeNav)" class="panel interaction-panel">
+            <view class="section-head">
+              <text class="section-title">{{ activePanelTitle }}</text>
+              <text class="section-more">数据库同步</text>
+            </view>
+            <view v-if="activeNav !== 'credit'" class="panel-actions">
+              <button class="ghost small" :loading="panelLoading" @click="clearInteraction">清空记录</button>
+            </view>
+            <view class="interaction-list">
+              <view v-if="!interactionItems.length" class="empty-line">暂无记录。收藏、浏览商品或关注店铺后会自动同步到这里。</view>
+              <view v-for="item in interactionItems" :key="item.type + '-' + item.id" class="interaction-row">
+                <view>
+                  <text class="interaction-title">{{ item.title }}</text>
+                  <text class="interaction-desc">{{ item.desc }} · {{ item.createdAt }}</text>
+                </view>
+                <text class="interaction-type">{{ item.type }}</text>
+              </view>
+            </view>
+          </view>
+
+          <view v-if="activeNav === 'realname'" class="panel realname-panel">
+            <view class="section-head">
+              <text class="section-title">实名认证</text>
+              <text class="section-more">{{ verifiedText }}</text>
+            </view>
+            <view class="realname-detail">
+              <view class="detail-row">
+                <text class="detail-label">认证状态</text>
+                <text class="detail-value">{{ verifiedText }}</text>
+              </view>
+              <view class="detail-row">
+                <text class="detail-label">脱敏姓名</text>
+                <text class="detail-value">{{ realNameInfo.realName || '暂未提交' }}</text>
+              </view>
+              <view class="detail-row">
+                <text class="detail-label">脱敏证件号</text>
+                <text class="detail-value">{{ realNameInfo.idCardMasked || '暂未提交' }}</text>
+              </view>
+            </view>
+            <view class="realname-form">
+              <input v-model="realNameForm.realName" class="realname-input" placeholder="真实姓名" />
+              <input v-model="realNameForm.idCard" class="realname-input" placeholder="身份证号，提交后仅保存脱敏值" />
+              <button class="primary small" :loading="submittingRealName" @click="submitRealNameForm">提交实名</button>
+            </view>
+            <view class="realname-actions">
+              <button class="ghost small" :disabled="!hasRealName" :loading="cancelingRealName" @click="cancelRealNameForm">取消认证</button>
+            </view>
+          </view>
         </view>
       </view>
-    </view>
     </view>
   </view>
 </template>
 
 <script>
-import { getToken, getCachedUser, clearSession, goRoleHome } from '@/utils/auth.js'
-import { fetchMe } from '@/services/auth.js'
-import { cancelRealName, clearBuyerItems, fetchBuyerCenter, fetchBuyerItems, submitRealName } from '@/services/center.js'
+import { getToken, getCachedUser, clearSession, goRoleHome, setSession } from '@/utils/auth.js'
+import { fetchMe, updateProfile, uploadAvatarImage } from '@/services/auth.js'
+import { cancelRealName, cancelSellerRealName, clearBuyerItems, fetchBuyerCenter, fetchBuyerItems, fetchSellerCenter, submitRealName, submitSellerRealName } from '@/services/center.js'
+import { fetchOrders } from '@/services/shop.js'
+import { resolveImageUrl } from '@/utils/media.js'
 
 export default {
   data() {
@@ -132,7 +210,8 @@ export default {
       loggedIn: false,
       user: {},
       center: {},
-      activeModule: '',
+      orders: [],
+      activeNav: 'overview',
       interactionItems: [],
       panelLoading: false,
       submittingRealName: false,
@@ -144,15 +223,32 @@ export default {
     }
   },
   computed: {
+    isBuyer() {
+      return this.user.role === 'buyer'
+    },
+    isSeller() {
+      return this.user.role === 'seller'
+    },
+    isAdmin() {
+      return this.user.role === 'admin'
+    },
+    roleLabel() {
+      if (this.isSeller) return '卖家'
+      if (this.isAdmin) return '管理员'
+      return '买家'
+    },
     avatar() {
       return (this.user.username || 'M').slice(0, 1).toUpperCase()
     },
+    avatarUrl() {
+      return this.user.avatarUrl ? resolveImageUrl(this.user.avatarUrl) : ''
+    },
     verifiedText() {
       const status = this.center.realName && this.center.realName.status
-      if (status === 'approved') return '\u5df2\u5b9e\u540d'
-      if (status === 'pending') return '\u5f85\u5ba1\u6838'
-      if (status === 'rejected') return '\u5df2\u9a73\u56de'
-      return '\u672a\u5b9e\u540d'
+      if (status === 'approved') return '已实名'
+      if (status === 'pending') return '待审核'
+      if (status === 'rejected') return '已驳回'
+      return '未实名'
     },
     realNameInfo() {
       return this.center.realName || {}
@@ -162,32 +258,92 @@ export default {
     },
     activePanelTitle() {
       const map = {
-        credit: '\u4fe1\u7528\u5206\u8bb0\u5f55',
-        favorite: '\u6536\u85cf\u5939',
-        history: '\u6d4f\u89c8\u8db3\u8ff9',
-        follow: '\u5173\u6ce8\u5e97\u94fa'
+        credit: '信用分记录',
+        favorite: '商品收藏',
+        history: '浏览足迹',
+        follow: '关注店铺'
       }
-      return map[this.activeModule] || '\u8bb0\u5f55'
+      return map[this.activeNav] || '记录'
     },
-    modules() {
-      if (this.center.modules && this.center.modules.length) {
-        return this.center.modules
+    navGroups() {
+      if (this.isSeller) {
+        return [
+          { title: '卖家中心', items: [
+            { key: 'overview', label: '工作台概览', icon: '▣' },
+            { key: 'sellerDashboard', label: '卖家工作台', icon: '▤', action: 'sellerDashboard' },
+            { key: 'publish', label: '发布商品', icon: '+', action: 'publish' },
+            { key: 'published', label: '我的发布', icon: '□', action: 'published' }
+          ] },
+          { title: '账户设置', items: [
+            { key: 'realname', label: '实名认证', icon: '◇' },
+            { key: 'credit', label: '信用记录', icon: '☆' },
+            { key: 'logout', label: '退出登录', icon: '×', action: 'logout' }
+          ] }
+        ]
+      }
+      if (this.isAdmin) {
+        return [
+          { title: '管理中心', items: [
+            { key: 'overview', label: '账号概览', icon: '▣' },
+            { key: 'adminDashboard', label: '管理后台', icon: '▤', action: 'adminDashboard' }
+          ] },
+          { title: '账户设置', items: [
+            { key: 'logout', label: '退出登录', icon: '×', action: 'logout' }
+          ] }
+        ]
       }
       return [
-        { title: '\u8d26\u53f7\u4fe1\u606f', value: this.user.phoneMasked || '--', desc: '\u7b49\u5f85\u6570\u636e\u5e93\u540c\u6b65' },
-        { title: '\u4fe1\u7528\u5206', value: this.user.credit || 100, desc: '\u4ece users.credit \u8bfb\u53d6' },
-        { title: '\u6211\u7684\u4e92\u52a8', value: '0 / 0 / 0', desc: '\u6536\u85cf / \u8db3\u8ff9 / \u5173\u6ce8' },
-        { title: '\u5b9e\u540d\u8ba4\u8bc1', value: this.verifiedText, desc: '\u53ef\u63d0\u4ea4\u540e\u7ba1\u7406\u5458\u5ba1\u6838' }
+        { title: '订单中心', items: [
+          { key: 'overview', label: '我的概览', icon: '▣' },
+          { key: 'orders', label: '我的订单', icon: '□', action: 'orders', badge: this.orders.length || '' },
+          { key: 'reviewOrders', label: '待评价', icon: '☆', action: 'reviewOrders', badge: this.pendingReviewCount || '' }
+        ] },
+        { title: '足迹收藏', items: [
+          { key: 'favorite', label: '商品收藏', icon: '♡', desc: '追踪心仪商品' },
+          { key: 'history', label: '浏览足迹', icon: '○', desc: '找回看过的商品' },
+          { key: 'follow', label: '关注店铺', icon: '◇', desc: '查看店铺上新' }
+        ] },
+        { title: '账户设置', items: [
+          { key: 'realname', label: '实名认证', icon: '▧' },
+          { key: 'credit', label: '信用记录', icon: '☆' },
+          { key: 'address', label: '地址管理', icon: '⌂', action: 'address' },
+          { key: 'logout', label: '退出登录', icon: '×', action: 'logout' }
+        ] }
       ]
     },
-    menus() {
+    summaryCards() {
+      if (this.isSeller) {
+        const modules = this.center.modules || []
+        return modules.length ? modules : [
+          { title: '订单概览', value: '--', desc: '数据库 orders' },
+          { title: '店铺信用', value: this.user.credit || 100, desc: '店铺经营信用' },
+          { title: '商品管理', value: '--', desc: '我的发布与审核' },
+          { title: '消息沟通', value: '--', desc: '买家咨询会话' }
+        ]
+      }
       return [
-        { title: '发布商品', desc: '新品或二手闲置，提交后进入审核', action: 'publish' },
-        { title: '我的发布', desc: '查看待审核、已通过和已拒绝商品', action: 'published' },
-        { title: '\u6536\u85cf\u5939', desc: '\u8ffd\u8e2a\u5fc3\u4eea\u5546\u54c1', type: 'favorite' },
-        { title: '\u6d4f\u89c8\u8db3\u8ff9', desc: '\u627e\u56de\u770b\u8fc7\u7684\u5546\u54c1', type: 'history' },
-        { title: '\u5173\u6ce8\u5e97\u94fa', desc: '\u67e5\u770b\u5e97\u94fa\u4e0a\u65b0', type: 'follow' },
-        { title: '\u8d26\u53f7\u8bbe\u7f6e', desc: '\u9000\u51fa\u767b\u5f55', action: 'logout' }
+        { title: '我的订单', value: this.orders.length, desc: '已同步数据库订单', action: 'orders' },
+        { title: '待评价', value: this.pendingReviewCount, desc: '完成订单后可评价', action: 'reviewOrders' },
+        { title: '信用分', value: this.user.credit || 100, desc: '来自 users.credit', type: 'credit' },
+        { title: '实名认证', value: this.verifiedText, desc: '提交后由管理员审核', type: 'realname' }
+      ]
+    },
+    pendingReviewCount() {
+      return this.orders.filter((item) => item.reviewable).length
+    },
+    buyerOrderCards() {
+      return [
+        { label: '全部订单', icon: '□', count: this.orders.length, action: 'orders' },
+        { label: '已完成', icon: '✓', count: this.orders.filter((item) => item.status === '已完成').length, action: 'orders' },
+        { label: '待评价', icon: '☆', count: this.pendingReviewCount, action: 'reviewOrders' },
+        { label: '已评价', icon: '●', count: this.orders.filter((item) => item.reviewed).length, action: 'orders' }
+      ]
+    },
+    buyerShortcuts() {
+      return [
+        { key: 'favorite', label: '商品收藏', desc: '追踪心仪商品' },
+        { key: 'history', label: '浏览足迹', desc: '找回看过的商品' },
+        { key: 'follow', label: '关注店铺', desc: '查看店铺上新' }
       ]
     }
   },
@@ -212,9 +368,11 @@ export default {
         if (body.code === 0 && body.data) {
           this.user = body.data
           this.loggedIn = true
-          uni.setStorageSync('auth_user', body.data)
-          if (body.data.role === 'buyer') {
-            await this.loadBuyerCenter()
+          setSession(token, body.data)
+          if (this.user.role === 'buyer') {
+            await Promise.all([this.loadBuyerCenter(), this.loadOrders()])
+          } else if (this.user.role === 'seller') {
+            await this.loadSellerCenter()
           }
         }
       } catch (e) {
@@ -226,49 +384,106 @@ export default {
     async loadBuyerCenter() {
       try {
         const body = await fetchBuyerCenter()
-        if (body.code === 0 && body.data) {
-          this.center = body.data
-        }
+        this.center = body.code === 0 && body.data ? body.data : {}
       } catch (e) {
         this.center = {}
       }
     },
-    openModule(item) {
-      const type = this.moduleType(item)
-      if (!type) return
-      this.activeModule = this.activeModule === type ? '' : type
-      if (this.activeModule && this.activeModule !== 'realname') {
-        this.loadInteractionItems()
+    chooseAvatar() {
+      if (!this.loggedIn) return
+      uni.chooseImage({
+        count: 1,
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+        success: async (res) => {
+          const filePath = res.tempFilePaths && res.tempFilePaths[0]
+          if (!filePath) return
+          await this.saveAvatar(filePath)
+        }
+      })
+    },
+    async saveAvatar(filePath) {
+      uni.showLoading({ title: '上传头像中' })
+      try {
+        const uploaded = await uploadAvatarImage(filePath)
+        if (!uploaded || uploaded.code !== 0 || !uploaded.data) {
+          throw new Error(uploaded && uploaded.message ? uploaded.message : 'upload failed')
+        }
+        const body = await updateProfile({ avatarUrl: uploaded.data })
+        if (body.code === 0 && body.data) {
+          this.user = body.data
+          setSession(getToken(), body.data)
+          uni.showToast({ title: '头像已更新', icon: 'success' })
+        } else {
+          throw new Error(body && body.message ? body.message : 'save failed')
+        }
+      } catch (e) {
+        uni.showToast({ title: '头像更新失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
       }
     },
-    moduleType(item) {
-      const title = item && item.title
-      if (title === '\u4fe1\u7528\u5206') return 'credit'
-      if (title === '\u6211\u7684\u4e92\u52a8') return 'favorite'
-      if (title === '\u5b9e\u540d\u8ba4\u8bc1' || title === '实名认证') return 'realname'
-      return ''
+    async loadSellerCenter() {
+      try {
+        const body = await fetchSellerCenter()
+        this.center = body.code === 0 && body.data ? body.data : {}
+      } catch (e) {
+        this.center = {}
+      }
+    },
+    async loadOrders() {
+      try {
+        const body = await fetchOrders()
+        this.orders = body.code === 0 && Array.isArray(body.data) ? body.data : []
+      } catch (e) {
+        this.orders = []
+      }
+    },
+    handleNav(item) {
+      if (item.action === 'orders') return this.goOrders()
+      if (item.action === 'reviewOrders') return this.goOrders('待评价')
+      if (item.action === 'sellerDashboard' || item.action === 'adminDashboard') return this.enterRoleHome()
+      if (item.action === 'publish') return this.navTo('/pages/publish/publish')
+      if (item.action === 'published') return this.navTo('/pages/user/published')
+      if (item.action === 'address') return this.navTo('/pages/address/list')
+      if (item.action === 'logout') return this.logout()
+      this.activeNav = item.key
+      if (['credit', 'favorite', 'history', 'follow'].includes(this.activeNav)) this.loadInteractionItems()
+    },
+    handleSummary(item) {
+      if (item.action === 'orders') return this.goOrders()
+      if (item.action === 'reviewOrders') return this.goOrders('待评价')
+      if (item.type) this.handleNav({ key: item.type })
+    },
+    openOrderTab(item) {
+      if (item.action === 'reviewOrders') return this.goOrders('待评价')
+      this.goOrders()
     },
     async loadInteractionItems() {
-      if (!['credit', 'favorite', 'history', 'follow'].includes(this.activeModule)) return
+      if (!['credit', 'favorite', 'history', 'follow'].includes(this.activeNav)) return
+      if (!this.isBuyer) {
+        this.interactionItems = this.activeNav === 'credit'
+          ? [{ id: 'seller-credit', title: this.isSeller ? '店铺信用' : '账号信用', desc: `当前信用 ${this.user.credit || 100}`, type: 'credit', createdAt: '实时' }]
+          : []
+        return
+      }
       this.panelLoading = true
       try {
-        const body = await fetchBuyerItems(this.activeModule)
-        if (body.code === 0) {
-          this.interactionItems = body.data || []
-        }
+        const body = await fetchBuyerItems(this.activeNav)
+        if (body.code === 0) this.interactionItems = body.data || []
       } finally {
         this.panelLoading = false
       }
     },
     async clearInteraction() {
-      if (!['favorite', 'history', 'follow'].includes(this.activeModule)) return
+      if (!['favorite', 'history', 'follow'].includes(this.activeNav)) return
       this.panelLoading = true
       try {
-        const body = await clearBuyerItems(this.activeModule)
+        const body = await clearBuyerItems(this.activeNav)
         if (body.code === 0 && body.data) {
           this.center = body.data
           this.interactionItems = []
-          uni.showToast({ title: '\u5df2\u6e05\u7a7a', icon: 'none' })
+          uni.showToast({ title: '已清空', icon: 'none' })
         }
       } finally {
         this.panelLoading = false
@@ -276,40 +491,40 @@ export default {
     },
     async submitRealNameForm() {
       if (!this.realNameForm.realName || !this.realNameForm.idCard) {
-        uni.showToast({ title: '\u8bf7\u586b\u5199\u59d3\u540d\u548c\u8bc1\u4ef6\u53f7', icon: 'none' })
+        uni.showToast({ title: '请填写姓名和证件号', icon: 'none' })
         return
       }
       this.submittingRealName = true
       try {
-        const body = await submitRealName(this.realNameForm)
+        const body = this.isSeller ? await submitSellerRealName(this.realNameForm) : await submitRealName(this.realNameForm)
         if (body.code === 0 && body.data) {
           this.center = body.data
           this.realNameForm.realName = ''
           this.realNameForm.idCard = ''
-          uni.showToast({ title: '\u5df2\u63d0\u4ea4\u5ba1\u6838', icon: 'success' })
+          uni.showToast({ title: '已提交审核', icon: 'success' })
         }
       } catch (e) {
-          uni.showToast({ title: '\u63d0\u4ea4\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5', icon: 'none' })
+        uni.showToast({ title: '提交失败，请稍后重试', icon: 'none' })
       } finally {
         this.submittingRealName = false
       }
     },
     async cancelRealNameForm() {
       if (!this.hasRealName) {
-        uni.showToast({ title: '\u6682\u65e0\u53ef\u53d6\u6d88\u7684\u8ba4\u8bc1', icon: 'none' })
+        uni.showToast({ title: '暂无可取消的认证', icon: 'none' })
         return
       }
       this.cancelingRealName = true
       try {
-        const body = await cancelRealName()
+        const body = this.isSeller ? await cancelSellerRealName() : await cancelRealName()
         if (body.code === 0 && body.data) {
           this.center = body.data
           this.realNameForm.realName = ''
           this.realNameForm.idCard = ''
-          uni.showToast({ title: '\u5df2\u53d6\u6d88\u8ba4\u8bc1', icon: 'none' })
+          uni.showToast({ title: '已取消认证', icon: 'none' })
         }
       } catch (e) {
-        uni.showToast({ title: '\u53d6\u6d88\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5', icon: 'none' })
+        uni.showToast({ title: '取消失败，请稍后重试', icon: 'none' })
       } finally {
         this.cancelingRealName = false
       }
@@ -320,44 +535,25 @@ export default {
     goRegister() {
       uni.navigateTo({ url: '/pages/auth/register' })
     },
-    goOrders() {
-      uni.navigateTo({ url: '/pages/order/list' })
+    goOrders(tab = '') {
+      const query = tab ? '?tab=' + encodeURIComponent(tab) : ''
+      uni.navigateTo({ url: '/pages/order/list' + query })
     },
     navTo(url) {
-      	if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
-					uni.switchTab({ url })
-					return
-				}
-				uni.reLaunch({ url })
+      if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
+        uni.switchTab({ url })
+        return
+      }
+      uni.navigateTo({ url })
     },
     enterRoleHome() {
       goRoleHome(this.user, 'reLaunch')
-    },
-    openMenu(item) {
-      if (item.action === 'publish') {
-        uni.navigateTo({ url: '/pages/publish/publish' })
-        return
-      }
-      if (item.action === 'published') {
-        uni.navigateTo({ url: '/pages/user/published' })
-        return
-      }
-      if (item.action === 'logout') {
-        this.logout()
-        return
-      }
-      if (item.type) {
-        this.activeModule = this.activeModule === item.type ? '' : item.type
-        if (this.activeModule) this.loadInteractionItems()
-        return
-      }
-      uni.showToast({ title: item.title, icon: 'none' })
     },
     logout() {
       clearSession()
       this.loggedIn = false
       this.user = {}
-      uni.showToast({ title: '\u5df2\u9000\u51fa\u767b\u5f55', icon: 'none' })
+      uni.showToast({ title: '已退出登录', icon: 'none' })
     }
   }
 }
@@ -366,28 +562,29 @@ export default {
 <style scoped>
 .me-page {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 18% 5%, rgba(66, 133, 244, .08), transparent 28%),
-    radial-gradient(circle at 78% 14%, rgba(251, 188, 5, .06), transparent 26%),
-    linear-gradient(180deg, #ffffff 0%, #f7f8fa 100%);
-  padding: 22px;
+  background: #f5f6f8;
+  padding: 0;
   padding-bottom: 84px;
   box-sizing: border-box;
   color: #17231d;
 }
 .me-wrap {
-  max-width: 1200px;
+  max-width: 1260px;
   margin: 0 auto;
 }
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  margin: -22px -22px 22px;
-  background: rgba(255,255,255,.88);
-  backdrop-filter: blur(22px);
+  margin: 0 0 22px;
+  background: rgba(255,255,255,.94);
+  backdrop-filter: blur(18px);
   border-bottom: 1px solid rgba(203, 213, 225, .55);
-  box-shadow: 0 10px 40px rgba(60, 64, 67, .06);
+  box-shadow: 0 10px 40px rgba(60,64,67,.06);
+}
+.topbar + .me-wrap {
+  padding: 0 22px;
+  box-sizing: border-box;
 }
 .topbar-inner {
   display: grid;
@@ -403,12 +600,9 @@ export default {
   gap: 12px;
 }
 .brand-mark {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -417,11 +611,27 @@ export default {
   height: 100%;
 }
 .brand-name,
-.brand-sub {
+.brand-sub,
+.side-name,
+.side-role,
+.name,
+.meta,
+.chip,
+.section-title,
+.section-more,
+.stat-value,
+.stat-label,
+.stat-hint,
+.order-icon,
+.order-label,
+.action-title,
+.action-desc,
+.shortcut-title,
+.shortcut-desc {
   display: block;
 }
 .brand-name {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   color: #202124;
 }
@@ -431,49 +641,47 @@ export default {
   color: #667085;
 }
 .web-nav {
-  display: flex;
   justify-self: center;
+  display: flex;
   align-items: center;
   gap: 4px;
   padding: 5px;
-  box-sizing: border-box;
   height: 50px;
   border-radius: 999px;
-  background: rgba(255,255,255,.72);
+  background: #fff;
   border: 1px solid rgba(203, 213, 225, .72);
-  box-shadow: 0 14px 38px rgba(60, 64, 67, .08);
+  box-sizing: border-box;
+  box-shadow: 0 14px 38px rgba(60,64,67,.08);
+}
+.top-actions {
+  min-height: 1px;
 }
 .nav-link {
   width: 82px;
   height: 38px;
-  padding: 0;
   border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box;
-  line-height: 1;
-  text-align: center;
   color: #5f6b85;
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 800;
 }
 .nav-link.on,
 .nav-link:hover {
-  background: #fff;
   background: linear-gradient(135deg, #ffffff, #f5f7fa);
   color: #12372a;
   box-shadow: 0 10px 26px rgba(18, 55, 42, .14);
 }
 .login-card,
 .profile-card,
-.section,
-.menu-card,
+.side,
+.panel,
 .stat-card {
   background: #fff;
-  border: 1px solid rgba(203, 213, 225, .72);
+  border: 1px solid rgba(222, 226, 230, .95);
   border-radius: 8px;
-  box-shadow: 0 18px 55px rgba(60, 64, 67, 0.075);
+  box-shadow: 0 12px 36px rgba(31, 41, 55, .06);
 }
 .login-card {
   max-width: 760px;
@@ -481,26 +689,13 @@ export default {
   padding: 36px;
   text-align: center;
 }
-.login-title,
-.login-desc,
-.name,
-.meta,
-.chip,
-.stat-value,
-.stat-label,
-.section-title,
-.section-more,
-.order-icon,
-.order-label,
-.menu-title,
-.menu-desc {
-  display: block;
-}
 .login-title {
+  display: block;
   font-size: 30px;
   font-weight: 900;
 }
 .login-desc {
+  display: block;
   margin-top: 12px;
   color: #667085;
   font-size: 15px;
@@ -511,13 +706,24 @@ export default {
   gap: 14px;
   margin-top: 26px;
 }
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  line-height: 1;
+}
+button::after {
+  border: 0;
+}
 .primary,
 .ghost {
-  width: 180px;
   height: 46px;
-  line-height: 46px;
   border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 900;
+  box-sizing: border-box;
 }
 .primary {
   background: #12372a;
@@ -528,34 +734,163 @@ export default {
   color: #12372a;
   border: 1px solid rgba(95, 99, 104, .22);
 }
-.profile-card {
+.primary.small,
+.ghost.small {
+  width: 126px;
+  height: 40px;
+  font-size: 13px;
+}
+.account-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.side {
+  position: sticky;
+  top: 104px;
+  padding: 18px;
+}
+.side-profile {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 28px;
-  background:
-    radial-gradient(circle at 88% 12%, rgba(66, 133, 244, .08), transparent 30%),
-    radial-gradient(circle at 12% 88%, rgba(52, 168, 83, .05), transparent 30%),
-    linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #edf1ee;
 }
 .avatar {
-  width: 72px;
-  height: 72px;
+  width: 52px;
+  height: 52px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #12372a, #1f5c43);
+  background: #12372a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 900;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.avatar-clickable {
+  cursor: pointer;
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.profile-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 8px;
+  background: #12372a;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 30px;
   font-weight: 900;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.avatar-edit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 55, 42, .82);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+.side-user {
+  min-width: 0;
+}
+.side-name {
+  font-size: 16px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.side-role {
+  margin-top: 5px;
+  color: #667085;
+  font-size: 12px;
+}
+.nav-group {
+  padding-top: 16px;
+}
+.group-title {
+  margin-bottom: 8px;
+  color: #98a2b3;
+  font-size: 12px;
+  font-weight: 900;
+}
+.side-item {
+  height: 42px;
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  color: #344054;
+  box-sizing: border-box;
+}
+.side-item.active,
+.side-item:hover {
+  background: #eef5f0;
+  color: #12372a;
+  font-weight: 900;
+}
+.side-icon,
+.side-text,
+.side-badge {
+  display: flex;
+  align-items: center;
+}
+.side-icon {
+  justify-content: center;
+  font-weight: 900;
+}
+.side-text {
+  min-width: 0;
+  font-size: 14px;
+}
+.side-badge {
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #d66a2c;
+  color: #fff;
+  font-size: 11px;
+  box-sizing: border-box;
+}
+.main {
+  min-width: 0;
+}
+.profile-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px;
+  background: linear-gradient(135deg, #fff 0%, #f8fbf9 100%);
 }
 .profile-main {
-  flex: 1;
   min-width: 0;
 }
 .name {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 900;
 }
 .meta {
@@ -565,69 +900,148 @@ export default {
 }
 .chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
 }
 .chip {
   padding: 6px 11px;
   border-radius: 999px;
-  background: #f5f7fa;
+  background: #eef5f0;
   color: #12372a;
   font-size: 13px;
   font-weight: 800;
 }
+.profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.dashboard,
+.interaction-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+.panel {
+  padding: 22px;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.section-title {
+  font-size: 20px;
+  font-weight: 900;
+}
+.section-more {
+  color: #12372a;
+  font-size: 14px;
+  font-weight: 900;
+}
+.order-grid,
+.seller-actions-grid,
+.shortcut-grid,
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
-  margin-top: 16px;
+}
+.order-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 18px;
+}
+.order-item,
+.seller-action,
+.shortcut,
+.stat-card {
+  border-radius: 8px;
+  background: #f8faf9;
+  border: 1px solid #edf1ee;
+  box-sizing: border-box;
+}
+.order-item {
+  position: relative;
+  min-height: 106px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.order-icon {
+  color: #12372a;
+  font-size: 28px;
+  font-weight: 900;
+}
+.order-label {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #344054;
+  font-weight: 800;
+}
+.order-count {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #d66a2c;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  box-sizing: border-box;
+}
+.stat-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .stat-card {
   padding: 20px;
 }
-.stat-card.clickable {
-  cursor: pointer;
-  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-}
-.stat-card.clickable:hover {
-  transform: translateY(-2px);
-  border-color: rgba(18, 55, 42, .24);
-  box-shadow: 0 18px 48px rgba(18, 55, 42, .1);
-}
 .stat-value {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
   color: #12372a;
 }
 .stat-label {
   margin-top: 6px;
-  color: #667085;
-  font-size: 13px;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 900;
 }
 .stat-hint {
-  display: block;
-  margin-top: 10px;
+  margin-top: 8px;
   color: #8a94a6;
   font-size: 12px;
   line-height: 1.5;
 }
-.section {
-  margin-top: 16px;
-  padding: 22px;
+.seller-actions-grid,
+.shortcut-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px;
 }
-.realname-panel {
-  border-color: rgba(18, 55, 42, .18);
+.seller-action,
+.shortcut {
+  padding: 18px;
 }
-.interaction-panel {
-  border-color: rgba(18, 55, 42, .16);
-}
-.section-head {
-  display: flex;
-  justify-content: space-between;
-}
-.section-title {
-  font-size: 19px;
+.action-title,
+.shortcut-title {
+  color: #12372a;
+  font-size: 16px;
   font-weight: 900;
+}
+.action-desc,
+.shortcut-desc {
+  margin-top: 8px;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.5;
 }
 .panel-actions {
   display: flex;
@@ -635,10 +1049,12 @@ export default {
   margin-top: 18px;
   align-items: center;
 }
-.interaction-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 16px;
+.interaction-row,
+.empty-line,
+.detail-row {
+  border-radius: 8px;
+  background: #f8faf9;
+  border: 1px solid #edf1ee;
 }
 .interaction-row {
   display: flex;
@@ -646,9 +1062,6 @@ export default {
   justify-content: space-between;
   gap: 14px;
   padding: 14px 16px;
-  border-radius: 8px;
-  background: #f8faf9;
-  border: 1px solid rgba(203, 213, 225, .72);
 }
 .interaction-title,
 .interaction-desc {
@@ -674,10 +1087,11 @@ export default {
 }
 .empty-line {
   padding: 16px;
-  border-radius: 8px;
-  background: #f8faf9;
   color: #667085;
   font-size: 14px;
+}
+.realname-panel {
+  margin-top: 16px;
 }
 .realname-detail {
   display: grid;
@@ -687,9 +1101,6 @@ export default {
 }
 .detail-row {
   padding: 14px 16px;
-  border-radius: 8px;
-  background: #f8faf9;
-  border: 1px solid rgba(203, 213, 225, .72);
 }
 .detail-label,
 .detail-value {
@@ -707,7 +1118,7 @@ export default {
 }
 .realname-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 120px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 126px;
   gap: 12px;
   margin-top: 18px;
   align-items: center;
@@ -721,80 +1132,48 @@ export default {
   box-sizing: border-box;
   font-size: 14px;
 }
-.primary.small {
-  width: 120px;
-  height: 42px;
-  line-height: 42px;
-  font-size: 13px;
-}
 .realname-actions {
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
 }
-.ghost.small {
-  width: 120px;
-  height: 38px;
-  line-height: 38px;
-  font-size: 13px;
-}
 .ghost.small[disabled] {
   opacity: .45;
 }
-.section-more {
-  color: #12372a;
-  font-size: 14px;
-  font-weight: 800;
-}
-.order-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 18px;
-}
-.order-item {
-  text-align: center;
-}
-.order-icon {
-  color: #12372a;
-  font-size: 22px;
-  font-weight: 900;
-}
-.order-label {
-  margin-top: 7px;
-  color: #667085;
-  font-size: 13px;
-}
-.menu-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 16px;
-}
-.menu-card {
-  padding: 18px;
-}
-.menu-title {
-  font-size: 16px;
-  font-weight: 900;
-}
-.menu-desc {
-  margin-top: 7px;
-  color: #667085;
-  font-size: 13px;
-}
 @media screen and (max-width: 900px) {
-  .topbar-inner {
-    align-items: flex-start;
-    flex-direction: column;
+  .me-page {
+    padding: 0;
+    padding-bottom: 84px;
   }
-  .web-nav,
-  .brand-sub {
+  .topbar {
+    margin: 0 0 14px;
+  }
+  .topbar + .me-wrap {
+    padding: 0 14px;
+  }
+  .topbar-inner {
+    display: flex;
+    height: 64px;
+  }
+  .brand-sub,
+  .web-nav {
     display: none;
   }
-  .stat-grid,
+  .account-layout {
+    grid-template-columns: 1fr;
+  }
+  .side {
+    position: static;
+  }
+  .profile-card,
+  .profile-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .order-grid,
-  .menu-grid,
+  .stat-grid,
+  .seller-actions-grid,
+  .shortcut-grid,
   .realname-detail,
   .realname-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));

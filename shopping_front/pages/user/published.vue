@@ -23,7 +23,7 @@
 	</view>
 </template>
 <script>
-	import { goodsCatalog, buildGoodsDetailUrl } from '../../data/catalog.js'
+	import { buildGoodsDetailUrl } from '../../data/catalog.js'
 	import { fetchMyProducts } from '@/services/shop.js'
 	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 
@@ -45,7 +45,7 @@
 						return
 					}
 				} catch (e) {}
-				this.goods = goodsCatalog.filter((item) => item.scene === 'used')
+				this.goods = []
 			},
 			isImageUrl,
 			resolveImageUrl,
