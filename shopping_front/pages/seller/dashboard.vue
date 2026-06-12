@@ -198,7 +198,7 @@
 
               <view class="tool-row">
                 <button class="tool-btn" :class="{ active: showEmojiPicker }" @click="toggleEmojiPicker">☺</button>
-                <button class="tool-btn" @click="sendProductCard">▧</button>
+                <button class="tool-btn" @click="viewProduct">▧</button>
                 <text class="counter">{{ inputContent.length }} / 500</text>
               </view>
               <textarea
@@ -209,7 +209,7 @@
                 @confirm="sendMessage"
               />
               <view class="composer-actions">
-                <button class="send-btn secondary" @click="sendProductCard">发送商品</button>
+                <button class="send-btn secondary" @click="viewProduct">查看商品</button>
                 <button class="send-btn" @click="sendMessage">发送</button>
               </view>
             </view>
@@ -706,7 +706,7 @@ export default {
       const sent = await this.sendChatContent(content)
       if (sent) this.inputContent = ''
     },
-    async sendProductCard() {
+    async viewProduct() {
       if (!this.covId) return
       let product = this.focusProduct
       if (!product || !product.id) {
@@ -716,17 +716,7 @@ export default {
         uni.showToast({ title: '暂无商品信息', icon: 'none' })
         return
       }
-      const card = {
-        id: product.id,
-        title: product.title || product.goodsName,
-        price: product.price,
-        cover: product.cover || product.image,
-        scene: product.scene,
-        category: product.category,
-        shopName: product.shopName || (this.activeConversation && this.activeConversation.title)
-      }
-      const sent = await this.sendChatContent(`${PRODUCT_CARD_PREFIX}${JSON.stringify(card)}`)
-      if (sent) this.closeFloaters()
+      this.openProductById(product.id)
     },
     openProductById(id) {
       if (!id) return
