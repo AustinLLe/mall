@@ -1,6 +1,5 @@
 package com.example.shopping_back.chat.dto;
 
-import java.math.BigDecimal;
 import java.util.Date;
 
 import lombok.Data;
@@ -17,13 +16,8 @@ public class ConversationListDto {
     private String targetName;         
     private String lastMessage;     
     private Date lastTime;        
-    private String status;
-    private Integer goodsId;
-    private String storeId;
+    private String goodsImageUrl;
     private String goodsName;
-    private BigDecimal goodsPrice;
-    private String goodsCategory;
-    private String goodsScene;
-    private String goodsImageUrl;   
+    private Integer goodsId;
 
 }

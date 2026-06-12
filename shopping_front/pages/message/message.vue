@@ -1,6 +1,6 @@
 <template>
-	<view class="safe-page" @click="closeFloaters">
-		<view class="topbar" @click.stop>
+	<view class="safe-page">
+		<view class="topbar">
 			<view class="content-wrap topbar-inner">
 				<view class="brand" @click="navTo('/pages/home/home')">
 					<view class="brand-mark">
@@ -23,11 +23,12 @@
 
 		<view class="content-wrap page-shell">
 			<view class="message-workspace">
-				<view class="conversation-pane" @click.stop>
+				<!-- 左侧：会话列表 -->
+				<view class="conversation-pane">
 					<view class="pane-head">
 						<view>
 							<text class="pane-kicker">Messages</text>
-							<text class="pane-title">{{ messageTitle }}</text>
+							<text class="pane-title">消息中心</text>
 						</view>
 						<view class="total-pill">{{ filteredList.length }}</view>
 					</view>
@@ -42,8 +43,8 @@
 							v-for="item in filteredList"
 							:key="item.covId"
 							class="conversation-item"
-							:class="{ active: item.covId === activeCovId }"
-							@click="selectConversation(item)"
+							:class="{ active: item.covId === covId }"
+							@click="open(item)"
 						>
 							<view class="avatar-wrap">
 								<image v-if="item.goodsImageUrl" class="avatar-img" :src="item.goodsImageUrl" mode="aspectFill"></image>
@@ -60,16 +61,17 @@
 							</view>
 						</view>
 
-						<view v-if="!loadingList && filteredList.length === 0" class="empty-list">
+						<view v-if="filteredList.length === 0" class="empty-list">
 							<text class="empty-title">暂无会话</text>
-							<text class="empty-sub">{{ emptyConversationText }}</text>
+							<text class="empty-sub">从商品详情页点击「去问问」后，会话会出现在这里。</text>
 						</view>
 					</scroll-view>
 				</view>
 
-				<view class="chat-pane" @click="closeFloaters">
-					<template v-if="activeConversation">
-						<view class="chat-header" @click.stop>
+				<!-- 右侧：聊天区域 -->
+				<view class="chat-pane">
+					<template v-if="covId && activeConversation">
+						<view class="chat-header">
 							<view class="chat-contact">
 								<view class="chat-avatar">{{ activeConversation.icon }}</view>
 								<view>
@@ -78,8 +80,7 @@
 								</view>
 							</view>
 							<view class="header-actions">
-								<button v-if="!isSeller" class="ghost-btn" :disabled="aiBargaining" @click="triggerAiBargain">{{ aiBargaining ? '生成中' : 'AI 议价' }}</button>
-								<button class="ghost-btn" @click="refreshCurrent">刷新</button>
+								<button class="ghost-btn" :disabled="aiBargaining" @click="triggerAiBargain">{{ aiBargaining ? '生成中' : 'AI 议价' }}</button>
 							</view>
 						</view>
 
@@ -90,42 +91,43 @@
 								<view class="line"></view>
 							</view>
 
-							<view
-								v-for="msg in messages"
-								:key="msg.cmId || `${msg.senderId}-${msg.createTime}`"
-								class="message-row"
-								:class="{ mine: msg.senderId === myUserId }"
-							>
-								<view v-if="msg.senderId !== myUserId" class="mini-avatar">{{ activeConversation.icon }}</view>
-								<view class="bubble-wrap">
-									<text class="message-time">{{ formatTime(msg.createTime) }}</text>
-									<view v-if="msg.card" class="message-product-card" @click.stop="openProductById(msg.card.id)">
-										<image v-if="msg.card.cover" class="card-thumb" :src="msg.card.cover" mode="aspectFill"></image>
-										<view class="card-body">
-											<text class="card-label">商品卡片</text>
-											<text class="card-title">{{ msg.card.title }}</text>
-											<view class="card-meta">
-												<text class="card-price">{{ priceLabel(msg.card.price) }}</text>
-												<text v-if="msg.card.scene" class="card-tag">{{ sceneLabel(msg.card.scene) }}</text>
-											</view>
-										</view>
-									</view>
-									<view v-else class="bubble">
-										<text>{{ msg.content }}</text>
-									</view>
-									<text v-if="msg.senderId === myUserId" class="read-receipt" :class="{ read: msg.isRead }">{{ msg.isRead ? '已读' : '未读' }}</text>
-								</view>
+							<view v-if="messages.length === 0" class="empty-chat">
+								<text class="empty-title">暂无消息</text>
+								<text class="empty-sub">开始聊天吧</text>
 							</view>
 
-							<view v-if="!loadingMessages && messages.length === 0" class="empty-chat">
-								<text class="empty-title">没有聊天记录</text>
-								<text class="empty-sub">可以先发一句问候，或者发送当前商品卡片。</text>
+							<view v-for="msg in messages" :key="msg.cmId || `${msg.senderId}-${msg.createTime}`">
+								<view v-if="msg.showTime" class="time-divider">
+									{{ formatChatTime(msg.createTime) }}
+								</view>
+								<view class="message-row" :class="{ mine: msg.senderId === myUserId }">
+									<view v-if="msg.senderId !== myUserId" class="mini-avatar">{{ activeConversation.icon }}</view>
+									<view class="bubble-wrap">
+										<view v-if="msg.card" class="message-product-card" @click.stop="openProductById(msg.card.id)">
+											<image v-if="msg.card.cover" class="card-thumb" :src="msg.card.cover" mode="aspectFill"></image>
+											<view class="card-body">
+												<text class="card-label">商品卡片</text>
+												<text class="card-title">{{ msg.card.title }}</text>
+												<view class="card-meta">
+													<text class="card-price">{{ priceLabel(msg.card.price) }}</text>
+													<text v-if="msg.card.scene" class="card-tag">{{ sceneLabel(msg.card.scene) }}</text>
+												</view>
+											</view>
+										</view>
+										<view v-else class="bubble">
+											<text>{{ msg.content }}</text>
+										</view>
+										<text v-if="msg.senderId === myUserId" class="read-receipt">
+											{{ msg.isRead ? '已读' : '未读' }}
+										</text>
+									</view>
+								</view>
 							</view>
 						</scroll-view>
 
-						<scroll-view class="quick-row" scroll-x :show-scrollbar="false" @click.stop>
+						<scroll-view class="quick-row" scroll-x :show-scrollbar="false">
 							<view class="quick-track">
-								<button v-for="item in quickOptions" :key="item" class="quick-btn" @click="sendQuick(item)">{{ item }}</button>
+								<button v-for="text in quickOptions" :key="text" class="quick-btn" @click="sendQuick(text)">{{ text }}</button>
 							</view>
 						</scroll-view>
 
@@ -155,150 +157,26 @@
 
 							<view class="tool-row">
 								<button class="tool-btn" :class="{ active: showEmojiPicker }" @click="toggleEmojiPicker">☺</button>
-								<button class="tool-btn" @click="sendProductCard">▧</button>
-								<button class="tool-btn" @click="appendText(defaultAppendText)">♡</button>
-								<text class="counter">{{ messageInput.length }} / 500</text>
+								<button class="tool-btn" @click="viewProduct">▧</button>
+								<text class="counter">{{ inputContent.length }} / 500</text>
 							</view>
 							<textarea
-								v-model="messageInput"
+								v-model="inputContent"
 								class="message-input"
 								maxlength="500"
-								:placeholder="inputPlaceholder"
+								placeholder="说点什么..."
 								@confirm="sendMessage"
-							/>
+							></textarea>
 							<view class="composer-actions">
-								<button class="send-btn secondary" @click="sendProductCard">{{ productCardButtonText }}</button>
-								<button class="send-btn" :disabled="sending || !messageInput.trim()" @click="sendMessage">发送</button>
+								<button class="send-btn secondary" @click="viewProduct">查看宝贝</button>
+								<button class="send-btn" @click="sendMessage">发送</button>
 							</view>
 						</view>
 					</template>
 
 					<view v-else class="chat-empty-state">
 						<text class="empty-title">请选择一个会话</text>
-						<text class="empty-sub">{{ emptyChatText }}</text>
-					</view>
-				</view>
-
-				<view class="info-pane" @click.stop>
-					<template v-if="activeConversation">
-						<view class="seller-card">
-							<view class="seller-avatar">{{ activeConversation.icon }}</view>
-							<view class="seller-main">
-								<text class="seller-name">{{ sidePrimaryName }}</text>
-								<text class="seller-desc">{{ sideSecondaryText }}</text>
-							</view>
-						</view>
-
-						<template v-if="isSeller">
-							<view class="side-section">
-								<text class="block-title">卖家处理</text>
-								<view class="seller-action-grid">
-									<button class="seller-fn-btn" @click="appendText('您好，这件商品目前还在，可以继续沟通细节。')">回复在售</button>
-									<button class="seller-fn-btn" @click="appendText('支持平台担保交易，您可以放心下单。')">担保说明</button>
-									<button class="seller-fn-btn" @click="appendText('我可以补充商品细节图和配件说明。')">补充细节</button>
-									<button class="seller-fn-btn" @click="sendProductCard">发商品卡</button>
-								</view>
-							</view>
-							<view class="side-section">
-								<text class="block-title">会话状态</text>
-								<view class="status-row">
-									<button class="status-btn" :class="{ on: activeConversation.status === 'pending' }" @click="updateConversationStatus('pending')">待跟进</button>
-									<button class="status-btn" :class="{ on: activeConversation.status === 'dealing' }" @click="updateConversationStatus('dealing')">沟通中</button>
-									<button class="status-btn" :class="{ on: activeConversation.status === 'closed' }" @click="updateConversationStatus('closed')">已结束</button>
-								</view>
-							</view>
-							<view class="side-section">
-								<view class="section-head">
-									<text class="block-title">咨询商品</text>
-									<button class="text-btn" @click="openProduct">查看</button>
-								</view>
-								<view class="focus-product" @click="openProduct">
-									<image v-if="focusProduct.cover" class="focus-img" :src="focusProduct.cover" mode="aspectFill"></image>
-									<view v-else class="focus-placeholder">商品</view>
-									<view class="focus-main">
-										<text class="focus-title">{{ focusProduct.title || activeConversation.goodsName || '商品信息加载中' }}</text>
-										<text class="focus-price">{{ priceLabel(focusProduct.price || activeConversation.goodsPrice) }}</text>
-										<view class="tag-row">
-											<text v-if="focusProduct.scene || activeConversation.goodsScene" class="tag">{{ sceneLabel(focusProduct.scene || activeConversation.goodsScene) }}</text>
-											<text v-if="focusProduct.category || activeConversation.goodsCategory" class="tag">{{ focusProduct.category || activeConversation.goodsCategory }}</text>
-										</view>
-									</view>
-								</view>
-							</view>
-							<view class="side-section">
-								<text class="block-title">经营入口</text>
-								<button class="link-btn" @click="openSellerStore">店铺管理</button>
-								<button class="link-btn" @click="openSellerProducts">我的发布</button>
-							</view>
-						</template>
-
-						<template v-else>
-						<view class="side-section">
-							<view class="section-head">
-								<text class="block-title">正在咨询</text>
-								<button class="text-btn" @click="openProduct">查看</button>
-							</view>
-							<view class="focus-product" @click="openProduct">
-								<image v-if="focusProduct.cover" class="focus-img" :src="focusProduct.cover" mode="aspectFill"></image>
-								<view v-else class="focus-placeholder">商品</view>
-								<view class="focus-main">
-									<text class="focus-title">{{ focusProduct.title || activeConversation.goodsName || '商品信息加载中' }}</text>
-									<text class="focus-price">{{ priceLabel(focusProduct.price || activeConversation.goodsPrice) }}</text>
-									<view class="tag-row">
-										<text v-if="focusProduct.scene || activeConversation.goodsScene" class="tag">{{ sceneLabel(focusProduct.scene || activeConversation.goodsScene) }}</text>
-										<text v-if="focusProduct.category || activeConversation.goodsCategory" class="tag">{{ focusProduct.category || activeConversation.goodsCategory }}</text>
-									</view>
-								</view>
-							</view>
-							<button class="link-btn" @click="sendProductCard">发送商品卡片</button>
-						</view>
-
-						<view class="side-section">
-							<text class="block-title">刚刚浏览过的本店商品</text>
-							<scroll-view class="side-product-list" scroll-y :show-scrollbar="false">
-								<view
-									v-for="item in recentStoreProducts"
-									:key="item.id"
-									class="mini-product"
-									@click="openProductById(item.id)"
-								>
-									<image class="mini-product-img" :src="item.cover" mode="aspectFill"></image>
-									<view class="mini-product-main">
-										<text class="mini-product-title">{{ item.title }}</text>
-										<text class="mini-product-price">{{ priceLabel(item.price) }}</text>
-									</view>
-								</view>
-								<view v-if="recentStoreProducts.length === 0" class="side-empty-mini">暂无更多本店商品</view>
-							</scroll-view>
-						</view>
-
-						<view class="side-section">
-							<text class="block-title">同类相似商品</text>
-							<scroll-view class="side-product-list compact" scroll-y :show-scrollbar="false">
-								<view
-									v-for="item in similarProducts"
-									:key="item.id"
-									class="mini-product"
-									@click="openProductById(item.id)"
-								>
-									<image class="mini-product-img" :src="item.cover" mode="aspectFill"></image>
-									<view class="mini-product-main">
-										<text class="mini-product-title">{{ item.title }}</text>
-										<view class="mini-product-tags">
-											<text class="mini-tag">{{ sceneLabel(item.scene) }}</text>
-											<text class="mini-product-price">{{ priceLabel(item.price) }}</text>
-										</view>
-									</view>
-								</view>
-								<view v-if="similarProducts.length === 0" class="side-empty-mini">暂无同类商品</view>
-							</scroll-view>
-						</view>
-						</template>
-					</template>
-
-					<view v-else class="side-empty">
-						<text class="empty-title">没有选中的会话</text>
-						<text class="empty-sub">{{ sideEmptyText }}</text>
+						<text class="empty-sub">左侧会展示你和卖家的所有商品咨询。</text>
 					</view>
 				</view>
 			</view>
@@ -307,29 +185,36 @@
 </template>
 
 <script>
+	import { fetchProduct, requestAiAssist } from '@/services/shop.js'
+	import SockJS from 'sockjs-client'
+	import Stomp from 'stompjs'
 	import { fetchMe } from '@/services/auth.js'
-	import { get, post, put } from '@/utils/request.js'
+	import { get, post } from '@/utils/request.js'
+	import { getToken } from '@/utils/auth.js'
 
+	const WS_URL = 'http://127.0.0.1:8080/ws'
 	const PRODUCT_CARD_PREFIX = '__PRODUCT_CARD__'
 
 	export default {
 		data() {
 			return {
+				assist: {
+					consensus: '价格 650 元，平台担保下单；卖家承诺无坏点，买家收货 48 小时内完成验货。',
+					checklist: ['确认商品实拍图', '确认是否支持平台担保', '确认瑕疵和售后约定']
+				},
 				keyword: '',
 				list: [],
-				allProducts: [],
-				activeCovId: null,
+				covId: null,
 				messages: [],
-				messageInput: '',
+				inputContent: '',
+				quickOptions: ['支持平台担保吗？', '是全新正品吗？', '是否包邮？', '最低多少钱？'],
 				myUserId: null,
-				currentUser: {},
-				loadingList: false,
-				loadingMessages: false,
-				sending: false,
+				stompClient: null,
+				chatSubscription: null,
+				focusProduct: null,
 				aiBargaining: false,
-				pollTimer: null,
+				connected: false,
 				scrollTop: 0,
-				pendingFocus: null,
 				showEmojiPicker: false,
 				activeEmojiGroup: 'face',
 				emojiGroups: [
@@ -341,43 +226,13 @@
 			}
 		},
 		computed: {
-			isSeller() {
-				return this.currentUser && this.currentUser.role === 'seller'
-			},
-			messageTitle() {
-				return this.isSeller ? '卖家消息' : '消息中心'
-			},
-			emptyConversationText() {
-				return this.isSeller ? '买家咨询你的商品后，会话会出现在这里。' : '从商品详情页点击“去问问”后，会话会出现在这里。'
-			},
-			emptyChatText() {
-				return this.isSeller ? '左侧会展示买家对你店铺商品的咨询。' : '左侧会展示你和卖家的所有商品咨询。'
-			},
-			sideEmptyText() {
-				return this.isSeller ? '选择会话后，这里会显示卖家处理功能。' : '商品推荐会在这里展示。'
-			},
-			inputPlaceholder() {
-				return this.isSeller ? '请输入回复买家的内容...' : '请输入您想要咨询的内容...'
-			},
-			productCardButtonText() {
-				return this.isSeller ? '发送商品' : '发送宝贝'
-			},
-			defaultAppendText() {
-				return this.isSeller ? '您好，我来为您补充一下商品细节。' : '我想再了解一下商品成色和配件。'
-			},
-			quickOptions() {
-				if (this.isSeller) {
-					return ['您好，商品还在', '支持平台担保', '可以补充细节图', '今天可以发货', '配件信息如下', '价格可以小幅协商']
-				}
-				return ['可以便宜一点吗', '支持平台担保吗', '成色细节能发我看看吗', '今天可以发货吗', '配件齐全吗', '最低多少钱']
-			},
 			filteredList() {
 				const word = this.keyword.trim().toLowerCase()
 				if (!word) return this.list
-				return this.list.filter(item => [item.title, item.sub, item.goodsName].some(value => String(value || '').toLowerCase().includes(word)))
+				return this.list.filter(item => [item.title, item.goodsName].some(value => String(value || '').toLowerCase().includes(word)))
 			},
 			activeConversation() {
-				return this.list.find(item => item.covId === this.activeCovId) || null
+				return this.list.find(item => item.covId === this.covId) || null
 			},
 			currentEmojiOptions() {
 				const group = this.emojiGroups.find(item => item.key === this.activeEmojiGroup)
@@ -386,126 +241,46 @@
 			currentEmojiGroupName() {
 				const group = this.emojiGroups.find(item => item.key === this.activeEmojiGroup)
 				return group ? group.name : '经典'
-			},
-			focusProduct() {
-				const active = this.activeConversation
-				if (!active) return {}
-				const found = this.allProducts.find(item => String(item.id) === String(active.goodsId))
-				if (found) return found
-				return {
-					id: active.goodsId,
-					title: active.goodsName,
-					price: active.goodsPrice,
-					cover: active.goodsImageUrl,
-					category: active.goodsCategory,
-					scene: active.goodsScene,
-					storeId: active.storeId,
-					shopName: active.title
-				}
-			},
-			currentShopName() {
-				return this.focusProduct.shopName || this.focusProduct.publisherName || (this.activeConversation && this.activeConversation.title) || '店铺'
-			},
-			sidePrimaryName() {
-				if (!this.activeConversation) return ''
-				return this.isSeller ? this.activeConversation.title : this.currentShopName
-			},
-			sideSecondaryText() {
-				if (!this.activeConversation) return ''
-				return this.isSeller
-					? `买家咨询 · ${this.activeConversation.goodsCategory || '商品咨询'}`
-					: `${this.activeConversation.title} · ${this.activeConversation.goodsCategory || '商品咨询'}`
-			},
-			recentStoreProducts() {
-				const focus = this.focusProduct
-				if (!focus || !focus.id) return []
-				return this.allProducts
-					.filter(item => {
-						if (focus.storeId && item.storeId) return String(item.storeId) === String(focus.storeId)
-						if (focus.publisherId && item.publisherId) return item.publisherId === focus.publisherId
-						return item.shopName && focus.shopName && item.shopName === focus.shopName
-					})
-					.sort((a, b) => (String(a.id) === String(focus.id) ? -1 : String(b.id) === String(focus.id) ? 1 : 0))
-					.slice(0, 4)
-			},
-			similarProducts() {
-				const focus = this.focusProduct
-				if (!focus || !focus.id) return []
-				return this.allProducts
-					.filter(item => String(item.id) !== String(focus.id))
-					.filter(item => item.category === focus.category)
-					.slice(0, 5)
 			}
 		},
-		async onShow() {
-			await this.loadMe()
-			this.pendingFocus = this.consumePendingFocus()
-			await Promise.all([this.fetchProducts(), this.fetchConversationList(!this.pendingFocus)])
-			if (this.pendingFocus) await this.applyPendingFocus()
-			this.startPolling()
+		onShow() {
+			this.loadAssist()
+			this.fetchConversationList()
 		},
 		onHide() {
-			this.stopPolling()
+			this.disconnect()
 		},
 		onUnload() {
-			this.stopPolling()
+			this.disconnect()
 		},
 		methods: {
 			closeFloaters() {
 				this.showEmojiPicker = false
 			},
-			consumePendingFocus() {
-				try {
-					const focus = uni.getStorageSync('pending_message_focus')
-					uni.removeStorageSync('pending_message_focus')
-					if (!focus || !focus.covId) return null
-					if (focus.time && Date.now() - focus.time > 5 * 60 * 1000) return null
-					return focus
-				} catch (e) {
-					return null
-				}
+			appendText(text) {
+				this.inputContent = `${this.inputContent}${text}`.slice(0, 500)
 			},
-			async applyPendingFocus() {
-				const focus = this.pendingFocus
-				if (!focus) return
-				if (focus.product && focus.product.id && !this.allProducts.some(item => String(item.id) === String(focus.product.id))) {
-					this.allProducts.unshift(focus.product)
-				}
-				const target = this.list.find(item => String(item.covId) === String(focus.covId))
-					|| this.list.find(item => String(item.goodsId) === String(focus.goodsId))
-				if (target) {
-					await this.selectConversation(target)
-				} else if (this.list.length > 0 && !this.activeCovId) {
-					await this.selectConversation(this.list[0])
-				}
-				this.pendingFocus = null
+			toggleEmojiPicker() {
+				this.showEmojiPicker = !this.showEmojiPicker
 			},
-			async loadMe() {
-				try {
-					const body = await fetchMe()
-					this.currentUser = body && body.data ? body.data : {}
-					this.myUserId = this.currentUser.userId || null
-				} catch (e) {
-					if (e.statusCode === 401) uni.showToast({ title: '请先登录', icon: 'none' })
-				}
+			chooseEmoji(emoji) {
+				this.appendText(emoji)
 			},
-			async fetchProducts() {
+			async loadAssist() {
 				try {
-					const res = await get('/api/products')
-					if (this.isSeller) {
-						const mine = await get('/api/products/mine')
-						this.allProducts = (mine.data && mine.data.data) ? mine.data.data : []
-						return
+					const body = await requestAiAssist({ productId: 'used-monitor', question: '能便宜一点吗？有没有坏点？', offer: 620 })
+					if (body && body.code === 0 && body.data) {
+						this.assist = body.data
+						if (this.list[0]) {
+							this.list[0].sub = body.data.answer
+						}
 					}
-					this.allProducts = (res.data && res.data.data) ? res.data.data : []
-				} catch (e) {
-					console.error('加载商品失败', e)
-				}
+				} catch (e) {}
 			},
-			async fetchConversationList(autoSelect = false) {
-				this.loadingList = true
+			async fetchConversationList() {
 				try {
 					const res = await get('/api/chat/conversations')
+					console.log('=== [调试] 后端返回的数据:', res)
 					const conversationList = (res.data && res.data.data) ? res.data.data : []
 					this.list = conversationList.map(item => ({
 						icon: this.avatarText(item.targetName),
@@ -514,189 +289,147 @@
 						time: this.formatTime(item.lastTime),
 						covId: item.covId,
 						unreadCount: item.unreadCount || 0,
-						goodsId: item.goodsId,
-						goodsName: item.goodsName,
-						goodsPrice: item.goodsPrice,
-						goodsCategory: item.goodsCategory,
-						goodsScene: item.goodsScene,
 						goodsImageUrl: item.goodsImageUrl,
-						storeId: item.storeId,
-						status: item.status || 'pending'
+						goodsName: item.goodsName,
+						goodsId: item.goodsId
 					}))
-					if (autoSelect && !this.activeCovId && this.list.length > 0) await this.selectConversation(this.list[0])
 				} catch (e) {
 					console.error('加载会话列表失败', e)
-					uni.showToast({ title: e.statusCode === 401 ? '请先登录后查看消息' : '加载会话失败', icon: 'none' })
-				} finally {
-					this.loadingList = false
 				}
 			},
-			async selectConversation(item) {
-				this.activeCovId = item.covId
-				item.unreadCount = 0
+			async open(item) {
+				if (item.unreadCount > 0) {
+					item.unreadCount = 0
+				}
+				try {
+					await post(`/api/chat/${item.covId}/read`)
+				} catch (e) {
+					console.error('标记已读接口调用失败', e)
+				}
+				if (this.covId === item.covId) return
+				this.disconnect()
+				this.connected = false
+				this.stompClient = null
+				this.covId = item.covId
+				this.messages = []
+				this.inputContent = ''
+				this.focusProduct = null
 				this.closeFloaters()
-				await this.loadMessages(true)
-				this.markAsRead()
-			},
-			async loadMessages(scrollToBottom = false) {
-				if (!this.activeCovId) return
-				this.loadingMessages = true
-				try {
-					const res = await get(`/api/chat/conversations/${this.activeCovId}/messages`)
-					const raw = (res.data && res.data.data) ? res.data.data : []
-					this.messages = raw.map((msg, index) => this.normalizeMessage(msg, raw[index - 1]))
-					if (scrollToBottom) this.scrollToLatest()
-				} catch (e) {
-					console.error('加载聊天记录失败', e)
-					uni.showToast({ title: '聊天启动失败，请重试', icon: 'none' })
-				} finally {
-					this.loadingMessages = false
-				}
-			},
-			async refreshCurrent() {
-				await this.fetchConversationList(false)
-				await this.loadMessages(true)
-			},
-			startPolling() {
-				this.stopPolling()
-				this.pollTimer = setInterval(() => {
-					if (this.activeCovId) {
-						this.loadMessages(false)
-						this.fetchConversationList(false)
-					}
-				}, 3500)
-			},
-			stopPolling() {
-				if (this.pollTimer) {
-					clearInterval(this.pollTimer)
-					this.pollTimer = null
-				}
-			},
-			async markAsRead() {
-				if (!this.activeCovId) return
-				try {
-					await post(`/api/chat/${this.activeCovId}/read`)
-				} catch (e) {
-					console.error('标记已读失败', e)
-				}
-			},
-			async sendMessage() {
-				const content = this.messageInput.trim()
-				if (!content || !this.activeCovId || this.sending) return
-				await this.sendContent(content)
-				this.messageInput = ''
-				this.closeFloaters()
-			},
-			async sendContent(content) {
-				this.sending = true
-				try {
-					const res = await post(`/api/chat/conversations/${this.activeCovId}/messages`, {
-						covId: this.activeCovId,
-						content,
-						type: 'CHAT_MESSAGE'
-					})
-					const savedMessage = res.data && res.data.data ? res.data.data : null
-					if (savedMessage) {
-						const lastMsg = this.messages[this.messages.length - 1]
-						this.messages.push(this.normalizeMessage(savedMessage, lastMsg))
-					}
-					this.scrollToLatest()
-					await this.fetchConversationList(false)
-				} catch (e) {
-					console.error('发送消息失败', e)
-					uni.showToast({ title: '发送失败，请重试', icon: 'none' })
-				} finally {
-					this.sending = false
-				}
-			},
-			sendQuick(text) {
-				this.messageInput = text
-				this.sendMessage()
-			},
-			appendText(text) {
-				this.messageInput = `${this.messageInput}${text}`.slice(0, 500)
-			},
-			toggleEmojiPicker() {
-				this.showEmojiPicker = !this.showEmojiPicker
-			},
-			chooseEmoji(emoji) {
-				this.appendText(emoji)
-			},
-			sendProductCard() {
-				const product = this.focusProduct
-				if (!product || !product.id) {
-					uni.showToast({ title: '暂无商品信息', icon: 'none' })
-					return
-				}
-				const card = {
-					id: product.id,
-					title: product.title || product.goodsName,
-					price: product.price,
-					cover: product.cover || product.goodsImageUrl,
-					scene: product.scene,
-					category: product.category,
-					storeId: product.storeId,
-					shopName: product.shopName || this.currentShopName
-				}
-				this.sendContent(`${PRODUCT_CARD_PREFIX}${JSON.stringify(card)}`)
-				this.closeFloaters()
-			},
-			async triggerAiBargain() {
-				if (!this.activeCovId || this.aiBargaining) return
-				this.aiBargaining = true
-				uni.showLoading({ title: 'AI 生成中' })
-				try {
-					const res = await post(`/api/chat/conversations/${this.activeCovId}/ai-bargain`)
-					const data = res && res.data && res.data.data ? res.data.data : {}
-					await this.refreshCurrent()
-					uni.showToast({
-						title: data.source === 'ai' ? 'AI 模型已生成' : 'AI 不可用，已用兜底建议',
-						icon: 'none'
-					})
-				} catch (e) {
-					console.error('AI 议价失败', e)
-					uni.showToast({ title: 'AI 议价失败', icon: 'none' })
-				} finally {
-					this.aiBargaining = false
-					uni.hideLoading()
-				}
-			},
-			async updateConversationStatus(status) {
-				if (!this.activeCovId) return
-				try {
-					await put(`/api/chat/conversations/${this.activeCovId}/status`, { status })
-					const active = this.activeConversation
-					if (active) active.status = status
-					uni.showToast({ title: '状态已更新', icon: 'none' })
-				} catch (e) {
-					uni.showToast({ title: '状态更新失败', icon: 'none' })
-				}
-			},
-			openSellerStore() {
-				uni.navigateTo({ url: '/pages/seller/dashboard?tab=store' })
-			},
-			openSellerProducts() {
-				uni.navigateTo({ url: '/pages/user/published' })
-			},
-			openProduct() {
-				if (this.focusProduct && this.focusProduct.id) this.openProductById(this.focusProduct.id)
-			},
-			openProductById(id) {
-				if (!id) return
-				uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })
+				await this.initChat()
 			},
 			navTo(url) {
 				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
 					uni.switchTab({ url })
 					return
 				}
-				uni.navigateTo({ url })
+				uni.reLaunch({ url })
+			},
+			avatarText(name) {
+				return String(name || '聊').slice(0, 1).toUpperCase()
+			},
+			formatTime(dateStr) {
+				if (!dateStr) return ''
+				const timePart = dateStr.split('T')[1].split('.')[0]
+				const [h, m] = timePart.split(':')
+				return `${h}:${m}`
+			},
+			async initChat() {
+				try {
+					await this.fetchUserInfo()
+					await Promise.all([this.loadHistory(), this.loadConversationProduct()])
+					this.connectWebSocket()
+					setTimeout(() => this.sendReadReceipt(), 1000)
+				} catch (error) {
+					console.error('聊天初始化失败', error)
+					uni.showToast({ title: '聊天启动失败，请重试', icon: 'none' })
+				}
+			},
+			async loadConversationProduct() {
+				const active = this.activeConversation
+				const goodsId = active && active.goodsId
+				if (!goodsId) {
+					this.focusProduct = null
+					return null
+				}
+				try {
+					const body = await fetchProduct(goodsId)
+					if (body && body.code === 0 && body.data) {
+						this.focusProduct = body.data
+						return body.data
+					}
+				} catch (e) {
+					console.error('加载商品失败', e)
+				}
+				this.focusProduct = null
+				return null
+			},
+			async fetchUserInfo() {
+				const body = await fetchMe()
+				if (body && body.code === 0 && body.data) {
+					this.myUserId = body.data.userId
+					console.warn('=== [调试] 成功赋值! 当前 myUserId 为:', this.myUserId)
+				}
+			},
+			async loadHistory() {
+				const res = await get(`/api/chat/conversations/${this.covId}/messages`)
+				const rawList = (res.data && res.data.data) ? res.data.data : []
+				this.messages = this.processMessages(rawList)
+				this.$nextTick(() => this.scrollToBottom())
+			},
+			connectWebSocket() {
+				if (this.connected || !this.covId) {
+					return
+				}
+				const token = getToken()
+				const socket = new SockJS(WS_URL)
+				this.stompClient = Stomp.over(socket)
+				this.stompClient.debug = null
+
+				this.stompClient.connect(
+					{ Authorization: token ? `Bearer ${token}` : '' },
+					() => {
+						this.connected = true
+						console.log('【调试】WebSocket 连接成功，准备调用 subscribeTopic...')
+						this.subscribeTopic()
+					},
+					(error) => {
+						console.error('WebSocket 连接失败', error)
+						uni.showToast({ title: '实时聊天连接失败', icon: 'none' })
+					}
+				)
+			},
+			sendReadReceipt() {
+				if (this.stompClient && this.connected) {
+					this.stompClient.send(
+						`/app/chat/read`,
+						{},
+						JSON.stringify({
+							covId: this.covId,
+							readerId: this.myUserId
+						})
+					)
+				}
+			},
+			shouldShowTime(newMsg, prevMsg) {
+				if (!prevMsg) return true
+				const current = new Date(newMsg.createTime).getTime()
+				const prev = new Date(prevMsg.createTime).getTime()
+				return (current - prev) > 5 * 60 * 1000
+			},
+			processMessages(list) {
+				return list.map((msg, index) => {
+					const prevMsg = index > 0 ? list[index - 1] : null
+					return this.normalizeMessage({
+						...msg,
+						showTime: index === 0 || this.shouldShowTime(msg, prevMsg)
+					}, prevMsg)
+				})
 			},
 			normalizeMessage(msg, prevMsg) {
 				return {
 					...msg,
 					card: this.parseProductCard(msg.content),
-					showTime: this.shouldShowTime(msg, prevMsg)
+					showTime: msg.showTime !== undefined ? msg.showTime : this.shouldShowTime(msg, prevMsg)
 				}
 			},
 			parseProductCard(content) {
@@ -712,30 +445,108 @@
 				if (card) return `[商品卡片] ${card.title || '商品'}`
 				return content || '暂无消息'
 			},
-			formatTime(value) {
-				if (!value) return ''
-				const date = new Date(value)
-				if (Number.isNaN(date.getTime())) return ''
-				const now = new Date()
-				const hh = String(date.getHours()).padStart(2, '0')
-				const mm = String(date.getMinutes()).padStart(2, '0')
-				if (date.toDateString() === now.toDateString()) return `${hh}:${mm}`
-				return `${date.getMonth() + 1}-${date.getDate()}`
+			isDuplicateMessage(chatMessage) {
+				return this.messages.some(m => m.cmId && chatMessage.cmId && m.cmId === chatMessage.cmId)
 			},
-			avatarText(name) {
-				return String(name || '聊').slice(0, 1).toUpperCase()
-			},
-			shouldShowTime(newMsg, prevMsg) {
-				if (!prevMsg) return true
-				const current = new Date(newMsg.createTime).getTime()
-				const prev = new Date(prevMsg.createTime).getTime()
-				if (Number.isNaN(current) || Number.isNaN(prev)) return false
-				return current - prev > 5 * 60 * 1000
-			},
-			scrollToLatest() {
-				this.$nextTick(() => {
-					this.scrollTop = this.scrollTop === 999999 ? 999998 : 999999
+			subscribeTopic() {
+				if (!this.stompClient || !this.covId) return
+				if (this.chatSubscription) {
+					this.chatSubscription.unsubscribe()
+					this.chatSubscription = null
+				}
+				const covId = this.covId
+				this.chatSubscription = this.stompClient.subscribe(`/topic/chat/${covId}`, (message) => {
+					if (!message.body) return
+					try {
+						const chatMessage = JSON.parse(message.body)
+						if (chatMessage.type !== 'CHAT_MESSAGE') return
+						if (Number(chatMessage.covId) !== Number(this.covId)) return
+						if (this.isDuplicateMessage(chatMessage)) return
+						const lastMsg = this.messages[this.messages.length - 1]
+						const showTime = this.shouldShowTime(chatMessage, lastMsg)
+						this.messages.push(this.normalizeMessage({ ...chatMessage, showTime }, lastMsg))
+						this.$nextTick(() => {
+							this.scrollToBottom()
+							if (chatMessage.senderId !== this.myUserId) {
+								this.sendReadReceipt()
+							}
+						})
+					} catch (e) { console.error('解析消息失败', e) }
 				})
+				this.stompClient.subscribe(`/user/queue/chat/read-status`, (message) => {
+					const status = JSON.parse(message.body)
+					console.log('调试2', status)
+					if (status.type === 'STATUS_UPDATE') {
+						this.messages.forEach(m => {
+							if (m.senderId === this.myUserId && !m.isRead) {
+								m.isRead = true
+							}
+						})
+					}
+				})
+			},
+			disconnect() {
+				if (this.chatSubscription) {
+					this.chatSubscription.unsubscribe()
+					this.chatSubscription = null
+				}
+				if (this.stompClient && this.connected) {
+					try {
+						this.stompClient.disconnect(() => {
+							this.connected = false
+							this.stompClient = null
+						})
+					} catch (e) {
+						console.warn('WebSocket 断开连接失败', e)
+					}
+				}
+			},
+			sendQuick(text) {
+				this.inputContent = text
+				this.sendMessage()
+			},
+			async sendChatContent(content) {
+				if (!content || !this.covId) return false
+				const payload = { covId: this.covId, content, type: 'CHAT_MESSAGE' }
+				if (this.stompClient && this.connected) {
+					const token = getToken()
+					this.stompClient.send(
+						`/app/chat/${this.covId}`,
+						{ Authorization: `Bearer ${token}` },
+						JSON.stringify(payload)
+					)
+					return true
+				}
+				try {
+					await post(`/api/chat/conversations/${this.covId}/messages`, payload)
+					return true
+				} catch (error) {
+					console.error('消息发送失败', error)
+					uni.showToast({ title: '消息发送失败，请检查网络', icon: 'none' })
+					return false
+				}
+			},
+			async sendMessage() {
+				const content = this.inputContent && this.inputContent.trim()
+				if (!content || !this.covId) return
+				const sent = await this.sendChatContent(content)
+				if (sent) this.inputContent = ''
+			},
+			async viewProduct() {
+				if (!this.covId) return
+				let product = this.focusProduct
+				if (!product || !product.id) {
+					product = await this.loadConversationProduct()
+				}
+				if (!product || !product.id) {
+					uni.showToast({ title: '暂无商品信息', icon: 'none' })
+					return
+				}
+				this.openProductById(product.id)
+			},
+			openProductById(id) {
+				if (!id) return
+				uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })
 			},
 			priceLabel(price) {
 				if (price === null || price === undefined || price === '') return '价格待确认'
@@ -745,6 +556,36 @@
 				if (scene === 'new') return '新品'
 				if (scene === 'used') return '二手'
 				return scene || ''
+			},
+			async triggerAiBargain() {
+				if (!this.covId || this.aiBargaining) return
+				this.aiBargaining = true
+				uni.showLoading({ title: 'AI 思考中...' })
+				try {
+					const res = await post(`/api/chat/conversations/${this.covId}/ai-bargain`)
+					const data = (res.data && res.data.data) ? res.data.data : {}
+					uni.showToast({
+						title: data.source === 'ai' ? 'AI 已生成议价建议' : 'AI 不可用，已用兜底建议',
+						icon: 'none'
+					})
+				} catch (e) {
+					uni.showToast({ title: 'AI 议价请求失败', icon: 'none' })
+				} finally {
+					this.aiBargaining = false
+					uni.hideLoading()
+				}
+			},
+			scrollToBottom() {
+				this.$nextTick(() => {
+					this.scrollTop = this.scrollTop === 999999 ? 999998 : 999999
+				})
+			},
+			formatChatTime(value) {
+				if (!value) {
+					return ''
+				}
+				const date = new Date(value)
+				return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 			}
 		}
 	}
@@ -841,31 +682,32 @@
 	.message-workspace {
 		height: 100%;
 		display: grid;
-		grid-template-columns: 286px minmax(520px, 1fr) 318px;
-		gap: 12px;
+		grid-template-columns: 260px 1fr;
+		gap: 20px;
+		width: 100%;
+		max-width: 1200px;
+		padding: 0 20px;
+		box-sizing: border-box;
 	}
 	.conversation-pane,
-	.chat-pane,
-	.info-pane {
+	.chat-pane {
 		min-height: 0;
 		border: 1px solid rgba(226, 232, 240, .95);
 		background: rgba(255, 255, 255, .94);
 		box-shadow: 0 18px 50px rgba(15, 23, 42, .08);
 		overflow: hidden;
 	}
-	.conversation-pane,
-	.info-pane {
-		border-radius: 10px;
-	}
 	.chat-pane {
 		border-radius: 12px;
 		display: flex;
 		flex-direction: column;
 		background: #f7f8fb;
+		position: relative;
 	}
 	.conversation-pane {
 		display: flex;
 		flex-direction: column;
+		border-radius: 10px;
 	}
 	.pane-head {
 		height: 74px;
@@ -958,7 +800,6 @@
 	.avatar,
 	.avatar-img,
 	.chat-avatar,
-	.seller-avatar,
 	.mini-avatar {
 		display: flex;
 		align-items: center;
@@ -1033,6 +874,7 @@
 		background: rgba(255,255,255,.96);
 		border-bottom: 1px solid #e5e7eb;
 		box-sizing: border-box;
+		flex-shrink: 0;
 	}
 	.chat-contact {
 		display: flex;
@@ -1067,6 +909,23 @@
 	.header-actions {
 		display: flex;
 		gap: 8px;
+		flex-shrink: 0;
+	}
+	.ghost-btn {
+		height: 32px;
+		padding: 0 13px;
+		border-radius: 8px;
+		background: #fff;
+		border: 1px solid #e5e7eb;
+		color: #334155;
+		font-size: 13px;
+	}
+	.ghost-btn:hover {
+		border-color: #cfe6d8;
+		color: #12372a;
+	}
+	.ghost-btn[disabled] {
+		opacity: 0.6;
 	}
 	button {
 		display: flex;
@@ -1082,26 +941,6 @@
 	}
 	button::after {
 		border: none;
-	}
-	.ghost-btn,
-	.quick-btn,
-	.text-btn,
-	.link-btn {
-		height: 32px;
-		padding: 0 13px;
-		align-items: center;
-		justify-content: center;
-		border-radius: 8px;
-		background: #fff;
-		border: 1px solid #e5e7eb;
-		color: #334155;
-		font-size: 13px;
-	}
-	.ghost-btn:hover,
-	.quick-btn:hover,
-	.link-btn:hover {
-		border-color: #cfe6d8;
-		color: #12372a;
 	}
 	.messages {
 		flex: 1;
@@ -1128,6 +967,12 @@
 		height: 1px;
 		background: #d7dce5;
 	}
+	.time-divider {
+		text-align: center;
+		font-size: 12px;
+		color: #9aa3af;
+		margin: 12px 0 16px;
+	}
 	.message-row {
 		display: flex;
 		align-items: flex-start;
@@ -1152,12 +997,6 @@
 		flex-direction: column;
 		align-items: flex-end;
 	}
-	.message-time {
-		display: block;
-		margin-bottom: 5px;
-		font-size: 11px;
-		color: #9aa3af;
-	}
 	.bubble {
 		padding: 11px 14px;
 		border-radius: 10px;
@@ -1169,7 +1008,7 @@
 		word-break: break-word;
 	}
 	.message-row.mine .bubble {
-		background: linear-gradient(135deg, #12372a, #1f5c43);
+		background: #1f5c43;
 		color: #fff;
 	}
 	.read-receipt {
@@ -1178,10 +1017,6 @@
 		font-size: 11px;
 		color: #94a3b8;
 		text-align: right;
-	}
-	.read-receipt.read {
-		color: #12372a;
-		font-weight: 850;
 	}
 	.message-product-card {
 		width: 360px;
@@ -1236,9 +1071,7 @@
 		font-size: 18px;
 		font-weight: 950;
 	}
-	.card-tag,
-	.tag,
-	.mini-tag {
+	.card-tag {
 		padding: 3px 7px;
 		border-radius: 999px;
 		background: #e8f3ed;
@@ -1254,6 +1087,7 @@
 		background: #fff;
 		border-top: 1px solid #e5e7eb;
 		box-sizing: border-box;
+		flex-shrink: 0;
 	}
 	.quick-track {
 		display: inline-block;
@@ -1284,6 +1118,10 @@
 		font-weight: 750;
 		box-shadow: inset 0 0 0 1px #e5e7eb;
 	}
+	.quick-btn:hover {
+		border-color: #cfe6d8;
+		color: #12372a;
+	}
 	.composer {
 		position: relative;
 		min-height: 142px;
@@ -1291,6 +1129,7 @@
 		background: #fff;
 		border-top: 1px solid #e5e7eb;
 		box-sizing: border-box;
+		flex-shrink: 0;
 	}
 	.tool-row {
 		display: flex;
@@ -1438,238 +1277,9 @@
 	.send-btn[disabled] {
 		background: #cbd5e1;
 	}
-	.info-pane {
-		padding: 16px;
-		box-sizing: border-box;
-		overflow: hidden;
-	}
-	.seller-card {
-		display: flex;
-		gap: 12px;
-		align-items: center;
-		padding: 12px;
-		border-radius: 10px;
-		background: linear-gradient(135deg, #f8fbf9, #fff);
-		border: 1px solid #cfe6d8;
-	}
-	.seller-avatar {
-		width: 54px;
-		height: 54px;
-		border-radius: 10px;
-		font-size: 20px;
-		flex-shrink: 0;
-	}
-	.seller-main {
-		min-width: 0;
-	}
-	.seller-name,
-	.seller-desc,
-	.block-title {
-		display: block;
-	}
-	.seller-name {
-		font-size: 17px;
-		font-weight: 950;
-		color: #111827;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.seller-desc {
-		margin-top: 5px;
-		font-size: 12px;
-		color: #8792a2;
-	}
-	.side-section {
-		margin-top: 14px;
-	}
-	.section-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 8px;
-	}
-	.block-title {
-		margin-bottom: 8px;
-		font-size: 14px;
-		font-weight: 950;
-		color: #111827;
-	}
-	.text-btn {
-		height: 28px;
-		padding: 0 12px;
-		border-radius: 999px;
-		background: #f8fafc;
-		color: #64748b;
-		border: 1px solid #e2e8f0;
-		font-size: 12px;
-		font-weight: 850;
-	}
-	.text-btn:hover {
-		background: #f8fbf9;
-		color: #12372a;
-		border-color: #cfe6d8;
-	}
-	.focus-product {
-		display: flex;
-		gap: 10px;
-		padding: 10px;
-		border-radius: 10px;
-		background: #f8fafc;
-		border: 1px solid #eef2f7;
-	}
-	.focus-img,
-	.focus-placeholder {
-		width: 86px;
-		height: 86px;
-		border-radius: 8px;
-		flex-shrink: 0;
-	}
-	.focus-placeholder {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #e5e7eb;
-		color: #64748b;
-		font-size: 13px;
-	}
-	.focus-main {
-		flex: 1;
-		min-width: 0;
-	}
-	.focus-title {
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-		font-size: 14px;
-		font-weight: 850;
-		color: #111827;
-		line-height: 1.45;
-	}
-	.focus-price {
-		display: block;
-		margin-top: 8px;
-		color: #12372a;
-		font-size: 18px;
-		font-weight: 950;
-	}
-	.tag-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin-top: 7px;
-	}
-	.link-btn {
-		width: 100%;
-		height: 36px;
-		margin-top: 10px;
-		border-radius: 9px;
-		background: #fff;
-		color: #334155;
-		border: 1px solid #e2e8f0;
-		font-weight: 900;
-		box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
-	}
-	.link-btn:hover {
-		background: #f8fbf9;
-		color: #12372a;
-		border-color: #cfe6d8;
-	}
-	.seller-action-grid,
-	.status-row {
-		display: grid;
-		gap: 8px;
-	}
-	.seller-action-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-	.seller-fn-btn,
-	.status-btn {
-		min-height: 36px;
-		padding: 0 10px;
-		border-radius: 8px;
-		background: #f8fafc;
-		border: 1px solid #e2e8f0;
-		color: #334155;
-		font-size: 12px;
-		font-weight: 850;
-	}
-	.seller-fn-btn:hover,
-	.status-btn:hover,
-	.status-btn.on {
-		background: #f8fbf9;
-		border-color: #cfe6d8;
-		color: #12372a;
-	}
-	.status-row {
-		grid-template-columns: 1fr;
-	}
-	.side-product-list {
-		max-height: 170px;
-	}
-	.side-product-list.compact {
-		max-height: 190px;
-	}
-	.mini-product {
-		display: flex;
-		gap: 9px;
-		padding: 8px;
-		margin-bottom: 8px;
-		border-radius: 9px;
-		background: #fff;
-		border: 1px solid #eef2f7;
-	}
-	.mini-product:hover {
-		border-color: #cfe6d8;
-		background: #f8fbf9;
-	}
-	.mini-product-img {
-		width: 52px;
-		height: 52px;
-		border-radius: 7px;
-		flex-shrink: 0;
-	}
-	.mini-product-main {
-		flex: 1;
-		min-width: 0;
-	}
-	.mini-product-title {
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-		color: #111827;
-		font-size: 12px;
-		line-height: 1.35;
-	}
-	.mini-product-price {
-		display: block;
-		margin-top: 5px;
-		color: #12372a;
-		font-size: 13px;
-		font-weight: 950;
-	}
-	.mini-product-tags {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
-	.mini-tag {
-		margin-top: 5px;
-		background: #f1f5f9;
-		color: #64748b;
-	}
-	.side-empty-mini {
-		padding: 16px 8px;
-		text-align: center;
-		color: #9aa3af;
-		font-size: 12px;
-	}
 	.empty-list,
 	.empty-chat,
-	.chat-empty-state,
-	.side-empty {
+	.chat-empty-state {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -1682,9 +1292,6 @@
 		height: 100%;
 		box-sizing: border-box;
 	}
-	.side-empty {
-		height: 360px;
-	}
 	.empty-title {
 		font-size: 17px;
 		font-weight: 950;
@@ -1695,11 +1302,6 @@
 		font-size: 13px;
 		color: #94a3b8;
 		line-height: 1.6;
-	}
-	@media (max-width: 1120px) {
-		.message-workspace {
-			grid-template-columns: 260px minmax(440px, 1fr) 280px;
-		}
 	}
 	@media (max-width: 920px) {
 		.safe-page {

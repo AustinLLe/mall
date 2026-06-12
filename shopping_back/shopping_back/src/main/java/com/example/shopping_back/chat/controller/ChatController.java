@@ -10,9 +10,9 @@ import com.example.shopping_back.chat.model.Conversation;
 import com.example.shopping_back.common.dto.ApiResult;
 import com.example.shopping_back.chat.dto.CreateConversationRequest;
 import com.example.shopping_back.chat.dto.ChatMessageDto;
+import com.example.shopping_back.chat.dto.UpdateConversationStatusRequest;
 import com.example.shopping_back.chat.dto.AiBargainResponse;
 import com.example.shopping_back.chat.dto.AiBargainSuggestion;
-import com.example.shopping_back.chat.dto.UpdateConversationStatusRequest;
 import com.example.shopping_back.chat.dto.ConversationListDto;
 import java.util.List;
 import jakarta.validation.Valid;
@@ -111,14 +111,16 @@ public class ChatController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found");
         }
         authorizeConversationAccess(currentUser, conversation);
-        AiBargainSuggestion suggestion = aiBargainService.getBargainSuggestion(covId, currentUser.getUserId());
+        AiBargainSuggestion suggestion = aiBargainService.getBargainSuggestion(
+                covId, currentUser.getUserId(), currentUser.getRole());
         ChatMessageDto aiMessageDto = new ChatMessageDto();
         aiMessageDto.setCovId(covId);
-        aiMessageDto.setContent(suggestion.content());
+        aiMessageDto.setContent(suggestion.getContent());
         aiMessageDto.setSenderId(currentUser.getUserId());
+        aiMessageDto.setType("CHAT_MESSAGE");
         ChatMessage chatMessage = chatMessageService.sendMessageAndBroadcast(aiMessageDto);
         conversationService.updateLastActiveTime(covId);
-        return ApiResult.ok(new AiBargainResponse(chatMessage, suggestion.source(), suggestion.sourceLabel()));
+        return ApiResult.ok(new AiBargainResponse(chatMessage, suggestion.getSource()));
     }
 
     @PostMapping("/{covId}/read")

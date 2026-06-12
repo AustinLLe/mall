@@ -12,18 +12,18 @@ import dev.langchain4j.model.openai.OpenAiChatModel;
 @Configuration
 public class AiConfig {
 
-    @Value("${dashscope.api.key}")
+    @Value("${ai.bargain.api.key}")
     private String apiKey;
 
-    @Value("${dashscope.chat.url}")
+    @Value("${ai.bargain.base-url}")
     private String baseUrl;
 
-    @Value("${dashscope.model}")
+    @Value("${ai.bargain.model}")
     private String modelName;
 
     @Bean
     ChatLanguageModel chatModel() {
-        System.out.println("🤖 -> [AI配置中心] 正在配置通义千问模型: " + this.modelName);
+        System.out.println("🤖 -> [AI议价] 模型: " + this.modelName + ", base: " + this.baseUrl);
         return OpenAiChatModel.builder()
                 .apiKey(this.apiKey)
                 .baseUrl(this.baseUrl)
