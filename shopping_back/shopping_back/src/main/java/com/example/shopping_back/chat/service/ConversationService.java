@@ -47,19 +47,14 @@ public class ConversationService {
         return conversations.stream().map(c -> {
             ConversationListDto dto = new ConversationListDto();
             dto.setCovId(c.getCovId());
-            dto.setStatus(c.getStatus());
+            dto.setGoodsId(c.getGoodsId());
             Integer targetId = Objects.equals(c.getBuyerId(), userId) ? c.getSellerId() : c.getBuyerId();
             AuthUserView targetUser = authService.getUserById(targetId);
             dto.setTargetName(targetUser.getUsername());
             ProductRecord goods = shopProductMapper.selectById(c.getGoodsId());
             if (goods != null) {
-                dto.setGoodsId(goods.getGoodsId());
-                dto.setStoreId(goods.getStoreId() == null ? "" : String.valueOf(goods.getStoreId()));
-                dto.setGoodsName(goods.getGoodsName());
-                dto.setGoodsPrice(goods.getPrice());
-                dto.setGoodsCategory(goods.getCategory());
-                dto.setGoodsScene(goods.getScene());
                 dto.setGoodsImageUrl(goods.getImage());
+                dto.setGoodsName(goods.getGoodsName());
             }
             ChatMessage lastMsg = chatMessageService.getLastMessageByCovId(c.getCovId());
             if(lastMsg != null) {
@@ -73,32 +68,17 @@ public class ConversationService {
     }
 
     public Conversation createConversation(CreateConversationRequest request, Integer buyerId) {
-        if (request == null || request.getGoodsId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "goodsId is required");
-        }
-        ProductRecord goods = shopProductMapper.selectById(request.getGoodsId());
-        if (goods == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found");
-        }
-        Integer sellerId = goods.getSellerId();
-        if (sellerId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product seller is missing");
-        }
-        if (Objects.equals(buyerId, sellerId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot chat with your own product");
-        }
         Conversation existing = conversationMapper.findByBuyerAndGoods(buyerId, request.getGoodsId());
         if (existing != null) {
             return existing;
         }
-        Date now = new Date();
+        Integer sellerId = shopProductMapper.selectById(request.getGoodsId()).getSellerId();
         Conversation conv = new Conversation();
         conv.setBuyerId(buyerId);
         conv.setSellerId(sellerId);
         conv.setGoodsId(request.getGoodsId());
         conv.setStatus(request.getStatus() == null ? "pending" : request.getStatus());
-        conv.setCreateTime(now);
-        conv.setUpdateTime(now);
+        conv.setCreateTime(new Date());
         conversationMapper.insert(conv);
         return conv;
     }
