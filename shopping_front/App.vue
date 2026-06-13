@@ -6,6 +6,7 @@
 				['static/tabbar/home.png', 'static/tabbar/home-active.png'],
 				['static/tabbar/browse.png', 'static/tabbar/browse-active.png'],
 				['static/tabbar/cart.png', 'static/tabbar/cart-active.png'],
+				['static/tabbar/message.png', 'static/tabbar/message-active.png'],
 				['static/tabbar/user.png', 'static/tabbar/user-active.png']
 			]
 			tabIcons.forEach(([iconPath, selectedIconPath], index) => {

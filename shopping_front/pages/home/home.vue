@@ -16,6 +16,7 @@
 					<text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
 					<text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
 					<text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
+					<text class="nav-link" @click="navTo('/pages/ai-assistant/ai-assistant')">AI 助手</text>
 					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
 				</view>
 				<view class="top-actions">
@@ -462,7 +463,7 @@
 					uni.switchTab({ url })
 					return
 				}
-				uni.reLaunch({ url })
+				uni.navigateTo({ url })
 			},
 			visualClass(item) {
 				if (item.category === '数码影音') return 'digital'
@@ -509,7 +510,7 @@
 	}
 	.topbar-inner {
 		display: grid;
-		grid-template-columns: 300px 320px minmax(0, 1fr);
+		grid-template-columns: 300px 350px minmax(0, 1fr);
 		align-items: center;
 		gap: 18px;
 		height: 82px;
@@ -581,6 +582,8 @@
 		color: #667085;
 	}
 	.web-nav {
+		overflow-x: auto;
+			white-space: nowrap;
 		justify-self: center;
 		display: flex;
 		align-items: center;
@@ -609,7 +612,6 @@
 		justify-content: center;
 		width: 86px;
 		height: 38px;
-		padding: 0;
 		border-radius: 999px;
 		font-size: 13px;
 		font-weight: 850;
@@ -631,10 +633,11 @@
 		font-size: 13px;
 		font-weight: 750;
 	}
-	.nav-link {
-		width: 82px;
+		.nav-link {
+		width: auto;
+		padding: 0 8px;
+		flex-shrink: 0;
 		height: 38px;
-		padding: 0;
 		border-radius: 999px;
 		display: flex;
 		align-items: center;
@@ -642,7 +645,7 @@
 		box-sizing: border-box;
 		line-height: 1;
 		text-align: center;
-		font-size: 13px;
+		font-size: 12px;
 		font-weight: 750;
 		color: #5f6b85;
 		transition: all .22s ease;
@@ -1093,7 +1096,6 @@
 		width: 86px;
 		height: 38px;
 		text-align: center;
-		padding: 0;
 		border-radius: 999px;
 		font-size: 13px;
 		color: #667085;
@@ -1526,5 +1528,8 @@
 		max-width: 390px;
 		margin: 0 auto;
 	}
-	/* #endif */
+		.brand-sub {
+		display: none;
+	}
+/* #endif */
 </style>

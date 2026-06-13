@@ -16,6 +16,7 @@
           <text class="nav-link on">发现</text>
           <text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
           <text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
+					<text class="nav-link" @click="navTo('/pages/ai-assistant/ai-assistant')">AI 助手</text>
           <text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
         </view>
         <view class="top-actions">
@@ -443,15 +444,20 @@
 <style lang="scss" scoped>
   .browse-page { padding-bottom: 48px; background: #f5f6f8; }
   .topbar { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.9); backdrop-filter: blur(22px); border-bottom: 1px solid rgba(203,213,225,.55); box-shadow: 0 10px 40px rgba(60,64,67,.06); }
-  .topbar-inner { display: grid; grid-template-columns: 300px 320px minmax(0, 1fr); align-items: center; gap: 18px; height: 82px; padding: 0 22px; }
+  .topbar-inner { display: grid; grid-template-columns: 300px 350px minmax(0, 1fr); align-items: center; gap: 18px; height: 82px; padding: 0 22px; }
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand-mark { width: 42px; height: 42px; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
   .brand-logo { width: 100%; height: 100%; }
   .brand-name, .brand-sub, .kicker, .title, .desc, .side-value, .side-desc, .article-title, .article-desc, .store-meta, .aside-title, .mission-text, .toolbar-title, .toolbar-sub, .create-desc, .modal-kicker, .modal-title, .field-label, .field-count, .preview-label, .preview-tip { display: block; }
   .brand-name { font-size: 20px; font-weight: 900; color: #202124; }
   .brand-sub { margin-top: 2px; font-size: 12px; color: #667085; }
-  .web-nav { justify-self: center; display: flex; align-items: center; gap: 4px; padding: 5px; height: 50px; border-radius: 999px; background: rgba(255,255,255,.72); border: 1px solid rgba(203,213,225,.72); box-sizing: border-box; box-shadow: 0 14px 38px rgba(60,64,67,.08); }
-  .nav-link { width: 82px; height: 38px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #5f6b85; font-size: 13px; font-weight: 800; }
+  .web-nav { justify-self: center; display: flex; align-items: center; gap: 4px; padding: 5px; height: 50px; border-radius: 999px; background: rgba(255,255,255,.72); border: 1px solid rgba(203,213,225,.72); box-sizing: border-box; box-shadow: 0 14px 38px rgba(60,64,67,.08);
+		overflow-x: auto;
+		white-space: nowrap;
+	}
+  		.nav-link { width: auto;
+		padding: 0 8px;
+			flex-shrink: 0; height: 38px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #5f6b85; font-size: 12px; font-weight: 800; }
   .nav-link.on, .nav-link:hover { background: linear-gradient(135deg, #ffffff, #f5f7fa); color: #12372a; box-shadow: 0 10px 26px rgba(18, 55, 42, .14); }
   .top-actions { justify-self: end; display: flex; align-items: center; gap: 12px; min-width: 0; }
   .search { width: clamp(220px, 20vw, 300px); height: 44px; border-radius: 12px; background: rgba(255,255,255,.82); border: 1px solid rgba(203,213,225,.78); display: flex; align-items: center; padding: 0 8px 0 14px; min-width: 0; box-shadow: 0 12px 30px rgba(60,64,67,.06); transition: box-shadow .22s ease, border-color .22s ease; }
@@ -477,7 +483,7 @@
   .topic-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 14px; padding: 14px 16px; border-radius: 8px; background: #fff; border: 1px solid #e4e9e5; }
   .toolbar-title { color: #12372a; font-size: 18px; font-weight: 900; }
   .toolbar-sub { margin-top: 4px; color: #667085; font-size: 12px; }
-  .toolbar-reset { height: 34px; padding: 0 14px; border-radius: 999px; background: #eef3f0; color: #12372a; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
+  .toolbar-reset { height: 34px; padding: 0 8px; border-radius: 999px; background: #eef3f0; color: #12372a; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
   .topic-grid, .feed-list { display: grid; gap: 14px; margin-top: 14px; }
   .topic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .topic-card { overflow: hidden; }
@@ -543,7 +549,9 @@
   .mission-index { width: 24px; height: 24px; border-radius: 8px; background: #f4f8f5; color: #12372a; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
   .mission-text { color: #475467; font-size: 13px; line-height: 1.65; }
   @media screen and (max-width: 900px) {
-    .topbar-inner, .intro, .browse-layout, .article-card, .top-actions { display: flex; flex-direction: column; }
+    .topbar-inner, .intro, .browse-layout, .article-card, .top-actions { display: flex; flex-direction: column; height: auto;
+		padding: 10px 18px;
+		gap: 10px; }
     .web-nav, .brand-sub { display: none; }
     .aside { margin-top: 0; }
     .topic-grid { grid-template-columns: 1fr; }
@@ -555,4 +563,90 @@
     .modal-actions { padding: 14px 18px 18px; }
     .modal-ghost, .modal-submit { width: 50%; }
   }
+
+	/* #ifdef MP-WEIXIN */
+	.topbar {
+		position: relative;
+		padding-top: 72px;
+	}
+	.topbar-inner {
+		display: flex;
+		flex-direction: column;
+		height: auto;
+		padding: 10px 14px 12px;
+		gap: 8px;
+	}
+	.brand {
+		width: 100%;
+		justify-content: center;
+	}
+	.brand-mark {
+		width: 48px;
+		height: 48px;
+	}
+	.brand-name {
+		font-size: 22px;
+		text-align: center;
+	}
+	.brand-sub {
+		display: block;
+		text-align: center;
+	}
+	.web-nav {
+		display: flex;
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		white-space: nowrap;
+		justify-self: center;
+		justify-content: center;
+		width: 100%;
+	}
+	.top-actions {
+		width: 100%;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		gap: 8px;
+	}
+	.search {
+		width: calc(100vw - 110px);
+		min-width: 0;
+		flex: 1;
+		padding: 0 4px 0 10px;
+		height: 40px;
+	}
+	.search-icon {
+		font-size: 16px;
+		margin-right: 4px;
+	}
+	.search-input {
+		font-size: 13px;
+		height: 28px;
+	}
+	.search-action {
+		width: 52px;
+		height: 32px;
+		font-size: 12px;
+		flex-shrink: 0;
+	}
+	.create-shortcut {
+		height: 40px;
+		padding: 0 14px;
+		font-size: 12px;
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+	.intro {
+		padding: 16px 14px;
+	}
+	.title {
+		font-size: 24px;
+	}
+	.page {
+		padding: 0 14px 24px;
+	}
+		.brand-sub {
+		display: none;
+	}
+/* #endif */
+
 </style>

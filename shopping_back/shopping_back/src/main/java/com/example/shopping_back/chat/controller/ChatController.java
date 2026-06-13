@@ -74,6 +74,9 @@ public class ChatController {
             @Valid @RequestBody CreateConversationRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         AuthUserView currentUser = authService.me(bearerToken(authorization));
+        if (request.getStatus() == null || request.getStatus().isBlank()) {
+            request.setStatus("ai");
+        }
         Conversation conversation = conversationService.createConversation(request, currentUser.getUserId());
         if (conversation == null || conversation.getCovId() == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create conversation");
@@ -96,7 +99,26 @@ public class ChatController {
         request.setSenderId(currentUser.getUserId());
         ChatMessage chatMessage = chatMessageService.sendMessageAndBroadcast(request);
         conversationService.updateLastActiveTime(covId);
+        // AI 自动回复：买家发送消息后自动以卖家身份回复
+        triggerAutoReplyIfNeeded(covId, conversation, currentUser);
         return ApiResult.ok(chatMessage);
+    }
+
+    @PostMapping("/conversations/{covId}/transfer")
+    public ApiResult<Conversation> transferToHuman(
+            @PathVariable("covId") Integer covId,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        AuthUserView currentUser = authService.me(bearerToken(authorization));
+        Conversation conversation = conversationService.getConversation(covId);
+        if (conversation == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found");
+        }
+        authorizeConversationAccess(currentUser, conversation);
+        UpdateConversationStatusRequest req = new UpdateConversationStatusRequest();
+        req.setStatus("active");
+        conversationService.updateStatus(req, covId);
+        conversation.setStatus("active");
+        return ApiResult.ok(conversation);
     }
 
     //AI议价
@@ -117,7 +139,7 @@ public class ChatController {
         aiMessageDto.setCovId(covId);
         aiMessageDto.setContent(suggestion.getContent());
         aiMessageDto.setSenderId(currentUser.getUserId());
-        aiMessageDto.setType("CHAT_MESSAGE");
+        aiMessageDto.setType("AI_REPLY");
         ChatMessage chatMessage = chatMessageService.sendMessageAndBroadcast(aiMessageDto);
         conversationService.updateLastActiveTime(covId);
         return ApiResult.ok(new AiBargainResponse(chatMessage, suggestion.getSource()));
@@ -165,6 +187,28 @@ public class ChatController {
         Integer userId = currentUser.getUserId();
         if (!userId.equals(conversation.getBuyerId()) && !userId.equals(conversation.getSellerId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden to access this conversation");
+        }
+    }
+
+    private void triggerAutoReplyIfNeeded(Integer covId, Conversation conversation, AuthUserView currentUser) {
+        if (!"ai".equals(conversation.getStatus()) && !"pending".equals(conversation.getStatus())) {
+            return;
+        }
+        if (!currentUser.getUserId().equals(conversation.getBuyerId())) {
+            return;
+        }
+        AiBargainSuggestion suggestion = aiBargainService.getAutoReply(covId, currentUser.getUserId());
+        ChatMessageDto aiMsg = new ChatMessageDto();
+        aiMsg.setCovId(covId);
+        aiMsg.setContent(suggestion.getContent());
+        aiMsg.setSenderId(conversation.getSellerId());
+        aiMsg.setType("AI_REPLY");
+        chatMessageService.sendMessageAndBroadcast(aiMsg);
+        if ("pending".equals(conversation.getStatus())) {
+            UpdateConversationStatusRequest req = new UpdateConversationStatusRequest();
+            req.setStatus("ai");
+            conversationService.updateStatus(req, covId);
+            conversation.setStatus("ai");
         }
     }
 

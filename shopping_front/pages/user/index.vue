@@ -16,6 +16,7 @@
           <text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
           <text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
           <text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
+					<text class="nav-link" @click="navTo('/pages/ai-assistant/ai-assistant')">AI 助手</text>
           <text class="nav-link on">我的</text>
         </view>
         <view class="top-actions"></view>
@@ -588,7 +589,7 @@ export default {
 }
 .topbar-inner {
   display: grid;
-  grid-template-columns: 300px 320px minmax(0, 1fr);
+  grid-template-columns: 300px 350px minmax(0, 1fr);
   align-items: center;
   gap: 18px;
   height: 82px;
@@ -641,6 +642,8 @@ export default {
   color: #667085;
 }
 .web-nav {
+		overflow-x: auto;
+			white-space: nowrap;
   justify-self: center;
   display: flex;
   align-items: center;
@@ -656,15 +659,17 @@ export default {
 .top-actions {
   min-height: 1px;
 }
-.nav-link {
-  width: 82px;
+		.nav-link {
+  width: auto;
+		padding: 0 8px;
+		flex-shrink: 0;
   height: 38px;
   border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #5f6b85;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 .nav-link.on,
@@ -841,7 +846,7 @@ button::after {
   grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
+  padding: 0 8px;
   color: #344054;
   box-sizing: border-box;
 }
@@ -1125,7 +1130,7 @@ button::after {
 }
 .realname-input {
   height: 42px;
-  padding: 0 14px;
+  padding: 0 8px;
   border-radius: 8px;
   border: 1px solid rgba(203, 213, 225, .9);
   background: #fff;
@@ -1149,7 +1154,7 @@ button::after {
     margin: 0 0 14px;
   }
   .topbar + .me-wrap {
-    padding: 0 14px;
+    padding: 0 8px;
   }
   .topbar-inner {
     display: flex;
@@ -1157,6 +1162,8 @@ button::after {
   }
   .brand-sub,
   .web-nav {
+		overflow-x: auto;
+			white-space: nowrap;
     display: none;
   }
   .account-layout {
@@ -1182,4 +1189,67 @@ button::after {
     width: 100%;
   }
 }
+
+	/* #ifdef MP-WEIXIN */
+	.topbar {
+		position: relative;
+		padding-top: 72px;
+	}
+	.topbar-inner {
+		display: flex;
+		flex-direction: column;
+		height: auto;
+		padding: 10px 14px 12px;
+		gap: 8px;
+		align-items: center;
+	}
+	.brand {
+		width: 100%;
+		justify-content: center;
+	}
+	.brand-mark {
+		width: 48px;
+		height: 48px;
+	}
+	.brand-logo {
+		width: 100%;
+		height: 100%;
+	}
+	.brand-name {
+		font-size: 22px;
+		text-align: center;
+	}
+	.brand-sub {
+		display: block;
+		text-align: center;
+	}
+	.web-nav {
+		display: flex;
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		white-space: nowrap;
+		width: 100%;
+		justify-content: center;
+	}
+	.page-shell {
+		padding: 0 14px 24px;
+	}
+	.profile-card {
+		padding: 20px 14px;
+	}
+	.profile-avatar {
+		width: 64px;
+		height: 64px;
+	}
+	.profile-name {
+		font-size: 20px;
+	}
+	.section {
+		padding: 0;
+	}
+		.brand-sub {
+		display: none;
+	}
+/* #endif */
+
 </style>

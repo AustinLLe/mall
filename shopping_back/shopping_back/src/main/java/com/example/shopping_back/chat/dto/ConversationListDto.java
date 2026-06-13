@@ -19,5 +19,6 @@ public class ConversationListDto {
     private String goodsImageUrl;
     private String goodsName;
     private Integer goodsId;
+    private String status;
 
 }

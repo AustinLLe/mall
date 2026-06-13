@@ -10,18 +10,19 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AiBargainService {
     private final ChatMessageService chatMessageService;
     private final ConversationService conversationService;
-    private final ChatLanguageModel chatModel;
+    private final Optional<ChatLanguageModel> chatModel;
     private final ShopProductMapper shopProductMapper;
 
     public AiBargainService(ChatMessageService chatMessageService,
                             ConversationService conversationService,
-                            ChatLanguageModel chatModel,
+                            Optional<ChatLanguageModel> chatModel,
                             ShopProductMapper shopProductMapper) {
         this.chatMessageService = chatMessageService;
         this.conversationService = conversationService;
@@ -38,11 +39,15 @@ public class AiBargainService {
                 ? fallbackSellerSuggestion(product, history)
                 : fallbackBuyerSuggestion(product, history);
 
+        if (chatModel.isEmpty()) {
+            return new AiBargainSuggestion(fallback, "fallback");
+        }
+
         try {
             String prompt = seller
                     ? buildSellerPrompt(product, history, myUserId)
                     : buildBuyerPrompt(product, history, myUserId);
-            String answer = chatModel.generate(prompt);
+            String answer = chatModel.get().generate(prompt);
             if (answer == null || answer.trim().isEmpty()) {
                 return new AiBargainSuggestion(fallback, "fallback");
             }
@@ -50,6 +55,70 @@ public class AiBargainService {
         } catch (RuntimeException e) {
             return new AiBargainSuggestion(fallback, "fallback");
         }
+    }
+
+    /**
+     * AI 自动回复：当买家发送消息后，以卖家身份自动生成回复。
+     */
+    public AiBargainSuggestion getAutoReply(Integer covId, Integer buyerId) {
+        Conversation conversation = conversationService.getConversation(covId);
+        ProductRecord product = conversation == null ? null : shopProductMapper.selectById(conversation.getGoodsId());
+        List<ChatMessage> history = chatMessageService.getRecentMessages(covId, 5);
+        String fallback = fallbackAutoReply(product, history);
+
+        if (chatModel.isEmpty()) {
+            return new AiBargainSuggestion(fallback, "fallback");
+        }
+
+        try {
+            String prompt = buildAutoReplyPrompt(product, history, buyerId);
+            String answer = chatModel.get().generate(prompt);
+            if (answer == null || answer.trim().isEmpty()) {
+                return new AiBargainSuggestion(fallback, "fallback");
+            }
+            return new AiBargainSuggestion(answer.trim(), "ai");
+        } catch (RuntimeException e) {
+            return new AiBargainSuggestion(fallback, "fallback");
+        }
+    }
+
+    private String buildAutoReplyPrompt(ProductRecord product, List<ChatMessage> history, Integer buyerId) {
+        String name = product == null ? "当前商品" : defaultText(product.getGoodsName(), "当前商品");
+        String price = product == null || product.getPrice() == null ? "未知" : product.getPrice().toPlainString();
+        String floorPrice = product == null || product.getFloorPrice() == null ? "未知" : product.getFloorPrice().toPlainString();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("你是松果集市二手交易平台上的AI客服助手，正在以卖家身份回复买家。").append("\n");
+        sb.append("你卖的商品：").append(name).append("，标价：").append(price).append("元，你的底价：").append(floorPrice).append("元（不能低于这个价）。").append("\n");
+        sb.append("你的任务是促成交易，根据买家消息灵活应对：").append("\n");
+        sb.append("- 如果买家在问商品情况（成色、保修、配件等），热情介绍，突出实拍和平台担保").append("\n");
+        sb.append("- 如果买家在砍价/问最低价，在底价之上适当让步，给出具体数字让对方觉得有诚意").append("\n");
+        sb.append("- 如果买家在犹豫，强调性价比、售后保障这些卖点").append("\n");
+        sb.append("要求：像真人卖家一样自然说话，可以用语气词（哈、哦、呀～），控制在80字以内，直接回复买家即可。").append("\n");
+        sb.append("最近对话：").append("\n");
+        appendHistory(sb, history, buyerId);
+        return sb.toString();
+    }
+
+    private String fallbackAutoReply(ProductRecord product, List<ChatMessage> history) {
+        String name = product == null ? "这件商品" : defaultText(product.getGoodsName(), "这件商品");
+        if (hasPriceTalk(history)) {
+            BigDecimal price = product == null ? null : product.getPrice();
+            if (price != null) {
+                return name + "目前标价 " + price.stripTrailingZeros().toPlainString() + " 元，品质有保障，支持平台担保交易。";
+            }
+        }
+        if (hasShippingTalk(history)) {
+            return name + "支持快递发货，下单后会尽快为您安排，有疑问可以随时沟通。";
+        }
+        return "您好，感谢关注" + name + "，有什么可以帮您的吗？";
+    }
+
+    private boolean hasShippingTalk(List<ChatMessage> history) {
+        return history.stream()
+                .map(ChatMessage::getContent)
+                .filter(Objects::nonNull)
+                .anyMatch(text -> text.contains("邮") || text.contains("快递") || text.contains("发货") || text.contains("物流"));
     }
 
     private boolean isSeller(String role) {
@@ -62,10 +131,12 @@ public class AiBargainService {
         String floorPrice = product == null || product.getFloorPrice() == null ? "未知" : product.getFloorPrice().toPlainString();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("你是二手/新品交易平台里的买家议价助手。").append("\n");
-        sb.append("商品：").append(name).append("，标价：").append(price).append("，卖家底价：").append(floorPrice).append("。").append("\n");
-        sb.append("请根据最近对话，生成一句可以直接发送给卖家的中文议价回复。").append("\n");
-        sb.append("要求：礼貌、具体、不要压价过狠，不超过 45 个中文字符，不要表情。").append("\n");
+        sb.append("你是松果集市上买家的砍价助手，帮买家向卖家砍价。").append("\n");
+        sb.append("目标商品：").append(name).append("，卖家标价：").append(price).append("元，估计卖家底价在 ").append(floorPrice).append(" 元左右。").append("\n");
+        sb.append("根据聊天记录生成一句砍价话术，要求：").append("\n");
+        sb.append("- 给出一个具体出价，在底价之上留点空间让卖家还嘴").append("\n");
+        sb.append("- 礼貌但坚定，说明理由（学生党、看了很久、真心想要等）").append("\n");
+        sb.append("- 像真人买家说话，自然一点，80字以内").append("\n");
         sb.append("最近对话：").append("\n");
         appendHistory(sb, history, myUserId);
         return sb.toString();
@@ -77,10 +148,12 @@ public class AiBargainService {
         String floorPrice = product == null || product.getFloorPrice() == null ? "未知" : product.getFloorPrice().toPlainString();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("你是二手/新品交易平台里的卖家回复助手。").append("\n");
-        sb.append("商品：").append(name).append("，标价：").append(price).append("，你能接受的底价：").append(floorPrice).append("。").append("\n");
-        sb.append("请根据买家最近发言，生成一句可以直接发送的中文回复。").append("\n");
-        sb.append("要求：友好专业、可小幅让步但不低于底价，强调成色和担保，不超过 45 个中文字符，不要表情。").append("\n");
+        sb.append("你是松果集市上的卖家助手，帮卖家回复买家。").append("\n");
+        sb.append("你卖的是：").append(name).append("，标价：").append(price).append("元，你的底价是：").append(floorPrice).append("元。").append("\n");
+        sb.append("根据聊天记录回复买家，策略：").append("\n");
+        sb.append("- 买家砍价时，小幅度让步但守住底价，给出具体数字").append("\n");
+        sb.append("- 强调商品成色、实拍图、平台担保这些卖点").append("\n");
+        sb.append("- 像真卖家一样说话，自然热情，80字以内").append("\n");
         sb.append("最近对话：").append("\n");
         appendHistory(sb, history, myUserId);
         return sb.toString();

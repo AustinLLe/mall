@@ -16,6 +16,7 @@
 					<text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
 					<text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
 					<text class="nav-link on">消息</text>
+						<text class="nav-link" @click="openAiAssistant">AI 助手</text>
 					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
 				</view>
 			</view>
@@ -77,13 +78,18 @@
 								<view>
 									<text class="chat-title">{{ activeConversation.title }}</text>
 									<text class="chat-subtitle">{{ activeConversation.goodsName || '正在咨询商品' }}</text>
-								</view>
-							</view>
-							<view class="header-actions">
-								<button class="ghost-btn" :disabled="aiBargaining" @click="triggerAiBargain">{{ aiBargaining ? '生成中' : 'AI 议价' }}</button>
 							</view>
 						</view>
-
+							<view class="header-actions">
+								<template v-if="isAiMode">
+									<button class="ghost-btn" :disabled="aiBargaining" @click="triggerAiBargain">{{ aiBargaining ? '生成中' : 'AI 议价' }}</button>
+									<button class="ghost-btn human-btn" @click="transferToHuman">转人工</button>
+								</template>
+								<template v-else>
+									<button class="ghost-btn" @click="resumeAiMode">切换回AI客服</button>
+								</template>
+							</view>
+						</view>
 						<scroll-view class="messages" scroll-y :scroll-top="scrollTop" :show-scrollbar="false">
 							<view class="session-tip">
 								<view class="line"></view>
@@ -114,7 +120,8 @@
 												</view>
 											</view>
 										</view>
-										<view v-else class="bubble">
+										<view v-else class="bubble" :class="{ 'ai-bubble': msg.type === 'AI_REPLY' }">
+											<text v-if="msg.type === 'AI_REPLY'" class="ai-tag">AI</text>
 											<text>{{ msg.content }}</text>
 										</view>
 										<text v-if="msg.senderId === myUserId" class="read-receipt">
@@ -122,6 +129,14 @@
 										</text>
 									</view>
 								</view>
+							<!-- AI 回复后弹出转人工客服 -->
+							<view v-if="msg.type === 'AI_REPLY' && !conversationTransferred" class="transfer-bar">
+								<text class="transfer-hint">AI 已为您初步解答，是否需要转接人工客服？</text>
+								<view class="transfer-actions">
+									<button class="transfer-btn primary" @click="transferToHuman">转人工客服</button>
+									<button class="transfer-btn ghost" @click="dismissTransfer">继续咨询</button>
+								</view>
+							</view>
 							</view>
 						</scroll-view>
 
@@ -186,10 +201,12 @@
 
 <script>
 	import { fetchProduct, requestAiAssist } from '@/services/shop.js'
+		// #ifdef H5
 	import SockJS from 'sockjs-client'
 	import Stomp from 'stompjs'
+		// #endif
 	import { fetchMe } from '@/services/auth.js'
-	import { get, post } from '@/utils/request.js'
+	import { get, post, put } from '@/utils/request.js'
 	import { getToken } from '@/utils/auth.js'
 
 	const WS_URL = 'http://127.0.0.1:8080/ws'
@@ -214,6 +231,8 @@
 				focusProduct: null,
 				aiBargaining: false,
 				connected: false,
+				conversationTransferred: false,
+				pollTimer: null,
 				scrollTop: 0,
 				showEmojiPicker: false,
 				activeEmojiGroup: 'face',
@@ -233,6 +252,13 @@
 			},
 			activeConversation() {
 				return this.list.find(item => item.covId === this.covId) || null
+			},
+			conversationStatus() {
+				const active = this.activeConversation
+				return active ? active.status : 'ai'
+			},
+			isAiMode() {
+				return this.conversationStatus === 'ai' || this.conversationStatus === 'pending'
 			},
 			currentEmojiOptions() {
 				const group = this.emojiGroups.find(item => item.key === this.activeEmojiGroup)
@@ -274,7 +300,7 @@
 						if (this.list[0]) {
 							this.list[0].sub = body.data.answer
 						}
-					}
+				}
 				} catch (e) {}
 			},
 			async fetchConversationList() {
@@ -291,38 +317,57 @@
 						unreadCount: item.unreadCount || 0,
 						goodsImageUrl: item.goodsImageUrl,
 						goodsName: item.goodsName,
-						goodsId: item.goodsId
-					}))
+						goodsId: item.goodsId,
+							status: item.status || 'ai'
+				}))
 				} catch (e) {
 					console.error('加载会话列表失败', e)
 				}
 			},
 			async open(item) {
-				if (item.unreadCount > 0) {
-					item.unreadCount = 0
-				}
-				try {
-					await post(`/api/chat/${item.covId}/read`)
-				} catch (e) {
-					console.error('标记已读接口调用失败', e)
-				}
-				if (this.covId === item.covId) return
-				this.disconnect()
-				this.connected = false
-				this.stompClient = null
-				this.covId = item.covId
-				this.messages = []
-				this.inputContent = ''
-				this.focusProduct = null
-				this.closeFloaters()
-				await this.initChat()
-			},
+					// #ifdef MP-WEIXIN
+					// 小程序端跳转到独立聊天页
+					uni.navigateTo({ url: '/pages/chat/chat?covId=' + item.covId })
+					return
+					// #endif
+					// #ifndef MP-WEIXIN
+					if (item.unreadCount > 0) {
+						item.unreadCount = 0
+					}
+					try {
+						await post(`/api/chat/${item.covId}/read`)
+					} catch (e) {
+						console.error('标记已读接口调用失败', e)
+					}
+					if (this.covId === item.covId) return
+					this.disconnect()
+					this.connected = false
+					this.stompClient = null
+					this.covId = item.covId
+					this.messages = []
+					this.inputContent = ''
+					this.focusProduct = null
+					this.closeFloaters()
+					// 进入会话时自动恢复AI客服模式
+					const conv = this.activeConversation
+					if (conv && conv.status && conv.status !== 'ai' && conv.status !== 'pending') {
+						put(`/api/chat/conversations/${this.covId}/status`, { status: 'ai' }).then(() => {
+							if (conv) conv.status = 'ai'
+						}).catch(e => console.warn('auto reset ai failed', e))
+					}
+					this.conversationTransferred = false
+					await this.initChat()
+					// #endif
+				},
 			navTo(url) {
 				if (['/pages/home/home', '/pages/browse/browse', '/pages/cart/cart', '/pages/message/message', '/pages/user/index'].includes(url)) {
 					uni.switchTab({ url })
 					return
 				}
-				uni.reLaunch({ url })
+				uni.navigateTo({ url })
+			},
+			openAiAssistant() {
+				uni.navigateTo({ url: '/pages/ai-assistant/ai-assistant' })
 			},
 			avatarText(name) {
 				return String(name || '聊').slice(0, 1).toUpperCase()
@@ -356,7 +401,7 @@
 					if (body && body.code === 0 && body.data) {
 						this.focusProduct = body.data
 						return body.data
-					}
+				}
 				} catch (e) {
 					console.error('加载商品失败', e)
 				}
@@ -376,39 +421,29 @@
 				this.messages = this.processMessages(rawList)
 				this.$nextTick(() => this.scrollToBottom())
 			},
+			
 			connectWebSocket() {
-				if (this.connected || !this.covId) {
-					return
-				}
+				if (this.connected || !this.covId) return
+				// #ifdef H5
 				const token = getToken()
 				const socket = new SockJS(WS_URL)
 				this.stompClient = Stomp.over(socket)
 				this.stompClient.debug = null
-
 				this.stompClient.connect(
-					{ Authorization: token ? `Bearer ${token}` : '' },
+					{ Authorization: token ? 'Bearer ' + token : '' },
 					() => {
 						this.connected = true
-						console.log('【调试】WebSocket 连接成功，准备调用 subscribeTopic...')
 						this.subscribeTopic()
 					},
 					(error) => {
-						console.error('WebSocket 连接失败', error)
-						uni.showToast({ title: '实时聊天连接失败', icon: 'none' })
+						console.error('WebSocket failed', error)
+						this.startPolling()
 					}
 				)
-			},
-			sendReadReceipt() {
-				if (this.stompClient && this.connected) {
-					this.stompClient.send(
-						`/app/chat/read`,
-						{},
-						JSON.stringify({
-							covId: this.covId,
-							readerId: this.myUserId
-						})
-					)
-				}
+				// #endif
+				// #ifndef H5
+				this.startPolling()
+				// #endif
 			},
 			shouldShowTime(newMsg, prevMsg) {
 				if (!prevMsg) return true
@@ -422,7 +457,7 @@
 					return this.normalizeMessage({
 						...msg,
 						showTime: index === 0 || this.shouldShowTime(msg, prevMsg)
-					}, prevMsg)
+				}, prevMsg)
 				})
 			},
 			normalizeMessage(msg, prevMsg) {
@@ -459,7 +494,7 @@
 					if (!message.body) return
 					try {
 						const chatMessage = JSON.parse(message.body)
-						if (chatMessage.type !== 'CHAT_MESSAGE') return
+						if (chatMessage.type !== 'CHAT_MESSAGE' && chatMessage.type !== 'AI_REPLY') return
 						if (Number(chatMessage.covId) !== Number(this.covId)) return
 						if (this.isDuplicateMessage(chatMessage)) return
 						const lastMsg = this.messages[this.messages.length - 1]
@@ -471,7 +506,7 @@
 								this.sendReadReceipt()
 							}
 						})
-					} catch (e) { console.error('解析消息失败', e) }
+				} catch (e) { console.error('解析消息失败', e) }
 				})
 				this.stompClient.subscribe(`/user/queue/chat/read-status`, (message) => {
 					const status = JSON.parse(message.body)
@@ -482,7 +517,7 @@
 								m.isRead = true
 							}
 						})
-					}
+				}
 				})
 			},
 			disconnect() {
@@ -496,9 +531,32 @@
 							this.connected = false
 							this.stompClient = null
 						})
-					} catch (e) {
+				} catch (e) {
 						console.warn('WebSocket 断开连接失败', e)
-					}
+				}
+				}
+			},
+			startPolling() {
+				if (this.pollTimer) return
+				this.refreshHistory()
+				this.pollTimer = setInterval(() => {
+					this.refreshHistory()
+				}, 3000)
+			},
+			stopPolling() {
+				if (this.pollTimer) {
+					clearInterval(this.pollTimer)
+					this.pollTimer = null
+				}
+			},
+			async refreshHistory() {
+				if (!this.covId) return
+				try {
+					const res = await get(`/api/chat/conversations/${this.covId}/messages`)
+					const rawList = (res.data && res.data.data) ? res.data.data : []
+					this.messages = this.processMessages(rawList)
+				} catch (e) {
+					console.warn("刷新消息失败", e)
 				}
 			},
 			sendQuick(text) {
@@ -508,15 +566,8 @@
 			async sendChatContent(content) {
 				if (!content || !this.covId) return false
 				const payload = { covId: this.covId, content, type: 'CHAT_MESSAGE' }
-				if (this.stompClient && this.connected) {
-					const token = getToken()
-					this.stompClient.send(
-						`/app/chat/${this.covId}`,
-						{ Authorization: `Bearer ${token}` },
-						JSON.stringify(payload)
-					)
-					return true
-				}
+				// 统一走 REST 发送，WebSocket 只负责接收实时推送
+				// 避免 STOMP send 静默失败导致消息丢失
 				try {
 					await post(`/api/chat/conversations/${this.covId}/messages`, payload)
 					return true
@@ -564,10 +615,19 @@
 				try {
 					const res = await post(`/api/chat/conversations/${this.covId}/ai-bargain`)
 					const data = (res.data && res.data.data) ? res.data.data : {}
+					if (data.message) {
+						const lastMsg = this.messages[this.messages.length - 1]
+						const showTime = this.shouldShowTime(data.message, lastMsg)
+						this.messages.push(this.normalizeMessage({
+							...data.message,
+							showTime
+						}, lastMsg))
+						this.$nextTick(() => this.scrollToBottom())
+				}
 					uni.showToast({
 						title: data.source === 'ai' ? 'AI 已生成议价建议' : 'AI 不可用，已用兜底建议',
 						icon: 'none'
-					})
+				})
 				} catch (e) {
 					uni.showToast({ title: 'AI 议价请求失败', icon: 'none' })
 				} finally {
@@ -575,11 +635,44 @@
 					uni.hideLoading()
 				}
 			},
-			scrollToBottom() {
-				this.$nextTick(() => {
-					this.scrollTop = this.scrollTop === 999999 ? 999998 : 999999
-				})
+			transferToHuman() {
+				this.doTransferToHuman()
 			},
+			dismissTransfer() {
+				this.conversationTransferred = true
+				uni.showToast({ title: '将继续为您提供 AI 解答', icon: 'none' })
+			},
+				async doTransferToHuman() {
+					try {
+						const res = await post(`/api/chat/conversations/${this.covId}/transfer`)
+						if (res.data && res.data.code === 0) {
+						this.conversationTransferred = true
+						const conv = this.list.find(c => c.covId === this.covId)
+						if (conv) conv.status = 'active'
+						uni.showToast({ title: '已转接人工客服', icon: 'success' })
+						}
+				} catch (e) {
+						uni.showToast({ title: '转接失败，请重试', icon: 'none' })
+				}
+				},
+				async resumeAiMode() {
+					try {
+						const res = await put(`/api/chat/conversations/${this.covId}/status`, { status: 'ai' })
+						if (res.data && res.data.code === 0) {
+						const conv = this.list.find(c => c.covId === this.covId)
+						if (conv) conv.status = 'ai'
+						this.conversationTransferred = false
+						uni.showToast({ title: '已切换回AI客服', icon: 'success' })
+						}
+				} catch (e) {
+						uni.showToast({ title: '切换失败，请重试', icon: 'none' })
+				}
+				},
+				scrollToBottom() {
+					this.$nextTick(() => {
+						this.scrollTop = this.scrollTop === 999999 ? 999998 : 999999
+				})
+				},
 			formatChatTime(value) {
 				if (!value) {
 					return ''
@@ -609,7 +702,7 @@
 	}
 	.topbar-inner {
 		display: grid;
-		grid-template-columns: 300px 320px minmax(0, 1fr);
+		grid-template-columns: 300px 350px minmax(0, 1fr);
 		align-items: center;
 		gap: 18px;
 		height: 82px;
@@ -645,6 +738,8 @@
 		color: #667085;
 	}
 	.web-nav {
+		overflow-x: auto;
+			white-space: nowrap;
 		display: flex;
 		justify-self: center;
 		align-items: center;
@@ -657,14 +752,16 @@
 		box-sizing: border-box;
 	}
 	.nav-link {
-		width: 82px;
+		width: auto;
+			padding: 0 8px;
+			flex-shrink: 0;
 		height: 38px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		border-radius: 999px;
 		color: #5f6b85;
-		font-size: 13px;
+		font-size: 12px;
 		font-weight: 800;
 	}
 	.nav-link.on,
@@ -927,6 +1024,15 @@
 	.ghost-btn[disabled] {
 		opacity: 0.6;
 	}
+		.human-btn {
+			color: #dc2626;
+			border-color: #fca5a5;
+		}
+		.human-btn:hover {
+			background: #fef2f2;
+			border-color: #dc2626;
+			color: #b91c1c;
+		}
 	button {
 		display: flex;
 		align-items: center;
@@ -1314,8 +1420,11 @@
 			padding: 12px;
 		}
 		.web-nav {
+		overflow-x: auto;
+			white-space: nowrap;
 			justify-self: stretch;
 			overflow-x: auto;
+			white-space: nowrap;
 		}
 		.page-shell {
 			height: auto;
@@ -1334,4 +1443,62 @@
 			width: calc(100vw - 52px);
 		}
 	}
+	.ai-bubble { background: #f0f7ff !important; border: 1px solid #cce5ff; }
+	.ai-tag { display: inline-block; background: #1677ff; color: #fff; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-right: 6px; vertical-align: middle; }
+	.transfer-bar { padding: 12px 16px; margin: 8px 0; background: #fff8e6; border: 1px solid #ffe7a3; border-radius: 8px; text-align: center; }
+	.transfer-hint { display: block; font-size: 13px; color: #8c6e1a; margin-bottom: 8px; }
+	.transfer-actions { display: flex; gap: 10px; justify-content: center; }
+	.transfer-btn { padding: 6px 16px; border-radius: 6px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; }
+	.transfer-btn.primary { background: #1677ff; color: #fff; }
+	.transfer-btn.ghost { background: #fff; color: #666; border: 1px solid #d9d9d9; }
+
+	/* #ifdef MP-WEIXIN */
+	.safe-page {
+		height: 100vh;
+		background: #f7f8fb;
+	}
+	.topbar {
+		display: none;
+	}
+	.page-shell {
+		height: 100vh;
+		padding: 0;
+	}
+	.message-workspace {
+		display: block;
+		padding: 0;
+		max-width: 100%;
+	}
+	.chat-pane {
+		display: none;
+	}
+	.conversation-pane {
+		width: 100%;
+		height: 100vh;
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+	}
+	.pane-head {
+		justify-content: center;
+	}
+	.pane-title {
+		text-align: center;
+	}
+		.avatar-wrap {
+		overflow: visible;
+	}
+	.badge {
+		top: -2px;
+		right: -2px;
+		z-index: 2;
+	}
+	.search-box {
+		margin: 0 14px 12px;
+	}
+		.brand-sub {
+		display: none;
+	}
+/* #endif */
+
 </style>

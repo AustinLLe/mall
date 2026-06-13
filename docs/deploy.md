@@ -12,7 +12,7 @@
 进入后端目录：
 
 ```powershell
-cd D:\Pro\soft-shop-pro\shopping_back\shopping_back
+cd shopping_back/shopping_back
 mvn spring-boot:run
 ```
 
@@ -20,11 +20,7 @@ mvn spring-boot:run
 
 ### 前端 H5
 
-使用 HBuilderX 打开：
-
-```text
-D:\Pro\soft-shop-pro\shopping_front
-```
+使用 HBuilderX 打开项目下的 `shopping_front` 目录。
 
 运行到浏览器即可。H5 开发阶段通过 `manifest.json` 中的 devServer proxy 把 `/api` 转发到：
 

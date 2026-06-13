@@ -9,7 +9,8 @@
         </view>
         <view class="message-item" :class="msg.senderId === myUserId ? 'my-msg' : 'other-msg'">
           <view class="message-content-wrapper">
-            <view class="bubble">
+            <view class="bubble" :class="{ 'ai-bubble': msg.type === 'AI_REPLY' }">
+              <text v-if="msg.type === 'AI_REPLY'" class="ai-tag">AI</text>
               <text>{{ msg.content }}</text>
             </view>
             <text v-if="msg.senderId === myUserId" class="read-status">{{ msg.isRead ? '已读' : '未读' }}</text>
@@ -21,6 +22,12 @@
     <view v-if="showAiBargainTip" class="ai-tip-bar">
       <text>对方提到了价格，是否启用 AI 议价助手？</text>
       <button class="ai-btn" @click="triggerAiBargain">启用 AI 议价</button>
+    </view>
+
+    <view class="platform-helper-bar" @click="toAiAssistant">
+      <text class="helper-icon">🤖</text>
+      <text class="helper-text">问AI助手 · 平台使用问题解答</text>
+      <text class="helper-arrow">›</text>
     </view>
 
     <view class="bottom-fixed-area">
@@ -50,7 +57,9 @@ export default {
       pollTimer: null,
       showAiBargainTip: false,
       sending: false,
-      scrollTop: 0
+      scrollTop: 0,
+      showHumanServicePopupFlag: false,
+      lastProcessedAiReplyId: null
     }
   },
   onLoad(options) {
@@ -96,6 +105,7 @@ export default {
           this.$nextTick(() => this.scrollToBottom())
           this.detectBargainTip(this.messages[this.messages.length - 1])
         }
+        this.$nextTick(() => this.checkForAiReplyAndShowPopup(this.messages))
       } catch (e) {
         console.warn('刷新聊天记录失败', e)
       }
@@ -182,6 +192,48 @@ export default {
       if (keywords.some((keyword) => content.includes(keyword))) {
         this.showAiBargainTip = true
       }
+    },
+    checkForAiReplyAndShowPopup(messages) {
+      if (this.showHumanServicePopupFlag || !this.myUserId) return
+      const aiReplies = messages.filter(
+        msg => msg.type === 'AI_REPLY' && msg.senderId !== this.myUserId
+      )
+      if (aiReplies.length === 0) return
+      const latest = aiReplies[aiReplies.length - 1]
+      if (latest.cmId && latest.cmId === this.lastProcessedAiReplyId) return
+      this.lastProcessedAiReplyId = latest.cmId || Date.now()
+      this.showHumanServicePopupFlag = true
+      setTimeout(() => {
+        uni.showModal({
+          title: 'AI 助手已回复',
+          content: 'AI 助手已为您提供回复，是否需要转接人工客服继续沟通？',
+          confirmText: '转人工客服',
+          cancelText: '继续沟通',
+          success: (res) => {
+            if (res.confirm) {
+              this.transferToHumanService()
+            } else {
+              this.showHumanServicePopupFlag = false
+            }
+          },
+          fail: () => { this.showHumanServicePopupFlag = false }
+        })
+      }, 600)
+    },
+    async transferToHumanService() {
+      try {
+        await post(`/api/chat/conversations/${this.covId}/transfer`, {})
+        uni.showToast({ title: '已转接人工客服', icon: 'success' })
+      } catch (e) {
+        console.error('转接人工客服失败', e)
+        uni.showToast({ title: '转接失败，请稍后重试', icon: 'none' })
+      } finally {
+        this.showHumanServicePopupFlag = false
+        await this.refreshHistory()
+      }
+    },
+    toAiAssistant() {
+      uni.navigateTo({ url: '/pages/ai-assistant/ai-assistant' })
     }
   }
 }
@@ -238,6 +290,20 @@ export default {
   background: #ffffff;
   color: #1f2937;
 }
+.other-msg .ai-bubble {
+  background: #f0fdf4;
+  border: 1rpx solid #bbf7d0;
+}
+.ai-tag {
+  display: inline-block;
+  background: #56d490;
+  color: #fff;
+  font-size: 20rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  margin-right: 8rpx;
+  vertical-align: middle;
+}
 .my-msg .bubble {
   background: #2563eb;
   color: #ffffff;
@@ -267,6 +333,30 @@ export default {
   color: #ffffff;
   font-size: 24rpx;
   line-height: 52rpx;
+}
+.platform-helper-bar {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 14rpx 20rpx;
+  background: #f0fdf4;
+  border-top: 1rpx solid #bbf7d0;
+  color: #166534;
+  font-size: 26rpx;
+  cursor: pointer;
+}
+.platform-helper-bar:active {
+  background: #dcfce7;
+}
+.helper-icon {
+  font-size: 32rpx;
+}
+.helper-text {
+  flex: 1;
+}
+.helper-arrow {
+  color: #86efac;
+  font-size: 32rpx;
 }
 .bottom-fixed-area {
   background: #ffffff;

@@ -17,4 +17,5 @@ public class ChatMessage {
     private String content;
     private BigDecimal priceValue; // 方便 AI 议价抓取
     private Date createTime;
+    private String type; // CHAT_MESSAGE / AI_REPLY
 }

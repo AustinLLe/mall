@@ -4,11 +4,7 @@
 
 ## 正确运行步骤
 
-1. 使用 HBuilderX 打开目录：
-
-```text
-D:\Pro\soft-shop-pro\shopping_front
-```
+1. 使用 HBuilderX 打开项目根目录下的 `shopping_front` 文件夹。
 
 2. 在 HBuilderX 中选择：
 
@@ -19,7 +15,7 @@ D:\Pro\soft-shop-pro\shopping_front
 3. 微信开发者工具实际打开的目录应该是：
 
 ```text
-D:\Pro\soft-shop-pro\shopping_front\unpackage\dist\dev\mp-weixin
+项目根目录/shopping_front/unpackage/dist/dev/mp-weixin
 ```
 
 4. 如果手动导入微信开发者工具，也应导入 `mp-weixin` 产物目录，而不是 `shopping_front` 源码目录。

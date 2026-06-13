@@ -16,6 +16,7 @@
 					<text class="nav-link" @click="navTo('/pages/browse/browse')">发现</text>
 					<text class="nav-link on">购物车</text>
 					<text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
+					<text class="nav-link" @click="navTo('/pages/ai-assistant/ai-assistant')">AI 助手</text>
 					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
 				</view>
 			</view>
@@ -149,7 +150,7 @@
 					uni.switchTab({ url })
 					return
 				}
-				uni.reLaunch({ url })
+				uni.navigateTo({ url })
 			},
 			toggleChecked(id) {
 				const current = this.items.find((item) => item.id === id)
@@ -200,7 +201,7 @@
 	}
 	.topbar-inner {
 		display: grid;
-		grid-template-columns: 300px 320px minmax(0, 1fr);
+		grid-template-columns: 300px 350px minmax(0, 1fr);
 		align-items: center;
 		gap: 18px;
 		height: 82px;
@@ -240,6 +241,8 @@
 		color: #667085;
 	}
 	.web-nav {
+		overflow-x: auto;
+			white-space: nowrap;
 		display: flex;
 		justify-self: center;
 		align-items: center;
@@ -252,10 +255,11 @@
 		border: 1px solid rgba(203, 213, 225, .72);
 		box-shadow: 0 14px 38px rgba(60, 64, 67, .08);
 	}
-	.nav-link {
-		width: 82px;
+		.nav-link {
+		width: auto;
+		padding: 0 8px;
+		flex-shrink: 0;
 		height: 38px;
-		padding: 0;
 		border-radius: 999px;
 		display: flex;
 		align-items: center;
@@ -264,7 +268,7 @@
 		line-height: 1;
 		text-align: center;
 		color: #5f6b85;
-		font-size: 13px;
+		font-size: 12px;
 		font-weight: 750;
 	}
 	.nav-link.on,
@@ -549,4 +553,59 @@
 			flex-direction: column;
 		}
 	}
+
+	/* #ifdef MP-WEIXIN */
+	.topbar {
+		position: relative;
+		padding-top: 72px;
+	}
+	.topbar-inner {
+		display: flex;
+		flex-direction: column;
+		height: auto;
+		padding: 10px 14px 12px;
+		gap: 8px;
+		align-items: center;
+	}
+	.brand {
+		width: 100%;
+		justify-content: center;
+	}
+	.brand-mark {
+		width: 48px;
+		height: 48px;
+	}
+	.brand-name {
+		font-size: 22px;
+		text-align: center;
+	}
+	.brand-sub {
+		display: block;
+		text-align: center;
+	}
+	.web-nav {
+		display: flex;
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		white-space: nowrap;
+		width: 100%;
+		justify-content: center;
+	}
+	.page-head {
+		padding: 14px;
+	}
+	.page-title {
+		font-size: 22px;
+	}
+	.cart-layout {
+		padding: 0 14px 24px;
+	}
+	.goods-item {
+		padding: 10px 12px;
+	}
+		.brand-sub {
+		display: none;
+	}
+/* #endif */
+
 </style>

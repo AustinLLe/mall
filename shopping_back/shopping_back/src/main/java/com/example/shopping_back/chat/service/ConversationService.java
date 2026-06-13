@@ -48,6 +48,7 @@ public class ConversationService {
             ConversationListDto dto = new ConversationListDto();
             dto.setCovId(c.getCovId());
             dto.setGoodsId(c.getGoodsId());
+            dto.setStatus(c.getStatus());
             Integer targetId = Objects.equals(c.getBuyerId(), userId) ? c.getSellerId() : c.getBuyerId();
             AuthUserView targetUser = authService.getUserById(targetId);
             dto.setTargetName(targetUser.getUsername());

@@ -245,17 +245,13 @@
 ### 后端启动
 
 ```powershell
-cd C:\Users\LQY\Desktop\NewSecondMall-dev\shopping_back\shopping_back
+cd shopping_back/shopping_back
 .\mvnw.cmd spring-boot:run
 ```
 
 ### 前端启动
 
-使用 HBuilderX 打开：
-
-```text
-C:\Users\LQY\Desktop\NewSecondMall-dev\shopping_front
-```
+使用 HBuilderX 打开项目下的 `shopping_front` 目录。
 
 然后运行到浏览器或 H5 预览。
 

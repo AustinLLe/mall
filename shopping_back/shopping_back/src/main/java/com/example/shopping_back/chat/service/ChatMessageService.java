@@ -33,13 +33,14 @@ public class ChatMessageService {
         msg.setPriceValue(request.getPriceValue());
         msg.setCreateTime(new Date());
         msg.setIsRead(false);
+        msg.setType(request.getType());
         chatMessageMapper.insert(msg);
         return msg;
     }
 
     public ChatMessage sendMessageAndBroadcast(ChatMessageDto dto) {
-        ChatMessage msg = createMessage(dto); 
-        messagingTemplate.convertAndSend("/topic/chat/" + dto.getCovId(), dto);
+        ChatMessage msg = createMessage(dto);
+        messagingTemplate.convertAndSend("/topic/chat/" + dto.getCovId(), msg);
         return msg;
     }
 

@@ -16,6 +16,7 @@
 					<text class="nav-link on" @click="navTo('/pages/browse/browse')">发现</text>
 					<text class="nav-link" @click="navTo('/pages/cart/cart')">购物车</text>
 					<text class="nav-link" @click="navTo('/pages/message/message')">消息</text>
+					<text class="nav-link" @click="navTo('/pages/ai-assistant/ai-assistant')">AI 助手</text>
 					<text class="nav-link" @click="navTo('/pages/user/index')">我的</text>
 				</view>
 				<view class="top-actions">
@@ -501,15 +502,19 @@
 <style lang="scss" scoped>
 	.topic-page { min-height: 100vh; background: #f3f5f7; }
 	.topbar { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.9); backdrop-filter: blur(22px); border-bottom: 1px solid rgba(203,213,225,.55); box-shadow: 0 10px 40px rgba(60,64,67,.06); }
-	.topbar-inner { display: grid; grid-template-columns: 300px 320px minmax(0, 1fr); align-items: center; gap: 18px; height: 82px; padding: 0 22px; }
+	.topbar-inner { display: grid; grid-template-columns: 300px 350px minmax(0, 1fr); align-items: center; gap: 18px; height: 82px; padding: 0 22px; }
 	.brand { display: flex; align-items: center; gap: 12px; }
 	.brand-mark { width: 42px; height: 42px; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
 	.brand-logo { width: 100%; height: 100%; }
 	.brand-name, .brand-sub { display: block; }
 	.brand-name { font-size: 20px; font-weight: 900; color: #202124; }
 	.brand-sub { margin-top: 2px; font-size: 12px; color: #667085; }
-	.web-nav { justify-self: center; display: flex; align-items: center; gap: 4px; padding: 5px; height: 50px; border-radius: 999px; background: rgba(255,255,255,.72); border: 1px solid rgba(203,213,225,.72); box-sizing: border-box; box-shadow: 0 14px 38px rgba(60,64,67,.08); }
-	.nav-link { width: 82px; height: 38px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #5f6b85; font-size: 13px; font-weight: 800; }
+	.web-nav { justify-self: center; display: flex; align-items: center; gap: 4px; padding: 5px; height: 50px; border-radius: 999px; background: rgba(255,255,255,.72); border: 1px solid rgba(203,213,225,.72); box-sizing: border-box; box-shadow: 0 14px 38px rgba(60,64,67,.08);
+		white-space: nowrap;
+	
+		overflow-x: auto;
+		padding: 0 8px;
+			flex-shrink: 0; height: 38px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #5f6b85; font-size: 12px; font-weight: 800; }
 	.nav-link.on, .nav-link:hover { background: #12372a; color: #fff; }
 	.top-actions { justify-self: end; }
 	.back-topic { height: 44px; padding: 0 18px; border-radius: 999px; background: #12372a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; }
@@ -627,7 +632,9 @@
 	.modal-submit { background: #12372a; color: #fff; border: 0; box-shadow: 0 14rpx 28rpx rgba(18,55,42,.18); }
 	.modal-ghost::after, .modal-submit::after { border: 0; }
 	@media screen and (max-width: 900px) {
-		.topbar-inner, .hero, .layout { display: flex; flex-direction: column; }
+		.topbar-inner, .hero, .layout { display: flex; flex-direction: column; height: auto;
+		padding: 10px 18px;
+		gap: 10px; }
 		.web-nav, .brand-sub, .top-actions { display: none; }
 		.cover { width: 100%; }
 		.side { order: -1; }

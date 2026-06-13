@@ -66,8 +66,7 @@ $env:DB_PASSWORD="你的数据库密码"
 进入目录：
 
 ```powershell
-cd D:\Pro\soft-shop-pro\shopping_back\shopping_back
-(根据自己的目录文件来)
+cd shopping_back/shopping_back
 ```
 
 首次启动前先确认 Maven 可用：
@@ -86,7 +85,7 @@ mvn spring-boot:run
 
 ## 5. 启动前端（uni-app）
 
-当前前端目录：`D:\Pro\soft-shop-pro\shopping_front`
+当前前端目录：项目根目录下的 `shopping_front/`
 
 建议方式（HBuilderX）：
 1. 打开 HBuilderX。

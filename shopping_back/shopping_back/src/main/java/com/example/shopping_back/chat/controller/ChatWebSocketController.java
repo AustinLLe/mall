@@ -4,8 +4,11 @@ import com.example.shopping_back.auth.AuthService;
 import com.example.shopping_back.auth.dto.AuthUserView;
 import com.example.shopping_back.chat.service.ChatMessageService;
 import com.example.shopping_back.chat.service.ConversationService;
+import com.example.shopping_back.chat.service.AiBargainService;
 import com.example.shopping_back.chat.model.Conversation;
 import com.example.shopping_back.chat.dto.ChatMessageDto;
+import com.example.shopping_back.chat.dto.AiBargainSuggestion;
+import com.example.shopping_back.chat.dto.UpdateConversationStatusRequest;
 
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.Header;
@@ -26,15 +29,18 @@ public class ChatWebSocketController {
     private final AuthService authService;
     private final ConversationService conversationService;
     private final ChatMessageService chatMessageService;
+    private final AiBargainService aiBargainService;
     private final SimpMessagingTemplate messagingTemplate;
 
     public ChatWebSocketController(AuthService authService,
                                    ConversationService conversationService,
                                    ChatMessageService chatMessageService,
+                                   AiBargainService aiBargainService,
                                    SimpMessagingTemplate messagingTemplate) {
         this.authService = authService;
         this.conversationService = conversationService;
         this.chatMessageService = chatMessageService;
+        this.aiBargainService = aiBargainService;
         this.messagingTemplate = messagingTemplate;
     }
 
@@ -56,6 +62,24 @@ public class ChatWebSocketController {
         chatMessageDto.setType("CHAT_MESSAGE");
         chatMessageService.sendMessageAndBroadcast(chatMessageDto);
         conversationService.updateLastActiveTime(covId);
+
+        if ("ai".equals(conversation.getStatus()) || "pending".equals(conversation.getStatus())) {
+            if (currentUser.getUserId().equals(conversation.getBuyerId())) {
+                AiBargainSuggestion suggestion = aiBargainService.getAutoReply(covId, currentUser.getUserId());
+                ChatMessageDto aiMsg = new ChatMessageDto();
+                aiMsg.setCovId(covId);
+                aiMsg.setContent(suggestion.getContent());
+                aiMsg.setSenderId(conversation.getSellerId());
+                aiMsg.setType("AI_REPLY");
+                chatMessageService.sendMessageAndBroadcast(aiMsg);
+                if ("pending".equals(conversation.getStatus())) {
+                    UpdateConversationStatusRequest req = new UpdateConversationStatusRequest();
+                    req.setStatus("ai");
+                    conversationService.updateStatus(req, covId);
+                    conversation.setStatus("ai");
+                }
+            }
+        }
     }
 
     @MessageMapping("/chat/read")
