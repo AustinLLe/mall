@@ -79,6 +79,17 @@ CREATE TABLE IF NOT EXISTS `follow_store` (
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `follow_topic` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `user_id` INT NOT NULL,
+    `topic_id` INT NOT NULL,
+    `topic_title` VARCHAR(255) DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_follow_user_topic` (`user_id`, `topic_id`),
+    INDEX `idx_follow_topic_user` (`user_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS `store` (
     `store_id` INT NOT NULL AUTO_INCREMENT,
     `seller_id` INT NOT NULL,
@@ -138,6 +149,7 @@ CREATE TABLE IF NOT EXISTS `chat_message` (
     `price_value` DECIMAL(10,2) DEFAULT NULL,
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `is_read` TINYINT(1) DEFAULT 0,
+    `type` VARCHAR(30) NOT NULL DEFAULT 'CHAT_MESSAGE',
     PRIMARY KEY (`cm_id`),
     INDEX `idx_cov_id_create_time` (`cov_id`, `create_time` DESC)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
@@ -222,6 +234,7 @@ ALTER TABLE `topic_post` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_genera
 ALTER TABLE `topic_comment` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `topic_post_like` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ALTER TABLE `topic_post_action` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `follow_topic` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 DROP PROCEDURE IF EXISTS `ensure_column`;
 DELIMITER //
@@ -268,6 +281,8 @@ CALL `ensure_column`('goods', 'create_time', '`create_time` DATETIME DEFAULT CUR
 
 CALL `ensure_column`('topic_post', 'product_id', '`product_id` INT DEFAULT NULL');
 CALL `ensure_column`('topic_post', 'store_id', '`store_id` INT DEFAULT NULL');
+
+CALL `ensure_column`('chat_message', 'type', '`type` VARCHAR(30) NOT NULL DEFAULT ''CHAT_MESSAGE''');
 
 ALTER TABLE `goods`
     MODIFY COLUMN `status` VARCHAR(20) NOT NULL DEFAULT 'approved';

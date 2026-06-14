@@ -7,6 +7,28 @@ import java.util.List;
 @Mapper
 public interface ChatMessageMapper {
 
+    @Update("""
+            CREATE TABLE IF NOT EXISTS chat_message (
+                cm_id INT NOT NULL AUTO_INCREMENT,
+                cov_id INT NOT NULL,
+                sender_id INT NOT NULL,
+                content TEXT NOT NULL,
+                price_value DECIMAL(10,2) DEFAULT NULL,
+                create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                is_read TINYINT(1) DEFAULT 0,
+                type VARCHAR(30) NOT NULL DEFAULT 'CHAT_MESSAGE',
+                PRIMARY KEY (cm_id),
+                INDEX idx_cov_id_create_time (cov_id, create_time DESC)
+            )
+            """)
+    void createChatMessageTable();
+
+    @Select("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'chat_message' AND COLUMN_NAME = #{column}")
+    int countChatMessageColumn(@Param("column") String column);
+
+    @Update("ALTER TABLE chat_message ADD COLUMN type VARCHAR(30) NOT NULL DEFAULT 'CHAT_MESSAGE'")
+    void addTypeColumn();
+
     @Insert("INSERT INTO chat_message (cov_id, sender_id, content, price_value, create_time, is_read, type) " +
             "VALUES (#{covId}, #{senderId}, #{content}, #{priceValue}, #{createTime}, #{isRead}, #{type})")
     @Options(useGeneratedKeys = true, keyProperty = "cmId", keyColumn = "cm_id")

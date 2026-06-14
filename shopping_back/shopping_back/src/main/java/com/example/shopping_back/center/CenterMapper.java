@@ -36,6 +36,11 @@ public interface CenterMapper {
             "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     void createFollowTable();
 
+    @Update("CREATE TABLE IF NOT EXISTS follow_topic (" +
+            "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, topic_id INT NOT NULL, topic_title VARCHAR(255) DEFAULT NULL, " +
+            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uk_follow_user_topic (user_id, topic_id))")
+    void createFollowTopicTable();
+
     @Update("CREATE TABLE IF NOT EXISTS store (" +
             "store_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, seller_id INT NOT NULL, store_name VARCHAR(100) NOT NULL, " +
             "status VARCHAR(20) NOT NULL DEFAULT 'normal', score DECIMAL(3,1) NOT NULL DEFAULT 4.8, " +
@@ -73,6 +78,9 @@ public interface CenterMapper {
 
     @Select("SELECT COUNT(*) FROM follow_store WHERE user_id = #{userId}")
     int followCount(@Param("userId") Integer userId);
+
+    @Select("SELECT COUNT(*) FROM follow_topic WHERE user_id = #{userId}")
+    int followTopicCount(@Param("userId") Integer userId);
 
     @Select("SELECT reason FROM credit_record WHERE user_id = #{userId} ORDER BY id DESC LIMIT 1")
     String latestCreditReason(@Param("userId") Integer userId);
@@ -209,6 +217,9 @@ public interface CenterMapper {
     @Delete("DELETE FROM follow_store WHERE user_id = #{userId}")
     int clearFollows(@Param("userId") Integer userId);
 
+    @Delete("DELETE FROM follow_topic WHERE user_id = #{userId}")
+    int clearTopicFollows(@Param("userId") Integer userId);
+
     @Select("SELECT id, item_title AS title, '收藏商品' AS `desc`, 'favorite' AS type, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS createdAt " +
             "FROM favorite_goods WHERE user_id = #{userId} ORDER BY id DESC LIMIT 20")
     List<InteractionItem> favorites(@Param("userId") Integer userId);
@@ -220,4 +231,8 @@ public interface CenterMapper {
     @Select("SELECT id, store_name AS title, '关注店铺' AS `desc`, 'follow' AS type, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS createdAt " +
             "FROM follow_store WHERE user_id = #{userId} ORDER BY id DESC LIMIT 20")
     List<InteractionItem> follows(@Param("userId") Integer userId);
+
+    @Select("SELECT id, topic_title AS title, '关注话题' AS `desc`, 'topicFollow' AS type, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS createdAt " +
+            "FROM follow_topic WHERE user_id = #{userId} ORDER BY id DESC LIMIT 20")
+    List<InteractionItem> topicFollows(@Param("userId") Integer userId);
 }

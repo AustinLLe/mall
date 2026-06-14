@@ -20,6 +20,7 @@ public class ChatMessageService {
 
     public ChatMessageService(ChatMessageMapper chatMessageMapper) {
         this.chatMessageMapper = chatMessageMapper;
+        ensureSchema();
     }
 
     public ChatMessage createMessage(ChatMessageDto request) {
@@ -33,9 +34,16 @@ public class ChatMessageService {
         msg.setPriceValue(request.getPriceValue());
         msg.setCreateTime(new Date());
         msg.setIsRead(false);
-        msg.setType(request.getType());
+        msg.setType(request.getType() == null || request.getType().isBlank() ? "CHAT_MESSAGE" : request.getType());
         chatMessageMapper.insert(msg);
         return msg;
+    }
+
+    private void ensureSchema() {
+        chatMessageMapper.createChatMessageTable();
+        if (chatMessageMapper.countChatMessageColumn("type") == 0) {
+            chatMessageMapper.addTypeColumn();
+        }
     }
 
     public ChatMessage sendMessageAndBroadcast(ChatMessageDto dto) {

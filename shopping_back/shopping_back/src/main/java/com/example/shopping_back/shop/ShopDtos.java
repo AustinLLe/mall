@@ -109,7 +109,7 @@ public final class ShopDtos {
         }
     }
 
-    public record StoreView(String id, String name, String score, String fans, String desc, String badge) {
+    public record StoreView(String id, String name, String score, String fans, String desc, String badge, String avatar) {
     }
 
     public record StoreDetailView(
@@ -140,10 +140,12 @@ public final class ShopDtos {
             String cover,
             List<String> tags,
             Integer postCount,
-            Integer likeCount
+            Integer likeCount,
+            Integer followCount,
+            boolean followed
     ) {
         public TopicView(String id, String type, String title, String desc, String heat, String author, String cover, List<String> tags) {
-            this(id, type, title, desc, heat, author, cover, tags, 0, 0);
+            this(id, type, title, desc, heat, author, cover, tags, 0, 0, 0, false);
         }
     }
 
@@ -151,6 +153,7 @@ public final class ShopDtos {
             String id,
             String topicId,
             String author,
+            String authorAvatar,
             String content,
             List<String> images,
             ProductView product,

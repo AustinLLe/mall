@@ -90,6 +90,14 @@ export function fetchTopic(id) {
 	return get('/api/topics/' + encodeURIComponent(id)).then(unwrap)
 }
 
+export function followTopic(id) {
+	return post('/api/topics/' + encodeURIComponent(id) + '/follow', {}).then(unwrap)
+}
+
+export function unfollowTopic(id) {
+	return del('/api/topics/' + encodeURIComponent(id) + '/follow').then(unwrap)
+}
+
 export function fetchTopicPosts(id) {
 	return get('/api/topics/' + encodeURIComponent(id) + '/posts').then(unwrap)
 }

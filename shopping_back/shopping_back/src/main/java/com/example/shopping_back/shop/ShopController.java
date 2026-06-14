@@ -119,8 +119,24 @@ public class ShopController {
     }
 
     @GetMapping("/topics/{id}")
-    public ApiResult<TopicView> topic(@PathVariable String id) {
-        return ApiResult.ok(shopService.topic(id));
+    public ApiResult<TopicView> topic(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.topic(id, currentUserOrNull(authorization)));
+    }
+
+    @PostMapping("/topics/{id}/follow")
+    public ApiResult<TopicView> followTopic(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.followTopic(id, currentUserOrNull(authorization)));
+    }
+
+    @DeleteMapping("/topics/{id}/follow")
+    public ApiResult<TopicView> unfollowTopic(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.unfollowTopic(id, currentUserOrNull(authorization)));
     }
 
     @PostMapping("/topics")

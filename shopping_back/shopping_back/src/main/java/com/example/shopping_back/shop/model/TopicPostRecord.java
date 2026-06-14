@@ -9,6 +9,7 @@ public class TopicPostRecord {
     private Integer productId;
     private Integer storeId;
     private String username;
+    private String authorAvatar;
     private String content;
     private String images;
     private LocalDateTime createdAt;
@@ -32,6 +33,8 @@ public class TopicPostRecord {
     public void setStoreId(Integer storeId) { this.storeId = storeId; }
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
+    public String getAuthorAvatar() { return authorAvatar; }
+    public void setAuthorAvatar(String authorAvatar) { this.authorAvatar = authorAvatar; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
     public String getImages() { return images; }

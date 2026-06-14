@@ -7,6 +7,7 @@ public class StoreRecord {
     private Integer storeId;
     private Integer sellerId;
     private String sellerName;
+    private String sellerAvatar;
     private String storeName;
     private String status;
     private BigDecimal score;
@@ -39,6 +40,14 @@ public class StoreRecord {
 
     public void setSellerName(String sellerName) {
         this.sellerName = sellerName;
+    }
+
+    public String getSellerAvatar() {
+        return sellerAvatar;
+    }
+
+    public void setSellerAvatar(String sellerAvatar) {
+        this.sellerAvatar = sellerAvatar;
     }
 
     public String getStoreName() {

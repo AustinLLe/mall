@@ -73,7 +73,11 @@ public class ConversationService {
         if (existing != null) {
             return existing;
         }
-        Integer sellerId = shopProductMapper.selectById(request.getGoodsId()).getSellerId();
+        ProductRecord product = shopProductMapper.selectById(request.getGoodsId());
+        if (product == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "商品不存在");
+        }
+        Integer sellerId = product.getSellerId();
         Conversation conv = new Conversation();
         conv.setBuyerId(buyerId);
         conv.setSellerId(sellerId);
