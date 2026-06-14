@@ -80,6 +80,19 @@ public interface ShopTopicMapper {
             """)
     void createActionTable();
 
+    @Update("""
+            CREATE TABLE IF NOT EXISTS follow_topic (
+                id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                topic_id INT NOT NULL,
+                topic_title VARCHAR(255) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_follow_user_topic (user_id, topic_id),
+                INDEX idx_follow_topic_user (user_id, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4
+            """)
+    void createFollowTopicTable();
+
     @Select("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'topic_post' AND COLUMN_NAME = #{column}")
     int countPostColumn(@Param("column") String column);
 
@@ -100,10 +113,12 @@ public interface ShopTopicMapper {
                    t.status,
                    t.created_at AS createdAt,
                    COUNT(DISTINCT p.post_id) AS postCount,
-                   COUNT(DISTINCT l.id) AS likeCount
+                   COUNT(DISTINCT l.id) AS likeCount,
+                   COUNT(DISTINCT ft.id) AS followCount
             FROM community_topic t
             LEFT JOIN topic_post p ON p.topic_id = t.topic_id
             LEFT JOIN topic_post_like l ON l.post_id = p.post_id
+            LEFT JOIN follow_topic ft ON ft.topic_id = t.topic_id
             WHERE t.status = 'normal'
               AND (#{tag} IS NULL OR #{tag} = '' OR FIND_IN_SET(#{tag}, REPLACE(t.tags, '，', ',')))
               AND (#{keyword} IS NULL OR #{keyword} = ''
@@ -128,14 +143,17 @@ public interface ShopTopicMapper {
                    t.status,
                    t.created_at AS createdAt,
                    COUNT(DISTINCT p.post_id) AS postCount,
-                   COUNT(DISTINCT l.id) AS likeCount
+                   COUNT(DISTINCT l.id) AS likeCount,
+                   COUNT(DISTINCT ft.id) AS followCount,
+                   COUNT(DISTINCT CASE WHEN ft.user_id = #{currentUserId} THEN ft.id END) AS followed
             FROM community_topic t
             LEFT JOIN topic_post p ON p.topic_id = t.topic_id
             LEFT JOIN topic_post_like l ON l.post_id = p.post_id
+            LEFT JOIN follow_topic ft ON ft.topic_id = t.topic_id
             WHERE t.topic_id = #{topicId}
             GROUP BY t.topic_id, t.type, t.title, t.topic_desc, t.author, t.cover, t.tags, t.status, t.created_at
             """)
-    TopicRecord selectTopic(@Param("topicId") Integer topicId);
+    TopicRecord selectTopic(@Param("topicId") Integer topicId, @Param("currentUserId") Integer currentUserId);
 
     @Insert("""
             INSERT INTO community_topic(type, title, topic_desc, author, cover, tags, status)
@@ -221,4 +239,13 @@ public interface ShopTopicMapper {
 
     @Delete("DELETE FROM topic_post_action WHERE post_id = #{postId} AND user_id = #{userId} AND action_type = #{actionType}")
     int deleteAction(@Param("postId") Integer postId, @Param("userId") Integer userId, @Param("actionType") String actionType);
+
+    @Select("SELECT COUNT(*) FROM follow_topic WHERE topic_id = #{topicId} AND user_id = #{userId}")
+    int topicFollowExists(@Param("topicId") Integer topicId, @Param("userId") Integer userId);
+
+    @Insert("INSERT IGNORE INTO follow_topic(user_id, topic_id, topic_title) VALUES(#{userId}, #{topicId}, #{topicTitle})")
+    int insertTopicFollow(@Param("userId") Integer userId, @Param("topicId") Integer topicId, @Param("topicTitle") String topicTitle);
+
+    @Delete("DELETE FROM follow_topic WHERE topic_id = #{topicId} AND user_id = #{userId}")
+    int deleteTopicFollow(@Param("topicId") Integer topicId, @Param("userId") Integer userId);
 }

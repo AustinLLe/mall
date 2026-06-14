@@ -144,7 +144,7 @@
             </view>
           </view>
 
-          <view v-if="['credit', 'favorite', 'history', 'follow'].includes(activeNav)" class="panel interaction-panel">
+          <view v-if="['credit', 'favorite', 'history', 'follow', 'topicFollow'].includes(activeNav)" class="panel interaction-panel">
             <view class="section-head">
               <text class="section-title">{{ activePanelTitle }}</text>
               <text class="section-more">数据库同步</text>
@@ -262,7 +262,8 @@ export default {
         credit: '信用分记录',
         favorite: '商品收藏',
         history: '浏览足迹',
-        follow: '关注店铺'
+        follow: '关注店铺',
+        topicFollow: '关注话题'
       }
       return map[this.activeNav] || '记录'
     },
@@ -302,7 +303,8 @@ export default {
         { title: '足迹收藏', items: [
           { key: 'favorite', label: '商品收藏', icon: '♡', desc: '追踪心仪商品' },
           { key: 'history', label: '浏览足迹', icon: '○', desc: '找回看过的商品' },
-          { key: 'follow', label: '关注店铺', icon: '◇', desc: '查看店铺上新' }
+          { key: 'follow', label: '关注店铺', icon: '◇', desc: '查看店铺上新' },
+          { key: 'topicFollow', label: '关注话题', icon: '#', desc: '回到感兴趣的讨论' }
         ] },
         { title: '账户设置', items: [
           { key: 'realname', label: '实名认证', icon: '▧' },
@@ -344,7 +346,8 @@ export default {
       return [
         { key: 'favorite', label: '商品收藏', desc: '追踪心仪商品' },
         { key: 'history', label: '浏览足迹', desc: '找回看过的商品' },
-        { key: 'follow', label: '关注店铺', desc: '查看店铺上新' }
+        { key: 'follow', label: '关注店铺', desc: '查看店铺上新' },
+        { key: 'topicFollow', label: '关注话题', desc: '回到感兴趣的讨论' }
       ]
     }
   },
@@ -449,7 +452,7 @@ export default {
       if (item.action === 'address') return this.navTo('/pages/address/list')
       if (item.action === 'logout') return this.logout()
       this.activeNav = item.key
-      if (['credit', 'favorite', 'history', 'follow'].includes(this.activeNav)) this.loadInteractionItems()
+      if (['credit', 'favorite', 'history', 'follow', 'topicFollow'].includes(this.activeNav)) this.loadInteractionItems()
     },
     handleSummary(item) {
       if (item.action === 'orders') return this.goOrders()
@@ -461,7 +464,7 @@ export default {
       this.goOrders()
     },
     async loadInteractionItems() {
-      if (!['credit', 'favorite', 'history', 'follow'].includes(this.activeNav)) return
+      if (!['credit', 'favorite', 'history', 'follow', 'topicFollow'].includes(this.activeNav)) return
       if (!this.isBuyer) {
         this.interactionItems = this.activeNav === 'credit'
           ? [{ id: 'seller-credit', title: this.isSeller ? '店铺信用' : '账号信用', desc: `当前信用 ${this.user.credit || 100}`, type: 'credit', createdAt: '实时' }]
@@ -477,7 +480,7 @@ export default {
       }
     },
     async clearInteraction() {
-      if (!['favorite', 'history', 'follow'].includes(this.activeNav)) return
+      if (!['favorite', 'history', 'follow', 'topicFollow'].includes(this.activeNav)) return
       this.panelLoading = true
       try {
         const body = await clearBuyerItems(this.activeNav)

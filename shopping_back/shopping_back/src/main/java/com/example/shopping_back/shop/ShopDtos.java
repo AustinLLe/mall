@@ -140,10 +140,12 @@ public final class ShopDtos {
             String cover,
             List<String> tags,
             Integer postCount,
-            Integer likeCount
+            Integer likeCount,
+            Integer followCount,
+            boolean followed
     ) {
         public TopicView(String id, String type, String title, String desc, String heat, String author, String cover, List<String> tags) {
-            this(id, type, title, desc, heat, author, cover, tags, 0, 0);
+            this(id, type, title, desc, heat, author, cover, tags, 0, 0, 0, false);
         }
     }
 

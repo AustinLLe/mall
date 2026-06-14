@@ -41,7 +41,7 @@ public class CenterService {
                 List.of(
                         new ModuleCard("账号信息", user.getPhoneMasked(), "手机号脱敏、账号状态、登录身份", statusText(user.getStatus())),
                         new ModuleCard("信用分", String.valueOf(user.getCredit()), latestCredit(user), creditLevel(user.getCredit())),
-                        new ModuleCard("我的互动", interactionValue(user), "收藏 / 足迹 / 关注店铺均从数据库统计", "实时同步"),
+                        new ModuleCard("我的互动", interactionValue(user), "收藏 / 足迹 / 关注店铺 / 关注话题均从数据库统计", "实时同步"),
                         new ModuleCard("实名认证", realNameStatusText(realName.status()), realNameDesc(realName), realName.status())
                 ));
     }
@@ -101,6 +101,7 @@ public class CenterService {
             case "favorite" -> mapper.favorites(user.getUserId());
             case "history" -> mapper.browseHistory(user.getUserId());
             case "follow" -> mapper.follows(user.getUserId());
+            case "topicFollow" -> mapper.topicFollows(user.getUserId());
             default -> mapper.creditRecords(user.getUserId());
         };
     }
@@ -131,6 +132,8 @@ public class CenterService {
             mapper.clearBrowse(user.getUserId());
         } else if ("follow".equals(normalized)) {
             mapper.clearFollows(user.getUserId());
+        } else if ("topicFollow".equals(normalized)) {
+            mapper.clearTopicFollows(user.getUserId());
         } else {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "该类型不能清空");
         }
@@ -230,6 +233,7 @@ public class CenterService {
         mapper.createFavoriteTable();
         mapper.createBrowseTable();
         mapper.createFollowTable();
+        mapper.createFollowTopicTable();
         mapper.createStoreTable();
         mapper.createOrdersTable();
         mapper.createCreditRecordTable();
@@ -270,7 +274,7 @@ public class CenterService {
     }
 
     private String interactionValue(AuthUserView user) {
-        return mapper.favoriteCount(user.getUserId()) + " / " + mapper.browseCount(user.getUserId()) + " / " + mapper.followCount(user.getUserId());
+        return mapper.favoriteCount(user.getUserId()) + " / " + mapper.browseCount(user.getUserId()) + " / " + mapper.followCount(user.getUserId()) + " / " + mapper.followTopicCount(user.getUserId());
     }
 
     private String creditLevel(Integer credit) {
@@ -332,7 +336,7 @@ public class CenterService {
     }
 
     private String normalizeInteractionType(String type) {
-        if ("favorite".equals(type) || "history".equals(type) || "follow".equals(type) || "credit".equals(type)) {
+        if ("favorite".equals(type) || "history".equals(type) || "follow".equals(type) || "topicFollow".equals(type) || "credit".equals(type)) {
             return type;
         }
         return "credit";

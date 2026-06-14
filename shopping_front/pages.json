@@ -149,8 +149,7 @@
 		{
 			"path": "pages/topic/detail",
 			"style": {
-				"navigationBarTitleText": "发现详情",
-				"navigationBarBackgroundColor": "#f4f6f4",
+				"navigationStyle": "custom",
 				"backgroundColor": "#f4f6f4"
 			}
 		},

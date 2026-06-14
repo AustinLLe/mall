@@ -14,6 +14,8 @@ public class TopicRecord {
     private LocalDateTime createdAt;
     private Integer postCount;
     private Integer likeCount;
+    private Integer followCount;
+    private Integer followed;
 
     public Integer getTopicId() { return topicId; }
     public void setTopicId(Integer topicId) { this.topicId = topicId; }
@@ -37,4 +39,8 @@ public class TopicRecord {
     public void setPostCount(Integer postCount) { this.postCount = postCount; }
     public Integer getLikeCount() { return likeCount; }
     public void setLikeCount(Integer likeCount) { this.likeCount = likeCount; }
+    public Integer getFollowCount() { return followCount; }
+    public void setFollowCount(Integer followCount) { this.followCount = followCount; }
+    public Integer getFollowed() { return followed; }
+    public void setFollowed(Integer followed) { this.followed = followed; }
 }

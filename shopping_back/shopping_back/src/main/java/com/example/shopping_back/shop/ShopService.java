@@ -239,13 +239,41 @@ public class ShopService {
         }
     }
 
-    public TopicView topic(String id) {
+    public TopicView topic(String id, AuthUserView user) {
         ensureTopicSchema();
-        TopicRecord record = topicMapper.selectTopic(parseDbId(id));
+        TopicRecord record = topicMapper.selectTopic(parseDbId(id), user == null ? null : user.getUserId());
         if (record == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "话题不存在");
         }
         return toTopicView(record);
+    }
+
+    public TopicView followTopic(String id, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后关注话题");
+        }
+        ensureTopicSchema();
+        Integer topicId = parseDbId(id);
+        TopicRecord record = topicMapper.selectTopic(topicId, user.getUserId());
+        if (record == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "话题不存在");
+        }
+        topicMapper.insertTopicFollow(user.getUserId(), topicId, record.getTitle());
+        return topic(String.valueOf(topicId), user);
+    }
+
+    public TopicView unfollowTopic(String id, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后取消关注");
+        }
+        ensureTopicSchema();
+        Integer topicId = parseDbId(id);
+        TopicRecord record = topicMapper.selectTopic(topicId, user.getUserId());
+        if (record == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "话题不存在");
+        }
+        topicMapper.deleteTopicFollow(topicId, user.getUserId());
+        return topic(String.valueOf(topicId), user);
     }
 
     public TopicView createTopic(TopicCreateRequest request, AuthUserView user) {
@@ -270,7 +298,7 @@ public class ShopService {
         record.setStatus("normal");
         ensureTopicSchema();
         topicMapper.insertTopic(record);
-        TopicRecord created = topicMapper.selectTopic(record.getTopicId());
+        TopicRecord created = topicMapper.selectTopic(record.getTopicId(), user.getUserId());
         return toTopicView(created == null ? record : created);
     }
 
@@ -287,7 +315,7 @@ public class ShopService {
         }
         ensureTopicSchema();
         Integer id = parseDbId(topicId);
-        if (topicMapper.selectTopic(id) == null) {
+        if (topicMapper.selectTopic(id, user.getUserId()) == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "话题不存在");
         }
         String content = request == null ? "" : defaultText(request.content(), "").trim();
@@ -754,6 +782,7 @@ public class ShopService {
             topicMapper.createCommentTable();
             topicMapper.createLikeTable();
             topicMapper.createActionTable();
+            topicMapper.createFollowTopicTable();
             if (topicMapper.countPostColumn("product_id") == 0) {
                 topicMapper.addPostProductIdColumn();
             }
@@ -1124,7 +1153,9 @@ public class ShopService {
     private TopicView toTopicView(TopicRecord record) {
         int postCount = record.getPostCount() == null ? 0 : record.getPostCount();
         int likeCount = record.getLikeCount() == null ? 0 : record.getLikeCount();
-        String heat = postCount + " 帖 · " + likeCount + " 赞";
+        int followCount = record.getFollowCount() == null ? 0 : record.getFollowCount();
+        boolean followed = record.getFollowed() != null && record.getFollowed() > 0;
+        String heat = postCount + " 帖 · " + followCount + " 关注";
         return new TopicView(
                 String.valueOf(record.getTopicId()),
                 defaultText(record.getType(), "话题"),
@@ -1135,7 +1166,9 @@ public class ShopService {
                 defaultText(record.getCover(), "/static/goods/viewtop-monitor.jpg"),
                 parseTags(record.getTags()),
                 postCount,
-                likeCount
+                likeCount,
+                followCount,
+                followed
         );
     }
 
