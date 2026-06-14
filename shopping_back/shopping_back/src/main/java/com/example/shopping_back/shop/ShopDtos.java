@@ -109,7 +109,7 @@ public final class ShopDtos {
         }
     }
 
-    public record StoreView(String id, String name, String score, String fans, String desc, String badge) {
+    public record StoreView(String id, String name, String score, String fans, String desc, String badge, String avatar) {
     }
 
     public record StoreDetailView(
@@ -153,6 +153,7 @@ public final class ShopDtos {
             String id,
             String topicId,
             String author,
+            String authorAvatar,
             String content,
             List<String> images,
             ProductView product,

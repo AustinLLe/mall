@@ -169,6 +169,7 @@ public interface ShopTopicMapper {
                    p.product_id AS productId,
                    p.store_id AS storeId,
                    COALESCE(u.username, '松果用户') AS username,
+                   u.avatar_url AS authorAvatar,
                    p.content,
                    p.images,
                    p.created_at AS createdAt,
@@ -185,7 +186,7 @@ public interface ShopTopicMapper {
             LEFT JOIN topic_comment c ON c.post_id = p.post_id
             LEFT JOIN topic_post_action a ON a.post_id = p.post_id
             WHERE p.topic_id = #{topicId}
-            GROUP BY p.post_id, p.topic_id, p.user_id, p.product_id, p.store_id, u.username, p.content, p.images, p.created_at
+            GROUP BY p.post_id, p.topic_id, p.user_id, p.product_id, p.store_id, u.username, u.avatar_url, p.content, p.images, p.created_at
             ORDER BY p.created_at DESC, p.post_id DESC
             """)
     List<TopicPostRecord> selectPosts(@Param("topicId") Integer topicId, @Param("currentUserId") Integer currentUserId);

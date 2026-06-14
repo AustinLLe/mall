@@ -81,7 +81,10 @@
 
           <view v-else-if="activeTab === 'stores'" class="feed-list">
             <view v-for="store in hotStores" :key="store.id" class="article-card" @click="openStore(store)">
-              <view class="store-avatar">{{ (store.name || '店').slice(0, 1) }}</view>
+              <view class="store-avatar" :class="{ 'has-image': isImageUrl(store.avatar) }">
+                <image v-if="isImageUrl(store.avatar)" class="cover-img" :src="resolveImageUrl(store.avatar)" mode="aspectFill"></image>
+                <text v-else>{{ (store.name || '店').slice(0, 1) }}</text>
+              </view>
               <view class="article-main">
                 <view class="article-line">
                   <text class="badge orange">{{ store.badge }}</text>
@@ -492,6 +495,8 @@
   .topic-main, .article-main { padding: 18px; }
   .article-card { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 18px; padding: 18px; }
   .article-cover, .store-avatar { height: 128px; border-radius: 8px; background: #edf3ef; display: flex; align-items: center; justify-content: center; overflow: hidden; color: #12372a; font-size: 34px; font-weight: 900; }
+  .store-avatar { position: relative; background: linear-gradient(135deg, #eef6f1, #fff4e8); border: 1px solid #dfe8e3; box-shadow: inset 0 0 0 1px rgba(255,255,255,.6); }
+  .store-avatar.has-image { background: #edf3ef; border-color: #e4e9e5; }
   .article-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .badge, .tag, .cloud-tag { display: inline-flex; align-items: center; border-radius: 999px; background: #f5f7fa; color: #12372a; font-size: 12px; font-weight: 800; padding: 5px 10px; }
   .badge.orange { background: #fff0e7; color: #b95420; }

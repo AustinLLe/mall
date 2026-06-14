@@ -65,17 +65,26 @@
 
 				<view class="layout">
 					<view class="feed">
-						<view v-for="section in postSections" :key="section.key" class="post-section">
+						<view class="post-section">
 							<view class="post-section-head">
 								<view>
-									<text class="toolbar-title">{{ section.title }}</text>
-									<text class="toolbar-sub">{{ section.sub }}</text>
+									<text class="toolbar-title">话题讨论</text>
+									<text class="toolbar-sub">{{ currentPostSub }}</text>
+								</view>
+								<view class="post-sort-tabs">
+									<button class="post-sort-tab" :class="{ on: postSort === 'latest' }" @click="postSort = 'latest'">最新发布</button>
+									<button class="post-sort-tab" :class="{ on: postSort === 'hot' }" @click="postSort = 'hot'">热门讨论</button>
 								</view>
 							</view>
 
-						<view v-for="post in section.posts" :key="section.key + '-' + post.id" class="post-card">
+						<view class="post-grid">
+							<view v-for="(column, columnIndex) in masonryColumns" :key="postSort + '-column-' + columnIndex" class="post-column">
+						<view v-for="post in column" :key="postSort + '-' + post.id" class="post-card">
 							<view class="post-head">
-								<view class="avatar">{{ (post.author || '松').slice(0, 1) }}</view>
+								<view class="avatar">
+									<image v-if="post.authorAvatar" class="avatar-img" :src="resolveImageUrl(post.authorAvatar)" mode="aspectFill"></image>
+									<text v-else>{{ (post.author || '松').slice(0, 1) }}</text>
+								</view>
 								<view class="post-user">
 									<text class="post-author">{{ post.author }}</text>
 									<text class="post-time">{{ post.createdAt }}</text>
@@ -128,38 +137,11 @@
 								<button class="comment-btn" @click="sendComment(post)">发送</button>
 							</view>
 						</view>
+							</view>
+						</view>
 						</view>
 
 						<view v-if="posts.length === 0" class="empty">暂无帖子，来发布第一条讨论吧。</view>
-					</view>
-
-					<view class="side">
-						<view class="side-card">
-							<text class="side-title">选择商品卡片</text>
-							<scroll-view scroll-y class="pick-list" id="productPicker">
-								<view v-for="item in relatedGoods" :key="item.id" class="pick-item" :class="{ on: selectedProductIds.includes(item.id) }" @click="toggleProductCard(item.id)">
-									<view class="pick-cover" :class="{ 'has-image': isImageUrl(item.cover) }">
-										<image v-if="isImageUrl(item.cover)" class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
-										<text v-else>{{ item.category || '商品' }}</text>
-									</view>
-									<view>
-										<text class="pick-title">{{ item.title }}</text>
-										<text class="pick-meta">¥{{ item.price }} · {{ item.scene === 'new' ? '新品' : '二手' }}</text>
-									</view>
-								</view>
-							</scroll-view>
-						</view>
-
-						<view class="side-card">
-							<text class="side-title">选择店铺卡片</text>
-							<view v-for="store in stores" :key="store.id" class="pick-item store-pick" :class="{ on: selectedStoreId === store.id }" @click="selectedStoreId = selectedStoreId === store.id ? '' : store.id">
-								<view class="store-mark">{{ (store.name || '店').slice(0, 1) }}</view>
-								<view>
-									<text class="pick-title">{{ store.name }}</text>
-									<text class="pick-meta">评分 {{ store.score }} · {{ store.badge }}</text>
-								</view>
-							</view>
-						</view>
 					</view>
 				</view>
 			</view>
@@ -234,43 +216,6 @@
 								</view>
 							</view>
 
-							<view class="product-card-picker">
-								<view class="field-line">
-									<view>
-										<text class="field-label">已选商品卡片（可选）</text>
-										<text class="writer-sub">从右侧精选商品中选择，支持多选</text>
-									</view>
-									<text class="tag-count">{{ selectedProductIds.length }}/6</text>
-								</view>
-								<view v-if="selectedProducts.length" class="product-card-grid selected-only">
-									<view v-for="item in selectedProducts" :key="item.id" class="mini-product-card on">
-										<view class="mini-check" @click="toggleProductCard(item.id)">×</view>
-										<view class="mini-cover" :class="{ 'has-image': isImageUrl(item.cover) }">
-											<image v-if="isImageUrl(item.cover)" class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
-											<text v-else>{{ item.category || '商品' }}</text>
-										</view>
-										<text class="mini-title">{{ item.title }}</text>
-										<text class="mini-sub">{{ item.category }}</text>
-										<text class="mini-price">¥{{ item.price }}</text>
-									</view>
-									<view v-if="selectedProductIds.length < 6" class="mini-product-card more-card" @click="focusProductPanel">
-										<text class="more-plus">+</text>
-										<text class="mini-sub">添加更多</text>
-									</view>
-								</view>
-								<view v-else class="empty-selected-products" @click="focusProductPanel">还没有选择商品卡片，可以从右侧添加。</view>
-							</view>
-
-							<view v-if="selectedStore" class="selected-preview-row">
-								<view v-if="selectedStore" class="attach-preview compact store-preview">
-									<view class="store-mark">{{ (selectedStore.name || '店').slice(0, 1) }}</view>
-									<view class="attach-main">
-										<text class="attach-type">已选店铺</text>
-										<text class="attach-title">{{ selectedStore.name }}</text>
-									</view>
-									<text class="clear-attach" @click="selectedStoreId = ''">移除</text>
-								</view>
-							</view>
 						</view>
 					</view>
 					<view class="modal-side">
@@ -294,38 +239,6 @@
 							</view>
 						</view>
 
-						<view class="modal-side-card">
-							<text class="side-title">精选商品卡片</text>
-							<text class="modal-tip">添加商品卡片，增强讨论的参考价值</text>
-							<view class="quick-card-list">
-								<view v-for="item in relatedGoods.slice(0, 4)" :key="item.id" class="quick-card-item">
-									<view class="quick-cover" :class="{ 'has-image': isImageUrl(item.cover) }">
-										<image v-if="isImageUrl(item.cover)" class="cover-img" :src="resolveImageUrl(item.cover)" mode="aspectFill"></image>
-										<text v-else>{{ item.category || '物' }}</text>
-									</view>
-									<view class="quick-main">
-										<text class="modal-pick-name">{{ item.title }}</text>
-										<text class="modal-pick-meta">¥{{ item.price }}</text>
-									</view>
-									<button class="quick-add" :class="{ on: selectedProductIds.includes(item.id) }" @click="toggleProductCard(item.id)">{{ selectedProductIds.includes(item.id) ? '已添加' : '+ 添加' }}</button>
-								</view>
-							</view>
-						</view>
-
-						<view class="modal-side-card">
-							<text class="side-title">精选店铺卡片</text>
-							<text class="modal-tip">添加店铺卡片，推荐优质商家</text>
-							<view class="quick-card-list">
-								<view v-for="store in stores.slice(0, 4)" :key="store.id" class="quick-card-item">
-									<view class="quick-store-mark">{{ (store.name || '店').slice(0, 1) }}</view>
-									<view class="quick-main">
-										<text class="modal-pick-name">{{ store.name }}</text>
-										<text class="modal-pick-meta">{{ store.badge }}</text>
-									</view>
-									<button class="quick-add" :class="{ on: selectedStoreId === store.id }" @click="selectedStoreId = selectedStoreId === store.id ? '' : store.id">{{ selectedStoreId === store.id ? '已添加' : '+ 添加' }}</button>
-								</view>
-							</view>
-						</view>
 					</view>
 				</view>
 				<view class="modal-actions">
@@ -343,7 +256,7 @@
 <script>
 	import { buildGoodsDetailUrl } from '../../data/catalog.js'
 	import { buildRequestUrl } from '@/config/env.js'
-	import { createTopicComment, createTopicPost, fetchProducts, fetchStores, fetchTopic, fetchTopicPosts, followTopic, toggleTopicPostAction, toggleTopicPostLike, unfollowTopic } from '@/services/shop.js'
+	import { createTopicComment, createTopicPost, fetchTopic, fetchTopicPosts, followTopic, toggleTopicPostAction, toggleTopicPostLike, unfollowTopic } from '@/services/shop.js'
 	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 	import { pickErrorMessage } from '@/utils/auth.js'
 
@@ -354,15 +267,12 @@
 				keyword: '',
 				topic: {},
 				posts: [],
-				relatedGoodsList: [],
-				stores: [],
 				postTitle: '',
 				postContent: '',
 				postImages: [],
 				selectedDraftTags: [],
 				draftTagOptions: ['数码配件', '学习效率', '开学必备', '避坑指南', '真实体验'],
-				selectedProductIds: [],
-				selectedStoreId: '',
+				postSort: 'latest',
 				showPostModal: false,
 				showEmojiPanel: false,
 				activeEmojiGroup: 'face',
@@ -393,26 +303,21 @@
 			hotPosts() {
 				const list = this.posts.slice()
 				const score = (post) => (post.likeCount || 0) * 3 + (post.commentCount || 0) * 2 + (post.collectCount || 0) + (post.wantCount || 0)
-				return list.sort((a, b) => score(b) - score(a) || Number(b.id || 0) - Number(a.id || 0)).slice(0, Math.min(6, list.length))
+				return list.sort((a, b) => score(b) - score(a) || Number(b.id || 0) - Number(a.id || 0))
 			},
-			postSections() {
-				return [
-					{ key: 'latest', title: '最新发布', sub: `${this.latestPosts.length} 条讨论按发布时间展示`, posts: this.latestPosts },
-					{ key: 'hot', title: '热门讨论', sub: '按点赞、评论、收藏综合排序', posts: this.hotPosts }
-				].filter(section => section.posts.length)
+			sortedPosts() {
+				return this.postSort === 'hot' ? this.hotPosts : this.latestPosts
 			},
-			relatedGoods() {
-				const tags = this.topic.tags || []
-				const matched = this.relatedGoodsList.filter(item => tags.some(tag => [item.category, item.scene, item.title, item.subtitle].join(' ').includes(tag)))
-				return (matched.length ? matched : this.relatedGoodsList).slice(0, 8)
+			masonryColumns() {
+				return this.sortedPosts.reduce((columns, post, index) => {
+					columns[index % 2].push(post)
+					return columns
+				}, [[], []])
 			},
-			selectedProducts() {
-				return this.selectedProductIds
-					.map(id => this.relatedGoodsList.find(item => item.id === id))
-					.filter(Boolean)
-			},
-			selectedStore() {
-				return this.stores.find(item => item.id === this.selectedStoreId) || null
+			currentPostSub() {
+				return this.postSort === 'hot'
+					? `${this.posts.length} 条讨论按点赞、评论、收藏综合排序`
+					: `${this.posts.length} 条讨论按发布时间展示`
 			},
 			currentEmojiOptions() {
 				const group = this.emojiGroups.find(item => item.key === this.activeEmojiGroup)
@@ -431,7 +336,7 @@
 			isImageUrl,
 			resolveImageUrl,
 			async loadAll() {
-				await Promise.all([this.loadTopic(), this.loadPosts(), this.loadRelatedGoods(), this.loadStores()])
+				await Promise.all([this.loadTopic(), this.loadPosts()])
 			},
 			async loadTopic() {
 				try {
@@ -447,22 +352,6 @@
 					this.posts = body && body.code === 0 && Array.isArray(body.data) ? body.data : []
 				} catch (e) {
 					this.posts = []
-				}
-			},
-			async loadRelatedGoods() {
-				try {
-					const body = await fetchProducts()
-					this.relatedGoodsList = body && body.code === 0 && Array.isArray(body.data) ? body.data : []
-				} catch (e) {
-					this.relatedGoodsList = []
-				}
-			},
-			async loadStores() {
-				try {
-					const body = await fetchStores()
-					this.stores = body && body.code === 0 && Array.isArray(body.data) ? body.data : []
-				} catch (e) {
-					this.stores = []
 				}
 			},
 			chooseImages() {
@@ -550,9 +439,7 @@
 					title: this.postTitle,
 					content: this.postContent,
 					images: this.postImages,
-					tags: this.selectedDraftTags,
-					productIds: this.selectedProductIds,
-					storeId: this.selectedStoreId
+					tags: this.selectedDraftTags
 				})
 				uni.showToast({ title: '草稿已保存', icon: 'none' })
 			},
@@ -563,8 +450,6 @@
 				this.postContent = draft.content || ''
 				this.postImages = Array.isArray(draft.images) ? draft.images : []
 				this.selectedDraftTags = Array.isArray(draft.tags) ? draft.tags : []
-				this.selectedProductIds = Array.isArray(draft.productIds) ? draft.productIds : (draft.productId ? [draft.productId] : [])
-				this.selectedStoreId = draft.storeId || ''
 			},
 			draftStorageKey() {
 				return `topic-post-draft-${this.topicId || 'new'}`
@@ -622,18 +507,6 @@
 					.replace(/\n/g, '<br/>')
 				return `<div style="line-height:1.78;color:#2f3a35;font-size:14px;word-break:break-word">${html}</div>`
 			},
-			toggleProductCard(id) {
-				const index = this.selectedProductIds.indexOf(id)
-				if (index >= 0) {
-					this.selectedProductIds.splice(index, 1)
-					return
-				}
-				if (this.selectedProductIds.length >= 6) {
-					uni.showToast({ title: '最多选择 6 张商品卡片', icon: 'none' })
-					return
-				}
-				this.selectedProductIds.push(id)
-			},
 			async toggleTopicFollow() {
 				if (!this.topicId || this.following) return
 				this.following = true
@@ -650,12 +523,6 @@
 					this.following = false
 				}
 			},
-			focusProductPanel() {
-				uni.showToast({ title: '在右侧选择商品卡片', icon: 'none' })
-			},
-			focusStorePanel() {
-				uni.showToast({ title: '在右侧选择店铺卡片', icon: 'none' })
-			},
 			async publishPost() {
 				if (!this.postTitle.trim() && !this.postContent.trim()) {
 					uni.showToast({ title: '请先写点内容', icon: 'none' })
@@ -667,22 +534,17 @@
 					if (this.postTitle.trim()) contentParts.push(this.postTitle.trim())
 					if (this.postContent.trim()) contentParts.push(this.postContent.trim())
 					if (this.selectedDraftTags.length) contentParts.push(this.selectedDraftTags.map(tag => `#${tag}`).join(' '))
-					if (this.selectedProducts.length > 1) {
-						contentParts.push('已选商品：' + this.selectedProducts.map(item => `${item.title} ¥${item.price}`).join('；'))
-					}
 					const body = await createTopicPost(this.topicId, {
 						content: contentParts.join('\n\n'),
 						images: this.postImages,
-						productId: this.selectedProductIds[0] || '',
-						storeId: this.selectedStoreId
+						productId: '',
+						storeId: ''
 					})
 					this.posts = body.data || []
 					this.postTitle = ''
 					this.postContent = ''
 					this.postImages = []
 					this.selectedDraftTags = []
-					this.selectedProductIds = []
-					this.selectedStoreId = ''
 					this.showPostModal = false
 					uni.removeStorageSync(this.draftStorageKey())
 					this.loadTopic()
@@ -801,14 +663,21 @@
 	.follow-topic-btn::after { border: 0; }
 	.topic-fab { position: absolute; right: 30rpx; top: 50%; transform: translateY(-50%); z-index: 4; width: 76rpx; height: 76rpx; border-radius: 50%; background: #12372a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 44rpx; font-weight: 700; line-height: 1; box-shadow: 0 18rpx 38rpx rgba(18,55,42,.24); }
 	.topic-fab::after { border: 0; }
-	.layout { display: grid; grid-template-columns: minmax(0, 1fr) 360rpx; gap: 20rpx; margin-top: 20rpx; align-items: start; }
+	.layout { display: block; margin-top: 20rpx; }
 	.feed, .side { display: grid; gap: 18rpx; }
 	.composer, .post-card, .side-card { padding: 24rpx; }
 	.post-section { display: grid; gap: 16rpx; }
-	.post-section-head { padding: 24rpx; background: #fff; border: 1rpx solid #e5e9ef; border-radius: 8px; box-shadow: 0 14rpx 34rpx rgba(18, 32, 46, .05); }
+	.post-section-head { padding: 24rpx; background: #fff; border: 1rpx solid #e5e9ef; border-radius: 8px; box-shadow: 0 14rpx 34rpx rgba(18, 32, 46, .05); display: flex; align-items: center; justify-content: space-between; gap: 18rpx; flex-wrap: wrap; }
+	.post-sort-tabs { display: flex; align-items: center; gap: 8rpx; padding: 6rpx; border-radius: 999rpx; background: #eef3f0; border: 1rpx solid #dfe8e3; }
+	.post-sort-tab { margin: 0; height: 54rpx; padding: 0 22rpx; border-radius: 999rpx; background: transparent; color: #667085; display: flex; align-items: center; justify-content: center; font-size: 23rpx; font-weight: 900; }
+	.post-sort-tab.on { background: #fff; color: #12372a; box-shadow: 0 8rpx 22rpx rgba(17,38,28,.10); }
+	.post-sort-tab::after { border: 0; }
+	.post-grid { display: flex; align-items: flex-start; gap: 20rpx; width: 100%; }
+	.post-column { width: calc((100% - 20rpx) / 2); min-width: 0; display: flex; flex-direction: column; gap: 20rpx; }
 	.toolbar-title { color: #17231d; font-size: 30rpx; font-weight: 900; }
 	.toolbar-sub { margin-top: 4rpx; color: #667085; font-size: 22rpx; }
 	.avatar { width: 70rpx; height: 70rpx; border-radius: 8px; background: #12372a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 900; flex: 0 0 auto; }
+	.avatar-img { width: 100%; height: 100%; display: block; border-radius: inherit; }
 	.composer-title, .post-author { color: #17231d; font-size: 28rpx; font-weight: 900; }
 	.composer-sub, .post-time { margin-top: 4rpx; font-size: 22rpx; }
 	.post-input { width: 100%; min-height: 170rpx; margin-top: 18rpx; padding: 20rpx; border-radius: 8px; background: #f8faf9; box-sizing: border-box; font-size: 27rpx; line-height: 1.6; }
@@ -831,17 +700,18 @@
 	.tool-btn { min-width: 116rpx; padding: 0 18rpx; background: #eef3f0; color: #12372a; font-size: 24rpx; }
 	.count { margin-left: auto; font-size: 22rpx; }
 	.post-btn { width: 116rpx; background: #12372a; color: #fff; font-size: 25rpx; }
-	.post-card { position: relative; overflow: hidden; background: linear-gradient(180deg, #ffffff 0%, #fbfdfb 100%); border-color: #dfe8e3; }
-	.post-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6rpx; background: linear-gradient(180deg, #12372a, #d66a2c); opacity: .82; }
-	.post-head { position: relative; padding-left: 4rpx; justify-content: space-between; }
+	.post-card { position: relative; overflow: hidden; width: 100%; min-width: 0; min-height: 360rpx; background: linear-gradient(180deg, #ffffff 0%, #fbfdfb 100%); border-color: #dfe8e3; box-sizing: border-box; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+	.post-card::before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 6rpx; background: linear-gradient(90deg, #12372a, #d66a2c); opacity: .82; }
+	.post-card:hover { transform: translateY(-2px); border-color: #cbded1; box-shadow: 0 20rpx 46rpx rgba(17,38,28,.09); }
+	.post-head { position: relative; padding: 12rpx; border-radius: 8px; background: #f8fbf9; border: 1rpx solid #edf1ee; justify-content: space-between; }
 	.post-user { min-width: 0; flex: 1; }
 	.post-author { color: #12372a; }
-	.post-text { margin-top: 18rpx; color: #2f3a35; font-size: 29rpx; line-height: 1.78; background: #f8faf9; border: 1rpx solid #edf1ee; border-radius: 8px; padding: 18rpx; }
+	.post-text { margin-top: 18rpx; color: #2f3a35; font-size: 29rpx; line-height: 1.78; background: #fbfdfc; border: 1rpx solid #edf1ee; border-radius: 8px; padding: 18rpx; }
 	.post-images.cols-1 { grid-template-columns: minmax(0, 460rpx); }
 	.post-images.cols-2 { grid-template-columns: repeat(2, minmax(0, 240rpx)); }
 	.post-image { width: 100%; height: 200rpx; border-radius: 8px; background: #edf3ef; }
-	.post-actions { margin-top: 18rpx; padding-top: 16rpx; border-top: 1rpx solid #edf0f3; }
-	.action { min-width: 128rpx; padding: 0 18rpx; background: #f3f6f4; color: #475467; font-size: 24rpx; }
+	.post-actions { margin-top: 18rpx; padding-top: 16rpx; border-top: 1rpx solid #edf0f3; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10rpx; }
+	.action { min-width: 0; padding: 0 12rpx; background: #f3f6f4; color: #475467; font-size: 23rpx; }
 	.action.on { background: #12372a; color: #fff; }
 	.comment-list { margin-top: 16rpx; padding: 16rpx; border-radius: 8px; background: #f8faf9; display: grid; gap: 10rpx; }
 	.comment { font-size: 24rpx; line-height: 1.5; }
@@ -973,6 +843,8 @@
 		.modal-mask { padding: 18rpx; align-items: flex-end; }
 		.post-modal { max-height: calc(100vh - 36rpx); }
 		.modal-body { grid-template-columns: 1fr; }
+		.post-grid { flex-direction: column; }
+		.post-column { width: 100%; }
 		.product-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 		.modal-actions { padding: 18rpx; }
 		.modal-action-right { flex: 1; }

@@ -711,11 +711,13 @@ export default {
 .login-actions {
   display: flex;
   justify-content: center;
-  gap: 14px;
-  margin-top: 26px;
+  gap: 20px;
+  margin-top: 30px;
 }
 button {
   margin: 0;
+  width: 200rpx;  /* 或使用 rpx 单位，更灵活 */
+  height: 80rpx;
   padding: 0;
   border: 0;
   line-height: 1;

@@ -899,7 +899,8 @@ public class ShopService {
                 scoreText(record.getScore()),
                 formatFans(followers),
                 defaultText(record.getStoreDesc(), defaultStoreDesc(record)),
-                defaultText(record.getBadge(), "信用店铺")
+                defaultText(record.getBadge(), "信用店铺"),
+                defaultText(record.getSellerAvatar(), "")
         );
     }
 
@@ -1177,6 +1178,7 @@ public class ShopService {
                 String.valueOf(record.getPostId()),
                 String.valueOf(record.getTopicId()),
                 defaultText(record.getUsername(), "松果用户"),
+                defaultText(record.getAuthorAvatar(), ""),
                 defaultText(record.getContent(), ""),
                 parseImages(record.getImages()),
                 postProduct(record.getProductId()),
@@ -1344,11 +1346,11 @@ public class ShopService {
     }
 
     private void seed() {
-        stores.add(new StoreView("store-1", "松果严选数码", "4.9", "1.2w", "新品数码与官方配件，售后响应快。", "官方严选"));
-        stores.add(new StoreView("store-2", "南湖旧书摊", "4.8", "6.4k", "课程教材、考研资料和学长笔记流转地。", "校园认证"));
-        stores.add(new StoreView("store-3", "榕树下的小店", "4.7", "4.1k", "家居生活闲置为主，重视真实描述。", "信用卖家"));
-        stores.add(new StoreView("store-4", "阿洛的桌面仓库", "4.9", "812", "数码桌搭和自用设备流转，支持细节沟通。", "个人卖家"));
-        stores.add(new StoreView("store-5", "松果生活馆", "4.8", "2.2k", "宿舍、桌面和生活用品，兼顾新品与实用体验。", "生活严选"));
+        stores.add(new StoreView("store-1", "松果严选数码", "4.9", "1.2w", "新品数码与官方配件，售后响应快。", "官方严选", "/static/goods/airwave-pro.jpg"));
+        stores.add(new StoreView("store-2", "南湖旧书摊", "4.8", "6.4k", "课程教材、考研资料和学长笔记流转地。", "校园认证", "/static/goods/open-book.jpg"));
+        stores.add(new StoreView("store-3", "榕树下的小店", "4.7", "4.1k", "家居生活闲置为主，重视真实描述。", "信用卖家", "/static/goods/green-chair.jpg"));
+        stores.add(new StoreView("store-4", "阿洛的桌面仓库", "4.9", "812", "数码桌搭和自用设备流转，支持细节沟通。", "个人卖家", "/static/goods/viewtop-monitor.jpg"));
+        stores.add(new StoreView("store-5", "松果生活馆", "4.8", "2.2k", "宿舍、桌面和生活用品，兼顾新品与实用体验。", "生活严选", "/static/goods/sunrise-kettle.jpg"));
 
         products.add(new ProductView(
             "airwave-pro", "new", "数码影音", "AirWave Pro 降噪耳机", "全新正品 · 48 小时发货 · 支持七天无理由",
