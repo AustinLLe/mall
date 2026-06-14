@@ -293,8 +293,11 @@
 				this.appendText(emoji)
 			},
 			async loadAssist() {
+				const active = this.activeConversation
+				const productId = active && active.goodsId
+				if (!productId) return
 				try {
-					const body = await requestAiAssist({ productId: 'used-monitor', question: '能便宜一点吗？有没有坏点？', offer: 620 })
+					const body = await requestAiAssist({ productId: String(productId), question: '能便宜一点吗？有没有坏点？', offer: 620 })
 					if (body && body.code === 0 && body.data) {
 						this.assist = body.data
 						if (this.list[0]) {

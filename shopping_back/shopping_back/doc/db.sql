@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS `chat_message` (
     `price_value` DECIMAL(10,2) DEFAULT NULL,
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `is_read` TINYINT(1) DEFAULT 0,
+    `type` VARCHAR(30) NOT NULL DEFAULT 'CHAT_MESSAGE',
     PRIMARY KEY (`cm_id`),
     INDEX `idx_cov_id_create_time` (`cov_id`, `create_time` DESC)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
@@ -268,6 +269,8 @@ CALL `ensure_column`('goods', 'create_time', '`create_time` DATETIME DEFAULT CUR
 
 CALL `ensure_column`('topic_post', 'product_id', '`product_id` INT DEFAULT NULL');
 CALL `ensure_column`('topic_post', 'store_id', '`store_id` INT DEFAULT NULL');
+
+CALL `ensure_column`('chat_message', 'type', '`type` VARCHAR(30) NOT NULL DEFAULT ''CHAT_MESSAGE''');
 
 ALTER TABLE `goods`
     MODIFY COLUMN `status` VARCHAR(20) NOT NULL DEFAULT 'approved';
