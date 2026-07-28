@@ -1,8 +1,9 @@
 package com.example.shopping_back.chat.config;
 
 import java.security.Principal;
+import java.util.Arrays;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -23,13 +24,24 @@ import com.example.shopping_back.auth.dto.AuthUserView;
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    @Autowired
-    private AuthService authService;
+    private final AuthService authService;
+    private final String[] allowedOriginPatterns;
+
+    public WebSocketConfig(
+            AuthService authService,
+            @Value("${app.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}")
+            String allowedOriginPatterns) {
+        this.authService = authService;
+        this.allowedOriginPatterns = Arrays.stream(allowedOriginPatterns.split(","))
+                .map(String::trim)
+                .filter(pattern -> !pattern.isEmpty())
+                .toArray(String[]::new);
+    }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(allowedOriginPatterns)
                 .withSockJS();
     }
 

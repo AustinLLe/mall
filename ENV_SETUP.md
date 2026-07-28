@@ -49,17 +49,17 @@ source /你的项目绝对路径/shopping_back/shopping_back/doc/db.sql;
 后端已改为读取环境变量（见 `shopping_back/shopping_back/src/main/resources/application.properties`）：
 
 - `DB_URL`（默认：`jdbc:mysql://localhost:3306/shop_db?...`）
-- `DB_USERNAME`（默认：`root`）
-- `DB_PASSWORD`（默认：`root`）
+- `DB_USERNAME`（默认：`shop_user`）
+- `DB_PASSWORD`（默认：`shop_pass_123`，仅用于本地开发）
 
 ### Windows PowerShell（当前终端）示例
 
 ```powershell
 $env:DB_URL="jdbc:mysql://localhost:3306/shop_db?serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false"
-$env:DB_USERNAME="root"
+$env:DB_USERNAME="shop_user"
 $env:DB_PASSWORD="你的数据库密码"
 ```
-注意：每个人可以将这个部分的PASSWORD改为自己的密码，不需要推送到终端；不改的话每次启动前请先运行`$env:DB_PASSWORD="改成自己的密码"`
+注意：密码和 API Key 只能通过环境变量或未纳入版本控制的 `application-local.properties` 设置，不得提交到仓库。
 
 ## 4. 启动后端
 
