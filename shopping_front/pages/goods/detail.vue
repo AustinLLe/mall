@@ -468,6 +468,7 @@
 					credit: this.detail.credit,
 					shopName: this.detail.shopName,
 					scene: this.detail.scene,
+					category: this.detail.category,
 					qty: 1
 				})
 				uni.showToast({ title: '已加入购物车', icon: 'success' })

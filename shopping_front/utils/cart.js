@@ -11,6 +11,7 @@ function normalizeCartItem(item = {}) {
 	next.credit = next.credit || ''
 	next.shopName = next.shopName || '松果集市卖家'
 	next.scene = next.scene || 'used'
+	next.category = String(next.category || '').trim()
 	next.checked = next.checked !== false
 	next.valid = next.valid !== false
 	return next
@@ -58,6 +59,10 @@ export function addCartItem(payload = {}) {
 	if (found) {
 		found.qty = normalizeQty(found.qty + normalizeQty(item.qty || 1))
 		found.checked = true
+		if (item.category) found.category = item.category
+		if (item.scene) found.scene = item.scene
+		if (item.cover) found.cover = item.cover
+		if (item.shopName) found.shopName = item.shopName
 	} else {
 		list.unshift(item)
 	}

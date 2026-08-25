@@ -64,7 +64,7 @@
 									</view>
 								</view>
 								<view class="item-actions">
-									<text @click="findSimilar(item)">找相似</text>
+									<text @click.stop="findSimilar(item)">找相似</text>
 									<text @click="remove(item.id)">删除</text>
 								</view>
 							</view>
@@ -108,6 +108,7 @@
 <script>
 	import { getCartItems, updateCartItem, removeCartItem, groupCartByShop } from '@/utils/cart.js'
 	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
+	import { fetchProduct } from '@/services/shop.js'
 
 	export default {
 		data() {
@@ -172,8 +173,32 @@
 				this.loadData()
 				uni.showToast({ title: '已删除商品', icon: 'none' })
 			},
-			findSimilar(item) {
-				uni.showToast({ title: '已为你筛选相似商品：' + item.title, icon: 'none' })
+			async findSimilar(item) {
+				if (!item) return
+				let category = String(item.category || '').trim()
+				if (!category && item.id) {
+					try {
+						const body = await fetchProduct(item.id)
+						const detail = body && body.code === 0 ? body.data : null
+						if (detail) {
+							category = String(detail.category || '').trim()
+							if (category) updateCartItem(item.id, { category, scene: detail.scene || item.scene })
+						}
+					} catch (e) {
+						console.warn('读取商品分类失败', e)
+					}
+				}
+				const keyword = category || String(item.title || '').trim()
+				if (!keyword) {
+					uni.showToast({ title: '暂无法找到相似商品', icon: 'none' })
+					return
+				}
+				const query = [
+					'keyword=' + encodeURIComponent(keyword),
+					'similar=1',
+					item.id ? 'excludeId=' + encodeURIComponent(item.id) : ''
+				].filter(Boolean).join('&')
+				uni.navigateTo({ url: '/pages/search/searchList?' + query })
 			},
 			checkout() {
 				if (!this.selectedItems.length) {
