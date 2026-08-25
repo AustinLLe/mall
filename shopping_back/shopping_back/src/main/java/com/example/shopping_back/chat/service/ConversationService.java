@@ -15,6 +15,7 @@ import com.example.shopping_back.chat.dto.CreateConversationRequest;
 import com.example.shopping_back.chat.dto.UpdateConversationStatusRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.Date;
 import java.util.List;
@@ -108,6 +109,16 @@ public class ConversationService {
 
     public void updateLastActiveTime(Integer covId) {
         conversationMapper.updateLastActiveTime(covId);
+    }
+
+    @Transactional
+    public void deleteConversation(Integer covId) {
+        Conversation conversation = conversationMapper.selectById(covId);
+        if (conversation == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found");
+        }
+        chatMessageMapper.deleteByCovId(covId);
+        conversationMapper.deleteById(covId);
     }
 
     public Integer getOtherParticipantId(Integer covId, Integer userId) {
