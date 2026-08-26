@@ -452,9 +452,7 @@ public class ShopService {
 
     public ProductView publish(PublishRequest request, AuthUserView user) {
         validatePublish(request);
-        if (user != null && "seller".equals(user.getRole())) {
-            ensureSellerStore(user);
-        }
+        ensureSellerStore(user);
         ProductView dbCreated = publishToDatabase(request, user);
         if (dbCreated != null) {
             return dbCreated;

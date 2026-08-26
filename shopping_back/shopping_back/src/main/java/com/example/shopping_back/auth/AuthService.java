@@ -95,12 +95,22 @@ public class AuthService {
         if (keyword == null || keyword.trim().isEmpty()) {
             return new java.util.ArrayList<>();
         }
-        List<StoredUser> users = userMapper.searchUsersByKeyword(keyword.trim());
+        List<StoredUser> users = userMapper.searchUsersByKeyword(escapeLike(keyword.trim()));
         List<AuthUserView> views = new java.util.ArrayList<>();
         for (StoredUser user : users) {
             views.add(toView(user));
         }
         return views;
+    }
+
+    /**
+     * 转义 LIKE 通配符，避免用户输入 %、_、\ 被当作 SQL 通配符处理。
+     */
+    private static String escapeLike(String value) {
+        return value
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
     }
 
     private LoginResponse issueToken(StoredUser user) {
