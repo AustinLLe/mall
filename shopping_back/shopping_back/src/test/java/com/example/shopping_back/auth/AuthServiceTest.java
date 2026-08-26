@@ -18,6 +18,7 @@ import com.example.shopping_back.auth.dto.ProfileUpdateRequest;
 import com.example.shopping_back.auth.dto.RegisterRequest;
 import com.example.shopping_back.auth.mapper.UserMapper;
 import com.example.shopping_back.auth.model.StoredUser;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -328,7 +329,25 @@ class AuthServiceTest {
     }
 
     @Test
-    // 测试搜索用户的情况：使用有效关键字
+    // 测试搜索用户的情况：使用有效关键字返回匹配结果
+    void searchUsersReturnsResultsForKeyword() {
+        StoredUser user = user(
+                "alice",
+                new BCryptPasswordEncoder().encode("secret123"),
+                "13800138000",
+                "buyer",
+                "normal");
+        when(userMapper.searchUsersByKeyword("ali")).thenReturn(List.of(user));
+
+        List<AuthUserView> results = authService.searchUsers("ali");
+
+        assertNotNull(results);
+        assertFalse(results.isEmpty());
+        assertEquals("alice", results.get(0).getUsername());
+    }
+
+    @Test
+    // 测试获取用户信息的情况：使用有效的 userId
     void getUserByIdReturnsUserInfo() {
         StoredUser user = user(
                 "alice",
