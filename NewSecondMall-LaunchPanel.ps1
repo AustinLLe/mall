@@ -171,7 +171,7 @@ function Show-Menu {
     Write-Host ''
     Write-Host '  【Docker 部署】'
     Write-Host '  9. 构建并启动 Docker'
-    Write-Host ' 10. 停止容器'
+    Write-Host ' 10. 停止容器（本项目全部容器）'
     Write-Host ' 11. 查看容器状态'
     Write-Host ' 12. 删除容器数据库'
     Write-Host ' 13. 重新启动容器'
@@ -578,6 +578,21 @@ function Test-ComposeReady {
     return $true
 }
 
+function Confirm-OrCancel([string]$Prompt) {
+    Write-Host ''
+    Write-Host '  YES   确认执行'
+    Write-Host '  QUIT  返回菜单'
+    while ($true) {
+        $choice = Read-Host $Prompt
+        if ($choice -ieq 'YES') { return $true }
+        if ($choice -ieq 'QUIT') {
+            Write-Host '已取消，返回菜单。'
+            return $false
+        }
+        Write-Host '请输入 YES 或 QUIT。' -ForegroundColor Yellow
+    }
+}
+
 function Stop-DockerStack {
     Clear-Host
     Write-Host '========================================================'
@@ -585,14 +600,16 @@ function Stop-DockerStack {
     Write-Host '========================================================'
     Write-Host ''
     if (-not (Test-ComposeReady)) { Pause; return }
-    Write-Host '将执行 docker compose stop。容器停下，数据库文件还在。'
+    Write-Host '将停止本项目的全部容器：mysql、backend、frontend。' -ForegroundColor Yellow
+    Write-Host '不会停止你电脑上其他 Docker 项目。数据库文件还在，可用第 13 项再启动。'
+    if (-not (Confirm-OrCancel '确认停止全部容器')) { Pause; return }
     $code = Invoke-ComposeInDeployDir 'stop'
     if ($code -ne 0) {
         Write-Host '停止失败，请查看上面的 Docker 输出。' -ForegroundColor Red
         Pause
         return
     }
-    Write-Host '已停止。选第 13 项可再启动；选第 12 项才会删掉容器里的库。' -ForegroundColor Green
+    Write-Host '已停止本项目全部容器。选第 13 项可再启动；选第 12 项才会删掉容器里的库。' -ForegroundColor Green
     Write-DockerStatus
     Pause
 }
@@ -607,12 +624,9 @@ function Reset-DockerVolumes {
     Write-Host '只删 Docker 里的 MySQL / 上传文件数据，本机 Windows MySQL 不动。' -ForegroundColor Yellow
     Write-Host '删卷前必须先拆掉占用它的容器，因此会执行 down -v；删完后容器也不在了。'
     Write-Host '不会自动再启动。要用空库跑起来，删完后选第 13 项。'
-    $confirm = Read-Host '确认删除请输入 YES'
-    if ($confirm -ne 'YES') {
-        Write-Host '已取消。'
-        Pause
-        return
-    }
+    Write-Host ''
+    Write-Host '此操作不可恢复容器内数据。误点请输入 QUIT。' -ForegroundColor Yellow
+    if (-not (Confirm-OrCancel '确认删除容器数据库')) { Pause; return }
     $code = Invoke-ComposeInDeployDir 'down' '-v'
     if ($code -ne 0) {
         Write-Host '删除失败，请查看上面的 Docker 输出。' -ForegroundColor Red
