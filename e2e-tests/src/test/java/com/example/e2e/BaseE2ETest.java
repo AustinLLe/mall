@@ -60,6 +60,9 @@ abstract class BaseE2ETest {
         EdgeOptions options = new EdgeOptions();
         options.addArguments("--inprivate");
         options.addArguments("--window-size=1440,1000");
+        options.addArguments("--user-data-dir=" + Path.of(
+                System.getProperty("java.io.tmpdir"),
+                "newsecondmall-e2e-" + System.nanoTime()));
 
         if (Boolean.parseBoolean(System.getProperty("e2e.headless", "false"))) {
             options.addArguments("--headless=new");
