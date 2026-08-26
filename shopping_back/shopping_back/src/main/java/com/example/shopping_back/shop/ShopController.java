@@ -60,7 +60,7 @@ public class ShopController {
 
     @GetMapping("/products/mine")
     public ApiResult<List<ProductView>> myProducts(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return ApiResult.ok(shopService.myProducts(currentUserOrNull(authorization)));
+        return ApiResult.ok(shopService.myProducts(requireUser(authorization)));
     }
 
     @GetMapping("/products/{id}")
@@ -209,7 +209,7 @@ public class ShopController {
             @Valid @RequestBody PublishRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
-        return ApiResult.ok(shopService.publish(request, currentUserOrNull(authorization)));
+        return ApiResult.ok(shopService.publish(request, requireUser(authorization)));
     }
 
     @GetMapping("/admin/audit")
@@ -260,6 +260,11 @@ public class ShopController {
         }
     }
 
+    private AuthUserView requireUser(String authorization) {
+        String token = bearerToken(authorization);
+        return authService.me(token);
+    }
+
     private static String bearerToken(String authorization) {
         if (authorization == null) {
             return null;
@@ -268,6 +273,7 @@ public class ShopController {
         if (v.regionMatches(true, 0, "Bearer ", 0, 7)) {
             return v.substring(7).trim();
         }
-        return v;
+        // 不携带合法的 Bearer 前缀一律视为未携带 Token
+        return null;
     }
 }

@@ -452,9 +452,7 @@ public class ShopService {
 
     public ProductView publish(PublishRequest request, AuthUserView user) {
         validatePublish(request);
-        if (user != null && "seller".equals(user.getRole())) {
-            ensureSellerStore(user);
-        }
+        ensureSellerStore(user);
         ProductView dbCreated = publishToDatabase(request, user);
         if (dbCreated != null) {
             return dbCreated;
@@ -1041,6 +1039,12 @@ public class ShopService {
     }
 
     private void validatePublish(PublishRequest request) {
+        if (request.price() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "价格不能为空");
+        }
+        if (request.price().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "价格必须大于 0");
+        }
         if ("used".equals(normalizeScene(request.scene()))) {
             if (isBlank(request.condition())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "二手商品必须填写成色");
