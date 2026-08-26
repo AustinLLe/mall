@@ -22,7 +22,7 @@ public interface UserMapper {
     StoredUser findByUsername(String username);
 
     @Select("SELECT user_id AS userId, username, phone, credit, role, COALESCE(status, 'normal') AS status, avatar_url AS avatarUrl " +
-            "FROM users WHERE username LIKE CONCAT('%', #{keyword}, '%')")
+            "FROM users WHERE username LIKE CONCAT('%', #{keyword}, '%') ESCAPE '\\\\'")
     List<StoredUser> searchUsersByKeyword(@Param("keyword") String keyword);
 
     @Select("SELECT COUNT(*) FROM information_schema.COLUMNS " +
