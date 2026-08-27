@@ -93,7 +93,7 @@ ensure_docker_cli() {
 
 ensure_docker_compose() {
   export DOCKER_CONFIG="${DOCKER_CONFIG:-/tmp/ci-docker-config}"
-  mkdir -p "${DOCKER_CONFIG}/cli-plugins"
+  mkdir -p "$ci_docker_dir" "${DOCKER_CONFIG}/cli-plugins"
   if docker compose version >/dev/null 2>&1; then
     echo "已有 docker compose"
     return 0
@@ -141,7 +141,7 @@ ensure_docker_socket
 ensure_docker_cli
 ensure_docker_compose
 docker version
-docker info >/dev/null
+docker info
 
 cat > deploy/.env <<EOF
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
