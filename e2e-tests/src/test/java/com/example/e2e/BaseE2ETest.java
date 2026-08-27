@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestWatcher;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.JavascriptExecutor;
@@ -126,6 +127,7 @@ abstract class BaseE2ETest {
             }
             driver = new EdgeDriver(options);
         }
+        driver.manage().window().setSize(new Dimension(1440, 1000));
         wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
     }
 
@@ -177,7 +179,9 @@ abstract class BaseE2ETest {
     }
 
     protected void openPage(String route) {
-        driver.get(baseUrl + "/#/" + route);
+        // Query string forces a full load. Hash-only changes lose to login's
+        // delayed reLaunch, and cannot switchTab into a tabBar page.
+        driver.get(baseUrl + "/?e2e=" + System.nanoTime() + "#/" + route);
     }
 
     protected void waitForUrlContains(String fragment) {
@@ -236,6 +240,13 @@ abstract class BaseE2ETest {
                 Object token = ((JavascriptExecutor) currentDriver).executeScript(
                         "return window.localStorage.getItem('auth_token');");
                 return token != null && !token.toString().isBlank();
+            } catch (WebDriverException navigationInProgress) {
+                return false;
+            }
+        });
+        wait.until(currentDriver -> {
+            try {
+                return !currentDriver.getCurrentUrl().contains("/pages/auth/login");
             } catch (WebDriverException navigationInProgress) {
                 return false;
             }
