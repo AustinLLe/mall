@@ -1,4 +1,4 @@
-ARG DOCKER_HUB=docker.m.daocloud.io
+ARG DOCKER_HUB=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io
 FROM ${DOCKER_HUB}/library/debian:bookworm-slim AS e2e
 
 USER root

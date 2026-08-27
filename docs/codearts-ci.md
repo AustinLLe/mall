@@ -136,7 +136,7 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `CI_DB_PASSWORD`
 
 成功时日志应出现 `===== 启动 MariaDB =====`，而不是立刻 `CI_DB_PASSWORD is required`。
 
-`e2e-test` 用 CodeArts 允许的 Docker 命令在镜像构建里跑浏览器用例。基础镜像改成较小的 `debian:bookworm-slim`，再用华为云 Debian 源安装 JDK、Maven、Chromium，避免去 DaoCloud 拉几百 MB 的 Maven 镜像。
+`e2e-test` 用 CodeArts 允许的 Docker 命令在镜像构建里跑浏览器用例。基础镜像走同区域 SWR：`swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/debian:bookworm-slim`（不要 DaoCloud / Docker Hub，`#20260827.12` 在 DaoCloud 第一层直接卡死）。镜像里再用华为云 Debian 源安装 JDK、Maven、Chromium。
 
 若 `e2e-test` 报找不到 socket 或拉镜像失败，把该步骤完整日志发我。
 
