@@ -13,6 +13,7 @@ import com.example.shopping_back.shop.ShopDtos.CreateOrderRequest;
 import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
+import com.example.shopping_back.shop.ShopDtos.UpdateProductRequest;
 import com.example.shopping_back.shop.ShopDtos.ReviewRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
 import com.example.shopping_back.shop.ShopDtos.StoreUpdateRequest;
@@ -185,8 +186,17 @@ public class ShopController {
     }
 
     @GetMapping("/orders")
-    public ApiResult<List<OrderView>> orders(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return ApiResult.ok(shopService.orders(currentUserOrNull(authorization)));
+    public ApiResult<List<OrderView>> orders(
+            @RequestParam(required = false) String status,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.orders(currentUserOrNull(authorization), status));
+    }
+
+    @PostMapping("/orders/{id}/cancel")
+    public ApiResult<OrderView> cancelOrder(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResult.ok(shopService.cancelOrder(id, currentUserOrNull(authorization)));
     }
 
     @PostMapping("/orders")
@@ -210,6 +220,15 @@ public class ShopController {
             @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
         return ApiResult.ok(shopService.publish(request, requireUser(authorization)));
+    }
+
+    @PutMapping("/products/{id}")
+    public ApiResult<ProductView> updateProduct(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateProductRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        return ApiResult.ok(shopService.updateProduct(id, request, requireUser(authorization)));
     }
 
     @GetMapping("/admin/audit")
