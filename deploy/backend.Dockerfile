@@ -1,4 +1,4 @@
-FROM maven:3.9.11-eclipse-temurin-21-alpine AS build
+FROM maven:3.9.11-eclipse-temurin-17-alpine AS build
 
 WORKDIR /build
 
@@ -7,7 +7,7 @@ COPY shopping_back/shopping_back/src ./src
 RUN --mount=type=cache,target=/root/.m2 \
   mvn -B -ntp -DskipTests package
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:17-jre-alpine
 
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app

@@ -24,12 +24,12 @@ export RUN_E2E=true
 ## CodeArts 页面配置
 
 1. 打开“流水线”，新建流水线并选择本仓库和 `master` 分支。
-2. 添加“构建”任务，运行环境选择 Linux，并选择 JDK 21。
+2. 添加“构建”任务，运行环境选择 Linux，并选择 JDK 17。
 3. 在流水线的安全变量中添加 `CI_DB_PASSWORD` 和 `CI_MYSQL_ROOT_PASSWORD`，不要写入仓库。
 4. 打开代码提交触发器，选择 push 到 `master`。
 5. 保存后提交一次无功能改动，确认流水线自动启动。
 
-如果日志出现 `release version 21 not supported`，说明构建环境仍不是 JDK 21，需要先在 CodeArts 页面修改运行环境。
+如果日志出现 `release version 17 not supported`，说明构建环境仍不是 JDK 17，需要先在 CodeArts 页面修改运行环境。
 
 ## 部署阶段的前提
 
