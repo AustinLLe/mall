@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
@@ -82,6 +84,13 @@ class ShopServiceTest {
         );
 
         validProduct = createValidProductRecord();
+
+         StoreRecord mockStore = new StoreRecord();
+        mockStore.setStoreId(1);
+        mockStore.setSellerId(100);
+        mockStore.setStoreName("测试店铺");
+        lenient().when(storeMapper.selectBySeller(100)).thenReturn(mockStore);
+        lenient().when(storeMapper.followerCount(1)).thenReturn(0);
     }
 
     @Test
@@ -94,11 +103,15 @@ class ShopServiceTest {
         when(productMapper.selectById(101)).thenReturn(validProduct);
 
         ShopDtos.PublishRequest request = createValidPublishRequest();
-        ShopDtos.ProductView result = shopService.publish(request, null);
+        ShopDtos.ProductView result = shopService.publish(request, sellerUser());
 
         assertNotNull(result);
         assertEquals("测试商品", result.title());
         verify(productMapper, times(1)).insert(any(ProductRecord.class));
+    }
+
+    private AuthUserView sellerUser() {
+        return new AuthUserView(100, "seller", "138****8000", 100, "seller", "卖家", false, "normal", "");
     }
 
     @Test
@@ -118,7 +131,7 @@ class ShopServiceTest {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> shopService.publish(request, null)
+                () -> shopService.publish(request,sellerUser())
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
@@ -141,7 +154,7 @@ class ShopServiceTest {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> shopService.publish(request, null)
+                () -> shopService.publish(request, sellerUser())
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
@@ -776,5 +789,112 @@ class ShopServiceTest {
         assertNotNull(response.description());
         assertNotNull(response.story());
         assertEquals("mock_missing_key", response.source()); // 确认走的是 mock 分支
+    }
+    // ==================== 补充覆盖率测试（提升 shop 模块覆盖率） ====================
+
+    @Test
+    // 场景：productMapper 抛异常时，products 方法应优雅降级返回空列表
+    void products_handlesMapperExceptionGracefully() {
+        when(productMapper.selectApproved("all", ""))
+            .thenThrow(new RuntimeException("DB connection error"));
+        
+        List<ShopDtos.ProductView> result = shopService.products("all", "");
+        
+        assertNotNull(result);
+        assertTrue(result.isEmpty(), "Mapper异常时应返回空列表，而非抛出异常");
+    }
+
+    @Test
+    // 场景：发布二手商品但未填成色 -> 应返回 400
+    void createProductRejectsUsedSceneWithoutCondition() {
+        ShopDtos.PublishRequest request = new ShopDtos.PublishRequest(
+                "used",                     // scene
+                "二手耳机",                  // title
+                "/img/headphone.jpg",       // image
+                "数码",                     // category
+                BigDecimal.valueOf(200),    // price
+                "",                         // condition (空)
+                "功能完好",                 // description
+                "自用转让",                 // story
+                BigDecimal.valueOf(180),    // floorPrice
+                "北京"                      // location
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> shopService.publish(request, sellerUser())
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
+    // 场景：发布二手商品但未填故事 -> 应返回 400
+    void createProductRejectsUsedSceneWithoutStory() {
+        ShopDtos.PublishRequest request = new ShopDtos.PublishRequest(
+                "used",                     // scene
+                "二手耳机",                  // title
+                "/img/headphone.jpg",       // image
+                "数码",                     // category
+                BigDecimal.valueOf(200),    // price
+                "9成新",                    // condition (有)
+                "功能完好",                 // description
+                "",                         // story (空)
+                BigDecimal.valueOf(180),    // floorPrice
+                "北京"                      // location
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> shopService.publish(request, sellerUser())
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
+    // 场景：未登录用户关注店铺 -> 应返回 401
+    void followStore_throwsWhenUserNull() {
+        assertThrows(ResponseStatusException.class, () -> shopService.followStore("1", null));
+    }
+
+    @Test
+    // 场景：关注不存在的店铺 -> 应返回 404
+    void followStore_throwsWhenStoreNotFound() {
+        when(storeMapper.selectById(999)).thenReturn(null);
+        
+        AuthUserView user = buyerUser();
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> shopService.followStore("999", user)
+        );
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
+    // 场景：未登录用户取消关注店铺 -> 应返回 401
+    void unfollowStore_throwsWhenUserNull() {
+        assertThrows(ResponseStatusException.class, () -> shopService.unfollowStore("1", null));
+    }
+
+    @Test
+    // 场景：创建订单时 quantity 为 null -> 默认数量应为 1
+    void createOrders_quantityNullDefaultsToOne() {
+        // 准备商品
+        validProduct.setSellerId(10);
+        when(productMapper.selectById(101)).thenReturn(validProduct);
+        
+        // 订单项：quantity 为 null
+        ShopDtos.CreateOrderItem item = new ShopDtos.CreateOrderItem("101", null);
+        ShopDtos.CreateOrderRequest request = new ShopDtos.CreateOrderRequest(List.of(item));
+        
+        // Mock 插入行为
+        when(orderMapper.insertOrder(anyInt(), anyInt(), anyInt(), anyString(), any(BigDecimal.class)))
+            .thenReturn(1);
+        
+        // 执行
+        shopService.createOrders(request, buyerUser());
+        
+        // 验证：insertOrder 被调用时，数量为 1（即价格 * 1）
+        verify(orderMapper, times(1))
+            .insertOrder(anyInt(), anyInt(), anyInt(), anyString(), eq(BigDecimal.valueOf(399)));
     }
 }
