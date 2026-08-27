@@ -22,6 +22,9 @@ mysql_data="/tmp/ci-mysql-data"
 mysql_home="/tmp/ci-mysql-dist"
 node_home="/tmp/ci-node"
 mysql_tarball_url="${MYSQL_TARBALL_URL:-https://repo.huaweicloud.com/repository/toolkit/mysql/Downloads/MySQL-8.0/mysql-8.0.28-linux-glibc2.17-x86_64-minimal.tar.xz}"
+ci_libs="/tmp/ci-libs"
+libaio_rpm_url="${LIBAIO_RPM_URL:-https://mirrors.huaweicloud.com/centos-vault/7.9.2009/os/x86_64/Packages/libaio-0.3.109-13.el7.x86_64.rpm}"
+numactl_rpm_url="${NUMACTL_RPM_URL:-https://mirrors.huaweicloud.com/centos-vault/7.9.2009/os/x86_64/Packages/numactl-libs-2.0.12-9.el7.x86_64.rpm}"
 
 mysql_cmd() {
   "${mysql_home}/bin/mysql" --socket="$mysql_sock" -uroot --protocol=SOCKET "$@"
@@ -43,6 +46,51 @@ enabled=1
 gpgcheck=0
 skip_if_unavailable=1
 EOF
+}
+
+extract_rpm_libs() {
+  local rpm_file="$1"
+  mkdir -p /tmp/ci-rpm-root
+  rm -rf /tmp/ci-rpm-root
+  mkdir -p /tmp/ci-rpm-root
+  if command -v rpm2cpio >/dev/null 2>&1 && command -v cpio >/dev/null 2>&1; then
+    (cd /tmp/ci-rpm-root && rpm2cpio "$rpm_file" | cpio -idm --quiet)
+  elif command -v bsdtar >/dev/null 2>&1; then
+    bsdtar -C /tmp/ci-rpm-root -xf "$rpm_file"
+  else
+    rpm -ivh --nodeps --force "$rpm_file"
+    return 0
+  fi
+  mkdir -p "$ci_libs"
+  if [ -d /tmp/ci-rpm-root/usr/lib64 ]; then
+    cp -a /tmp/ci-rpm-root/usr/lib64/. "$ci_libs/"
+  fi
+  if [ -d /tmp/ci-rpm-root/lib64 ]; then
+    cp -a /tmp/ci-rpm-root/lib64/. "$ci_libs/"
+  fi
+}
+
+install_shared_lib_rpm() {
+  local url="$1"
+  local name="$2"
+  echo "下载 ${name}：${url}"
+  curl -fL "$url" -o "/tmp/${name}.rpm"
+  if rpm -ivh --nodeps --force "/tmp/${name}.rpm"; then
+    return 0
+  fi
+  echo "rpm 安装失败，改为解压 .so 到 ${ci_libs}"
+  extract_rpm_libs "/tmp/${name}.rpm"
+}
+
+install_mysqld_libs() {
+  mkdir -p "$ci_libs"
+  if [ ! -e /usr/lib64/libaio.so.1 ] && [ ! -e /lib64/libaio.so.1 ] && [ ! -e "${ci_libs}/libaio.so.1" ]; then
+    install_shared_lib_rpm "$libaio_rpm_url" libaio
+  fi
+  if [ ! -e /usr/lib64/libnuma.so.1 ] && [ ! -e /lib64/libnuma.so.1 ] && [ ! -e "${ci_libs}/libnuma.so.1" ]; then
+    install_shared_lib_rpm "$numactl_rpm_url" numactl-libs || true
+  fi
+  export LD_LIBRARY_PATH="${ci_libs}:${mysql_home}/lib:${LD_LIBRARY_PATH:-}"
 }
 
 extract_mysql_xz() {
@@ -69,10 +117,12 @@ PY
 install_mysql() {
   if [ -x "${mysql_home}/bin/mysqld" ] && [ -x "${mysql_home}/bin/mysql" ]; then
     export PATH="${mysql_home}/bin:${PATH}"
+    install_mysqld_libs
     return 0
   fi
   if command -v mysqld >/dev/null 2>&1 && command -v mysql >/dev/null 2>&1; then
     mysql_home="$(dirname "$(dirname "$(command -v mysqld)")")"
+    install_mysqld_libs
     return 0
   fi
 
@@ -102,11 +152,13 @@ install_mysql() {
     exit 1
   fi
   export PATH="${mysql_home}/bin:${PATH}"
+  install_mysqld_libs
 }
 
 start_mysql() {
   mkdir -p "$mysql_data"
   export PATH="${mysql_home}/bin:${PATH}"
+  install_mysqld_libs
   if [ ! -d "$mysql_data/mysql" ]; then
     "${mysql_home}/bin/mysqld" --basedir="$mysql_home" --datadir="$mysql_data" --initialize-insecure --user="$(id -un)"
   fi
