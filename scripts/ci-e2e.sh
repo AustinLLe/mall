@@ -15,6 +15,9 @@ export HTTP_PORT="${E2E_HTTP_PORT:-18080}"
 export IMAGE_TAG="${IMAGE_TAG:-ci-e2e}"
 export E2E_NETWORK_NAME="${E2E_NETWORK_NAME:-soft-shop-e2e-net}"
 export COMPOSE_PROJECT_NAME="${E2E_PROJECT_NAME:-soft-shop-e2e}"
+export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
+
+e2e_status=1
 
 cat > deploy/.env <<EOF
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
@@ -23,6 +26,7 @@ DB_PASSWORD=${DB_PASSWORD}
 PUBLIC_ORIGIN=${PUBLIC_ORIGIN}
 HTTP_PORT=${HTTP_PORT}
 IMAGE_TAG=${IMAGE_TAG}
+SELENIUM_IMAGE=${SELENIUM_IMAGE:-selenium/standalone-chrome:4.35.0}
 EOF
 
 compose=(docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file deploy/.env -f deploy/docker-compose.yml -f tests/e2e/docker-compose.e2e.yml)
@@ -30,14 +34,25 @@ if ! docker compose version >/dev/null 2>&1; then
   compose=(docker-compose --project-name "$COMPOSE_PROJECT_NAME" --env-file deploy/.env -f deploy/docker-compose.yml -f tests/e2e/docker-compose.e2e.yml)
 fi
 
-mkdir -p e2e-tests/target/e2e-artifacts
+mkdir -p e2e-tests/target/e2e-artifacts e2e-tests/target/surefire-reports
+
+archive_e2e_outputs() {
+  mkdir -p e2e-tests/target/e2e-artifacts e2e-tests/target/surefire-reports
+  tar -czf e2e-surefire-reports.tgz -C e2e-tests/target surefire-reports || true
+  tar -czf e2e-artifacts.tgz -C e2e-tests/target e2e-artifacts || true
+  printf '%s\n' "${e2e_status}" > e2e-exit-code.txt
+}
+
 cleanup() {
   "${compose[@]}" logs --no-color > e2e-tests/target/e2e-artifacts/compose.log 2>&1 || true
+  archive_e2e_outputs
   "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
 "${compose[@]}" up -d --build
+frontend_ok=0
+selenium_ok=0
 for _ in $(seq 1 72); do
   frontend_ok=0
   selenium_ok=0
@@ -46,7 +61,11 @@ for _ in $(seq 1 72); do
   [ "$frontend_ok" -eq 1 ] && [ "$selenium_ok" -eq 1 ] && break
   sleep 5
 done
-[ "${frontend_ok:-0}" -eq 1 ] && [ "${selenium_ok:-0}" -eq 1 ] || { echo "E2E 环境未就绪"; exit 1; }
+if [ "${frontend_ok:-0}" -ne 1 ] || [ "${selenium_ok:-0}" -ne 1 ]; then
+  echo "E2E 环境未就绪"
+  e2e_status=1
+  exit 1
+fi
 
 set +e
 docker run --rm \
@@ -63,6 +82,6 @@ docker run --rm \
   -De2e.apiUrl=http://frontend \
   -De2e.headless=true \
   -De2e.timeoutSeconds=20
-status=$?
+e2e_status=$?
 set -e
-exit "$status"
+exit "${e2e_status}"

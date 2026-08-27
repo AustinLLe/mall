@@ -11,9 +11,10 @@
 | 1. 构建 | 已有构建任务 NewSecondMall | `.cloudbuild/build.yml` |
 | 2. 单元测试 | 再建一个构建任务，流水线里第二张卡片 | `.cloudbuild/unit-test.yml` |
 | 3. 启动测试环境 + 集成测试 + 接口测试 | 再建一个构建任务，流水线第三张卡片 | `.cloudbuild/integration-api.yml` |
-| 4. 构建镜像 | 以后加 | Dockerfile |
-| 5. 部署 | 以后加 | `k8s/` |
-| 6. 健康检查 | 以后加 | 探活脚本 |
+| 4. 端到端测试 | 再建构建任务，流水线第四张卡片 | `.cloudbuild/e2e.yml` |
+| 5. 构建镜像 | 以后加 | Dockerfile |
+| 6. 部署 | 以后加 | `k8s/` |
+| 7. 健康检查 | 以后加 | 探活脚本 |
 
 不要用流水线里的「下载仓库」+ shell 自己编译。那条路会空目录、`auth info is empty`。
 
@@ -93,6 +94,44 @@
 
 执行记录里步骤名是 `start-env-integration-api`。日志里会有 `1/3 启动测试环境`、`2/3 集成测试`、`3/3 接口测试`。
 
+## 端到端测试（第 4 张卡片）
+
+文件：`.cloudbuild/e2e.yml`  
+脚本：`scripts/ci-e2e.sh`  
+来源：队友分支 `test/e2e-selenium`（容器化 Selenium + Chrome）。
+
+这张卡片自己起一套 Compose（MySQL、后端、前端、Chrome），用独立端口 `18080`，测完会删掉容器和数据卷。必须接在「集成测试」后面：接口都过不了就不必开浏览器。
+
+不要用 `cloudbuild@docker20.10`（会去 Docker Hub 拉 `docker20.10` 并超时）。YAML 用 CodeArts 自带的 `docker` 步骤跑脚本。
+
+控制台操作：
+
+1. 编译构建 → 新建任务，名称 `NewSecondMall-e2e`。
+2. 源码选 NewSecondMall，默认分支 `feature/lqy-first-stage`。
+3. 不要改代码化里的 `build.yml`，点取消或先保存空任务。
+4. 参数设置：
+
+| 名称 | 说明 |
+| --- | --- |
+| `CB_BUILD_YAML_PATH` | `.cloudbuild/e2e.yml` |
+| `codeBranch` | `feature/lqy-first-stage`（打开运行时设置） |
+| `CI_DB_PASSWORD` | `CiShop2026_Test`，勾选 **私密参数** |
+| `CI_MYSQL_ROOT_PASSWORD` | `CiRoot2026_Test`，勾选 **私密参数** |
+
+5. 规格 `2U8G`。保存后从任务列表点 **执行**。
+6. 单独能跑起来后，流水线在「集成测试」后新增阶段「端到端测试」，拖入 Build，任务选 `NewSecondMall-e2e`，依赖集成测试。
+
+产物（失败也会尽量上传）：
+
+- `e2e-surefire-reports.tgz`：Surefire / JUnit XML（`e2e-tests/target/surefire-reports/`）
+- `e2e-artifacts.tgz`：截图、页面源码、Compose 日志（`e2e-tests/target/e2e-artifacts/`）
+
+构建任务会把这两个包传到软件发布库目录 `/NewSecondMall-e2e/`。流水线里打开该 Build 插件，勾选把构建产物作为流水线产物；下载处应能看到这两个 `.tgz`。
+
+步骤顺序：`e2e-test`（允许失败以便上传）→ `upload-e2e-surefire` / `upload-e2e-artifacts` → `e2e-gate`（按测试退出码决定整张卡片红绿）。
+
+这张卡会拉 `selenium/standalone-chrome` 和 `maven:3.9.11-eclipse-temurin-17`。若再出现 Docker Hub 超时，把日志发我。
+
 ## 流水线 YAML 占位
 
 `.codearts/workflow/pipeline.yml` 里：
@@ -100,5 +139,6 @@
 - `REPLACE_WITH_BUILD_JOB_ID`：现有构建任务详情页 URL 末尾 32 位
 - `REPLACE_WITH_UNIT_TEST_JOB_ID`：单元测试构建任务同样位置
 - `REPLACE_WITH_INTEGRATION_API_JOB_ID`：集成与接口测试构建任务同样位置
+- `REPLACE_WITH_E2E_JOB_ID`：端到端测试构建任务同样位置
 
 控制台选好任务后会自动填 `jobId`。不要手写，不要用 `official_git_clone`。
