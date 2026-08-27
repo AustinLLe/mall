@@ -1,0 +1,37 @@
+---
+version: 2.0
+
+env:
+  resource:
+    type: docker
+    arch: X86
+    class: 8U16G
+
+steps:
+  PRE_BUILD:
+    - checkout:
+        name: checkout
+        inputs:
+          scm: codehub
+          url: https://codehub.devcloud.cn-north-4.huaweicloud.com/a111c887c5a545eda4c6976ba10c1a75/NewSecondMall.git
+          branch: feature/lqy-first-stage
+          lfs: true
+          submodule: true
+          depth: 1
+
+  BUILD:
+    - maven:
+        name: build-and-test
+        image: cloudbuild@maven3.9.5-jdk17
+        inputs:
+          cache: true
+          command: |-
+            set -e
+            apk add --no-cache nodejs npm docker-cli docker-cli-compose
+            chmod +x scripts/build-and-test.sh tests/blackbox/smoke.sh
+            export DB_PASSWORD="${CI_DB_PASSWORD}"
+            export MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD}"
+            export PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-http://localhost}"
+            export HTTP_PORT="${HTTP_PORT:-8088}"
+            export RUN_E2E="${RUN_E2E:-false}"
+            ./scripts/build-and-test.sh

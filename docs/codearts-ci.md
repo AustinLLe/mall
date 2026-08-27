@@ -1,5 +1,7 @@
 # CodeArts 流水线接入
 
+仓库已经提供 `.cloudbuild/build.yml`。优先用它做“按文件配置”的流水线，不再手工点每个步骤。
+
 ## 当前可自动执行的阶段
 
 1. 获取仓库代码。
@@ -23,13 +25,13 @@ export RUN_E2E=true
 
 ## CodeArts 页面配置
 
-1. 打开“流水线”，新建流水线并选择本仓库和 `master` 分支。
-2. 添加“构建”任务，运行环境选择 Linux，并选择 JDK 17。
+1. 打开“流水线”，新建流水线并选择本仓库和 `feature/lqy-first-stage` 分支。
+2. 把构建配置切到“按文件配置”，文件路径填 `.cloudbuild/build.yml`。
 3. 在流水线的安全变量中添加 `CI_DB_PASSWORD` 和 `CI_MYSQL_ROOT_PASSWORD`，不要写入仓库。
-4. 打开代码提交触发器，选择 push 到 `master`。
+4. 打开代码提交触发器，选择 push 到 `feature/lqy-first-stage`。
 5. 保存后提交一次无功能改动，确认流水线自动启动。
 
-如果日志出现 `release version 17 not supported`，说明构建环境仍不是 JDK 17，需要先在 CodeArts 页面修改运行环境。
+如果流水线仍报 Java 版本错误，说明当前资源池不是 JDK 17 环境，需要把构建资源换成支持 `cloudbuild@maven3.9.5-jdk17` 的环境。
 
 ## 部署阶段的前提
 
