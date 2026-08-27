@@ -20,12 +20,32 @@ steps:
           depth: 1
 
   BUILD:
+    - maven:
+        name: e2e-secrets
+        image: cloudbuild@maven3.9.5-jdk17
+        inputs:
+          cache: false
+          command: |-
+            set -euo pipefail
+            if [ ! -f tests/e2e/Dockerfile.ci ]; then
+              pom="$(find . /data /var /workspace /tmp -path '*/shopping_back/shopping_back/pom.xml' 2>/dev/null | head -n 1)"
+              if [ -z "${pom:-}" ]; then
+                echo "找不到仓库根目录"
+                exit 1
+              fi
+              cd "$(dirname "$(dirname "$(dirname "$pom")")")"
+            fi
+            printf 'CI_DB_PASSWORD=%s\nCI_MYSQL_ROOT_PASSWORD=%s\n' \
+              "${CI_DB_PASSWORD:?CI_DB_PASSWORD is required}" \
+              "${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}" \
+              > tests/e2e/.ci-secrets
+            echo "已写入 tests/e2e/.ci-secrets"
     - docker:
         name: e2e-test
         inputs:
           command: |-
             docker pull docker.m.daocloud.io/library/debian:bookworm-slim
-            docker build --build-arg DOCKER_HUB=docker.m.daocloud.io --build-arg CI_DB_PASSWORD --build-arg CI_MYSQL_ROOT_PASSWORD -f tests/e2e/Dockerfile.ci -t newsecondmall-e2e-export:ci --target export .
+            docker build --build-arg DOCKER_HUB=docker.m.daocloud.io --build-arg CI_DB_PASSWORD=${CI_DB_PASSWORD} --build-arg CI_MYSQL_ROOT_PASSWORD=${CI_MYSQL_ROOT_PASSWORD} -f tests/e2e/Dockerfile.ci -t newsecondmall-e2e-export:ci --target export .
             docker save newsecondmall-e2e-export:ci -o e2e-image.tar
           ignore_fail: true
     - maven:

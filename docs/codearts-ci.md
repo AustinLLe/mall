@@ -106,6 +106,8 @@
 
 因此 E2E 改成 **`docker pull` + `docker build` + `docker save`**：在构建镜像时安装 Chromium、MariaDB、Nginx，跑 `scripts/ci-e2e-incontainer.sh`，再用一个很小的 export 镜像把 Surefire 和截图带出来。
 
+CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `CI_DB_PASSWORD`（`#20260827.8` 立刻报密码缺失，产物只有 0.12KB）。这两个是测试库密码，文档里本来就是明文，**不要勾选私密参数**。YAML 会把 `${CI_DB_PASSWORD}` 写进 `--build-arg`；另外 `e2e-secrets` 还会写一份 `tests/e2e/.ci-secrets` 作兜底（已 gitignore，不要提交）。
+
 控制台操作：
 
 1. 编译构建 → 新建任务，名称 `NewSecondMall-e2e`。
@@ -117,8 +119,8 @@
 | --- | --- |
 | `CB_BUILD_YAML_PATH` | `.cloudbuild/e2e.yml` |
 | `codeBranch` | `feature/lqy-first-stage`（打开运行时设置） |
-| `CI_DB_PASSWORD` | `CiShop2026_Test`，勾选 **私密参数** |
-| `CI_MYSQL_ROOT_PASSWORD` | `CiRoot2026_Test`，勾选 **私密参数** |
+| `CI_DB_PASSWORD` | `CiShop2026_Test`，**不要**勾选私密参数 |
+| `CI_MYSQL_ROOT_PASSWORD` | `CiRoot2026_Test`，**不要**勾选私密参数 |
 
 5. 规格 `2U8G`。保存后从任务列表点 **执行**。
 6. 单独能跑起来后，流水线在「集成测试」后新增阶段「端到端测试」，拖入 Build，任务选 `NewSecondMall-e2e`，依赖集成测试。
@@ -130,7 +132,9 @@
 
 构建任务会把这两个包传到软件发布库目录 `/NewSecondMall-e2e/`。流水线里打开该 Build 插件，勾选把构建产物作为流水线产物；下载处应能看到这两个 `.tgz`。
 
-步骤顺序：`e2e-test`（docker pull/build/save，允许失败以便导出产物）→ `e2e-extract` → 上传两个 `.tgz` → `e2e-gate`。
+步骤顺序：`e2e-secrets`（写入 `.ci-secrets`）→ `e2e-test`（docker pull/build/save，允许失败以便导出产物）→ `e2e-extract` → 上传两个 `.tgz` → `e2e-gate`。
+
+成功时日志应出现 `===== 启动 MariaDB =====`，而不是立刻 `CI_DB_PASSWORD is required`。
 
 `e2e-test` 用 CodeArts 允许的 Docker 命令在镜像构建里跑浏览器用例。基础镜像改成较小的 `debian:bookworm-slim`，再用华为云 Debian 源安装 JDK、Maven、Chromium，避免去 DaoCloud 拉几百 MB 的 Maven 镜像。
 

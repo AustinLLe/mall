@@ -20,14 +20,14 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /work
-COPY . .
-
 ARG CI_DB_PASSWORD
 ARG CI_MYSQL_ROOT_PASSWORD
 ENV CI_DB_PASSWORD=${CI_DB_PASSWORD}
 ENV CI_MYSQL_ROOT_PASSWORD=${CI_MYSQL_ROOT_PASSWORD}
+COPY . .
 
-RUN bash scripts/ci-e2e-incontainer.sh; \
+RUN if [ -f tests/e2e/.ci-secrets ]; then set -a; . tests/e2e/.ci-secrets; set +a; fi; \
+    bash scripts/ci-e2e-incontainer.sh; \
     status=$?; \
     mkdir -p e2e-tests/target/surefire-reports e2e-tests/target/e2e-artifacts; \
     tar -czf e2e-surefire-reports.tgz -C e2e-tests/target surefire-reports; \

@@ -2,16 +2,14 @@
 set -euo pipefail
 
 cd /work
-export DB_PASSWORD="${CI_DB_PASSWORD:?CI_DB_PASSWORD is required}"
-export MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}"
-export DB_USERNAME="${DB_USERNAME:-shop_user}"
-export PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-http://127.0.0.1:18080}"
-export DB_URL="${DB_URL:-jdbc:mysql://127.0.0.1:3306/shop_db?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false}"
-export APP_CORS_PATTERNS="${APP_CORS_PATTERNS:-http://127.0.0.1:*,http://localhost:*}"
-export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=50.0}"
-node_home="/tmp/ci-node"
-e2e_status=1
+if [ -f tests/e2e/.ci-secrets ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . tests/e2e/.ci-secrets
+  set +a
+fi
 
+e2e_status=1
 archive_e2e_outputs() {
   mkdir -p e2e-tests/target/e2e-artifacts e2e-tests/target/surefire-reports
   tar -czf e2e-surefire-reports.tgz -C e2e-tests/target surefire-reports || true
@@ -20,6 +18,15 @@ archive_e2e_outputs() {
 }
 trap archive_e2e_outputs EXIT
 archive_e2e_outputs
+
+export DB_PASSWORD="${CI_DB_PASSWORD:?CI_DB_PASSWORD is required}"
+export MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}"
+export DB_USERNAME="${DB_USERNAME:-shop_user}"
+export PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-http://127.0.0.1:18080}"
+export DB_URL="${DB_URL:-jdbc:mysql://127.0.0.1:3306/shop_db?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false}"
+export APP_CORS_PATTERNS="${APP_CORS_PATTERNS:-http://127.0.0.1:*,http://localhost:*}"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=50.0}"
+node_home="/tmp/ci-node"
 
 mkdir -p /root/.m2
 cat > /root/.m2/settings.xml <<'EOF'

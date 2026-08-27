@@ -28,3 +28,4 @@ application-local.properties
 node_modules/
 tests/api/reports/
 e2e-tests/reports/
+tests/e2e/.ci-secrets
