@@ -134,6 +134,7 @@ echo "使用浏览器: ${chrome_bin}"
 echo "===== 运行 E2E ====="
 set +e
 mvn -B -ntp -f e2e-tests/pom.xml test \
+  -Dmaven.compiler.release=17 \
   -De2e.browser=chrome \
   -De2e.headless=true \
   -De2e.baseUrl=http://127.0.0.1:18080 \
