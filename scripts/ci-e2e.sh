@@ -25,6 +25,23 @@ e2e_status=1
 ci_docker_dir="/tmp/ci-docker"
 compose=()
 
+archive_e2e_outputs() {
+  mkdir -p e2e-tests/target/e2e-artifacts e2e-tests/target/surefire-reports
+  tar -czf e2e-surefire-reports.tgz -C e2e-tests/target surefire-reports || true
+  tar -czf e2e-artifacts.tgz -C e2e-tests/target e2e-artifacts || true
+  printf '%s\n' "${e2e_status}" > e2e-exit-code.txt
+}
+
+cleanup() {
+  if [ "${#compose[@]}" -gt 0 ]; then
+    "${compose[@]}" logs --no-color > e2e-tests/target/e2e-artifacts/compose.log 2>&1 || true
+    "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+  fi
+  archive_e2e_outputs
+}
+trap cleanup EXIT
+archive_e2e_outputs
+
 download_file() {
   local dest="$1"
   local url="$2"
@@ -54,17 +71,16 @@ download_first_ok() {
 
 ensure_docker_socket() {
   local sock
-  for sock in /var/run/docker.sock /run/docker.sock; do
+  for sock in /var/run/docker.sock /run/docker.sock /var/run/docker/docker.sock; do
     if [ -S "$sock" ]; then
       export DOCKER_HOST="unix://${sock}"
       echo "使用 Docker socket: ${sock}"
       return 0
     fi
   done
-  echo "找不到 Docker socket。当前环境："
-  id || true
-  ls -la /var/run /run 2>&1 | head -n 50 || true
-  return 1
+  echo "未挂载 docker.sock，改用当前 docker 默认连接"
+  find /var /run /tmp /opt -name 'docker.sock' 2>/dev/null | head -n 20 || true
+  return 0
 }
 
 ensure_docker_cli() {
@@ -156,24 +172,6 @@ SELENIUM_IMAGE=${SELENIUM_IMAGE}
 EOF
 
 select_compose
-
-mkdir -p e2e-tests/target/e2e-artifacts e2e-tests/target/surefire-reports
-
-archive_e2e_outputs() {
-  mkdir -p e2e-tests/target/e2e-artifacts e2e-tests/target/surefire-reports
-  tar -czf e2e-surefire-reports.tgz -C e2e-tests/target surefire-reports || true
-  tar -czf e2e-artifacts.tgz -C e2e-tests/target e2e-artifacts || true
-  printf '%s\n' "${e2e_status}" > e2e-exit-code.txt
-}
-
-cleanup() {
-  if [ "${#compose[@]}" -gt 0 ]; then
-    "${compose[@]}" logs --no-color > e2e-tests/target/e2e-artifacts/compose.log 2>&1 || true
-    "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
-  fi
-  archive_e2e_outputs
-}
-trap cleanup EXIT
 
 "${compose[@]}" up -d --build
 frontend_ok=0

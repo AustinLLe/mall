@@ -102,7 +102,7 @@
 
 这张卡片自己起一套 Compose（MySQL、后端、前端、Chrome），用独立端口 `18080`，测完会删掉容器和数据卷。必须接在「集成测试」后面：接口都过不了就不必开浏览器。
 
-不要用 `cloudbuild@docker20.10`（会去 Docker Hub 拉 `docker20.10` 并超时）。也不要用 `docker` 步骤跑 bash：该插件要求命令必须以 `docker` 开头，否则任务会在 0 秒报 `docker command must be started with docker`。YAML 用 PRE_BUILD 的 `sh` 步骤跑 `scripts/ci-e2e.sh`。
+不要用 `cloudbuild@docker20.10`（会去 Docker Hub 拉 `docker20.10` 并超时）。`sh` 步骤的容器里没有 Docker socket，不能起 Compose。YAML 用 `docker` 步骤，命令写成 `docker version && bash scripts/ci-e2e.sh`：必须以 `docker` 开头才能过插件校验，后面的 bash 才能用到该步骤里的 Docker 守护进程。
 
 控制台操作：
 
@@ -128,9 +128,9 @@
 
 构建任务会把这两个包传到软件发布库目录 `/NewSecondMall-e2e/`。流水线里打开该 Build 插件，勾选把构建产物作为流水线产物；下载处应能看到这两个 `.tgz`。
 
-步骤顺序：`e2e-test`（PRE_BUILD 的 shell，允许失败以便上传）→ `upload-e2e-surefire` / `upload-e2e-artifacts` → `e2e-gate`（按测试退出码决定整张卡片红绿）。
+步骤顺序：`e2e-test`（docker 步骤，允许失败以便上传）→ `upload-e2e-surefire` / `upload-e2e-artifacts` → `e2e-gate`（按测试退出码决定整张卡片红绿）。
 
-`e2e-test` 跑在 CodeArts 的 shell 镜像里，镜像本身没有 docker。脚本会从华为云下载 Docker 静态客户端，再装 compose 插件，通过执行机的 Docker socket（`k8sdockerondocker`）起容器。镜像默认走 DaoCloud 前缀，避免再访问 Docker Hub。
+`e2e-test` 必须跑在 CodeArts 的 `docker` 步骤里。`sh` 步骤没有 Docker socket；`docker` 步骤才能操作执行机上的容器。镜像默认走 DaoCloud 前缀，避免访问 Docker Hub。
 
 若 `e2e-test` 报找不到 socket 或拉镜像失败，把该步骤完整日志发我。
 

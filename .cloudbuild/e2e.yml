@@ -18,25 +18,15 @@ steps:
           lfs: true
           submodule: true
           depth: 1
-    - sh:
-        name: e2e-test
-        inputs:
-          command: |-
-            set -euo pipefail
-            if [ ! -f scripts/ci-e2e.sh ]; then
-              pom="$(find . /data /var /workspace /tmp -path '*/shopping_back/shopping_back/pom.xml' 2>/dev/null | head -n 1)"
-              if [ -z "${pom:-}" ]; then
-                echo "找不到仓库根目录"
-                exit 1
-              fi
-              cd "$(dirname "$(dirname "$(dirname "$pom")")")"
-            fi
-            export CI_DB_PASSWORD="${CI_DB_PASSWORD:?CI_DB_PASSWORD is required}"
-            export CI_MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}"
-            bash scripts/ci-e2e.sh
-          ignore_fail: true
 
   BUILD:
+    - docker:
+        name: e2e-test
+        inputs:
+          command: >-
+            docker version &&
+            bash scripts/ci-e2e.sh
+          ignore_fail: true
     - upload_artifact:
         name: upload-e2e-surefire
         inputs:
