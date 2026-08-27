@@ -102,7 +102,7 @@
 
 这张卡片自己起一套 Compose（MySQL、后端、前端、Chrome），用独立端口 `18080`，测完会删掉容器和数据卷。必须接在「集成测试」后面：接口都过不了就不必开浏览器。
 
-不要用 `cloudbuild@docker20.10`（会去 Docker Hub 拉 `docker20.10` 并超时）。YAML 用 CodeArts 自带的 `docker` 步骤跑脚本。
+不要用 `cloudbuild@docker20.10`（会去 Docker Hub 拉 `docker20.10` 并超时）。也不要用 `docker` 步骤跑 bash：该插件要求命令必须以 `docker` 开头，否则任务会在 0 秒报 `docker command must be started with docker`。YAML 用 PRE_BUILD 的 `sh` 步骤跑 `scripts/ci-e2e.sh`。
 
 控制台操作：
 
@@ -128,7 +128,7 @@
 
 构建任务会把这两个包传到软件发布库目录 `/NewSecondMall-e2e/`。流水线里打开该 Build 插件，勾选把构建产物作为流水线产物；下载处应能看到这两个 `.tgz`。
 
-步骤顺序：`e2e-test`（允许失败以便上传）→ `upload-e2e-surefire` / `upload-e2e-artifacts` → `e2e-gate`（按测试退出码决定整张卡片红绿）。
+步骤顺序：`e2e-test`（PRE_BUILD 的 shell，允许失败以便上传）→ `upload-e2e-surefire` / `upload-e2e-artifacts` → `e2e-gate`（按测试退出码决定整张卡片红绿）。
 
 这张卡会拉 `selenium/standalone-chrome` 和 `maven:3.9.11-eclipse-temurin-17`。若再出现 Docker Hub 超时，把日志发我。
 
