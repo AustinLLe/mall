@@ -1,24 +1,10 @@
----
 version: 2.0
-
 env:
   resource:
     type: docker
     arch: X86
     class: 8U16G
-
 steps:
-  PRE_BUILD:
-    - checkout:
-        name: checkout
-        inputs:
-          scm: codehub
-          url: https://codehub.devcloud.cn-north-4.huaweicloud.com/a111c887c5a545eda4c6976ba10c1a75/NewSecondMall.git
-          branch: feature/lqy-first-stage
-          lfs: true
-          submodule: true
-          depth: 1
-
   BUILD:
     - maven:
         name: build-minimal
@@ -34,10 +20,10 @@ steps:
             echo "=====当前目录====="
             pwd
             ls -la
-            repo_pom="$(find /data /var /home /root /workspace /tmp -path '*/shopping_back/shopping_back/pom.xml' 2>/dev/null | head -n 1)"
+            repo_pom="$(find . -path '*/shopping_back/shopping_back/pom.xml' 2>/dev/null | head -n 1)"
             if [ -z "${repo_pom:-}" ]; then
               echo "找不到仓库根目录"
-              find /data /var /home /root /workspace /tmp -maxdepth 7 -name pom.xml 2>/dev/null | sed -n '1,30p'
+              find . -maxdepth 7 -name pom.xml 2>/dev/null | sed -n '1,30p'
               exit 1
             fi
             cd "$(dirname "$(dirname "$(dirname "$repo_pom")")")"
