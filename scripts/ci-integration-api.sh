@@ -23,8 +23,6 @@ mysql_home="/tmp/ci-mysql-dist"
 node_home="/tmp/ci-node"
 mysql_tarball_url="${MYSQL_TARBALL_URL:-https://repo.huaweicloud.com/repository/toolkit/mysql/Downloads/MySQL-8.0/mysql-8.0.28-linux-glibc2.17-x86_64-minimal.tar.xz}"
 ci_libs="/tmp/ci-libs"
-libaio_rpm_url="${LIBAIO_RPM_URL:-https://mirrors.huaweicloud.com/centos-vault/7.9.2009/os/x86_64/Packages/libaio-0.3.109-13.el7.x86_64.rpm}"
-numactl_rpm_url="${NUMACTL_RPM_URL:-https://mirrors.huaweicloud.com/centos-vault/7.9.2009/os/x86_64/Packages/numactl-libs-2.0.12-9.el7.x86_64.rpm}"
 
 mysql_cmd() {
   "${mysql_home}/bin/mysql" --socket="$mysql_sock" -uroot --protocol=SOCKET "$@"
@@ -50,7 +48,6 @@ EOF
 
 extract_rpm_libs() {
   local rpm_file="$1"
-  mkdir -p /tmp/ci-rpm-root
   rm -rf /tmp/ci-rpm-root
   mkdir -p /tmp/ci-rpm-root
   if command -v rpm2cpio >/dev/null 2>&1 && command -v cpio >/dev/null 2>&1; then
@@ -58,7 +55,7 @@ extract_rpm_libs() {
   elif command -v bsdtar >/dev/null 2>&1; then
     bsdtar -C /tmp/ci-rpm-root -xf "$rpm_file"
   else
-    rpm -ivh --nodeps --force "$rpm_file"
+    rpm -ivh --nodeps --force "$rpm_file" || true
     return 0
   fi
   mkdir -p "$ci_libs"
@@ -70,27 +67,48 @@ extract_rpm_libs() {
   fi
 }
 
-install_shared_lib_rpm() {
-  local url="$1"
-  local name="$2"
-  echo "下载 ${name}：${url}"
-  curl -fL "$url" -o "/tmp/${name}.rpm"
-  if rpm -ivh --nodeps --force "/tmp/${name}.rpm"; then
+ensure_libaio() {
+  mkdir -p "$ci_libs"
+  local so
+  so="$(find /usr/lib64 /lib64 "$ci_libs" /tmp/ci-rpm-root -name 'libaio.so.1*' 2>/dev/null | head -n 1 || true)"
+  if [ -n "${so:-}" ]; then
+    real="$(readlink -f "$so" 2>/dev/null || echo "$so")"
+    cp -a "$real" "${ci_libs}/libaio.so.1"
+  fi
+  export LD_LIBRARY_PATH="${ci_libs}:/usr/lib64:/lib64:${mysql_home}/lib:${LD_LIBRARY_PATH:-}"
+  if [ -e /usr/lib64/libaio.so.1 ] || [ -e /lib64/libaio.so.1 ] || [ -e "${ci_libs}/libaio.so.1" ]; then
+    echo "libaio.so.1 已就绪"
     return 0
   fi
-  echo "rpm 安装失败，改为解压 .so 到 ${ci_libs}"
-  extract_rpm_libs "/tmp/${name}.rpm"
+  echo "仍然找不到 libaio.so.1"
+  find /usr/lib64 /lib64 "$ci_libs" /tmp/ci-rpm-root -iname '*aio*' 2>/dev/null || true
+  exit 1
 }
 
 install_mysqld_libs() {
   mkdir -p "$ci_libs"
-  if [ ! -e /usr/lib64/libaio.so.1 ] && [ ! -e /lib64/libaio.so.1 ] && [ ! -e "${ci_libs}/libaio.so.1" ]; then
-    install_shared_lib_rpm "$libaio_rpm_url" libaio
+  local bundled="ci/rpms/libaio-0.3.109-13.el7.x86_64.rpm"
+  if [ -f "$bundled" ]; then
+    echo "使用仓库内 libaio RPM：$bundled"
+    rpm -ivh --nodeps --force "$bundled" || true
+    extract_rpm_libs "$bundled"
+  else
+    echo "仓库内没有 libaio RPM，尝试镜像下载"
+    local url
+    for url in \
+      "https://repo.huaweicloud.com/centos/7/os/x86_64/Packages/libaio-0.3.109-13.el7.x86_64.rpm" \
+      "https://mirrors.huaweicloud.com/centos/7/os/x86_64/Packages/libaio-0.3.109-13.el7.x86_64.rpm" \
+      "https://mirrors.huaweicloud.com/centos-vault/7.9.2009/os/x86_64/Packages/libaio-0.3.109-13.el7.x86_64.rpm"
+    do
+      if curl -fL "$url" -o /tmp/libaio.rpm; then
+        rpm -ivh --nodeps --force /tmp/libaio.rpm || true
+        extract_rpm_libs /tmp/libaio.rpm
+        break
+      fi
+    done
   fi
-  if [ ! -e /usr/lib64/libnuma.so.1 ] && [ ! -e /lib64/libnuma.so.1 ] && [ ! -e "${ci_libs}/libnuma.so.1" ]; then
-    install_shared_lib_rpm "$numactl_rpm_url" numactl-libs || true
-  fi
-  export LD_LIBRARY_PATH="${ci_libs}:${mysql_home}/lib:${LD_LIBRARY_PATH:-}"
+  ldconfig 2>/dev/null || true
+  ensure_libaio
 }
 
 extract_mysql_xz() {
