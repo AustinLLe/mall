@@ -46,68 +46,24 @@ skip_if_unavailable=1
 EOF
 }
 
-extract_rpm_libs() {
-  local rpm_file="$1"
-  rm -rf /tmp/ci-rpm-root
-  mkdir -p /tmp/ci-rpm-root
-  if command -v rpm2cpio >/dev/null 2>&1 && command -v cpio >/dev/null 2>&1; then
-    (cd /tmp/ci-rpm-root && rpm2cpio "$rpm_file" | cpio -idm --quiet)
-  elif command -v bsdtar >/dev/null 2>&1; then
-    bsdtar -C /tmp/ci-rpm-root -xf "$rpm_file"
-  else
-    rpm -ivh --nodeps --force "$rpm_file" || true
-    return 0
-  fi
-  mkdir -p "$ci_libs"
-  if [ -d /tmp/ci-rpm-root/usr/lib64 ]; then
-    cp -a /tmp/ci-rpm-root/usr/lib64/. "$ci_libs/"
-  fi
-  if [ -d /tmp/ci-rpm-root/lib64 ]; then
-    cp -a /tmp/ci-rpm-root/lib64/. "$ci_libs/"
-  fi
-}
-
 ensure_libaio() {
   mkdir -p "$ci_libs"
-  local so
-  so="$(find /usr/lib64 /lib64 "$ci_libs" /tmp/ci-rpm-root -name 'libaio.so.1*' 2>/dev/null | head -n 1 || true)"
-  if [ -n "${so:-}" ]; then
-    real="$(readlink -f "$so" 2>/dev/null || echo "$so")"
-    cp -a "$real" "${ci_libs}/libaio.so.1"
+  local bundled="ci/native/libaio.so.1"
+  if [ -f "$bundled" ]; then
+    cp -a "$bundled" "${ci_libs}/libaio.so.1"
+    echo "使用仓库内 ${bundled}"
   fi
   export LD_LIBRARY_PATH="${ci_libs}:/usr/lib64:/lib64:${mysql_home}/lib:${LD_LIBRARY_PATH:-}"
-  if [ -e /usr/lib64/libaio.so.1 ] || [ -e /lib64/libaio.so.1 ] || [ -e "${ci_libs}/libaio.so.1" ]; then
-    echo "libaio.so.1 已就绪"
+  if [ -e "${ci_libs}/libaio.so.1" ] || [ -e /usr/lib64/libaio.so.1 ] || [ -e /lib64/libaio.so.1 ]; then
+    echo "libaio.so.1 已就绪，LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
     return 0
   fi
   echo "仍然找不到 libaio.so.1"
-  find /usr/lib64 /lib64 "$ci_libs" /tmp/ci-rpm-root -iname '*aio*' 2>/dev/null || true
+  ls -la ci/native "$ci_libs" 2>/dev/null || true
   exit 1
 }
 
 install_mysqld_libs() {
-  mkdir -p "$ci_libs"
-  local bundled="ci/rpms/libaio-0.3.109-13.el7.x86_64.rpm"
-  if [ -f "$bundled" ]; then
-    echo "使用仓库内 libaio RPM：$bundled"
-    rpm -ivh --nodeps --force "$bundled" || true
-    extract_rpm_libs "$bundled"
-  else
-    echo "仓库内没有 libaio RPM，尝试镜像下载"
-    local url
-    for url in \
-      "https://repo.huaweicloud.com/centos/7/os/x86_64/Packages/libaio-0.3.109-13.el7.x86_64.rpm" \
-      "https://mirrors.huaweicloud.com/centos/7/os/x86_64/Packages/libaio-0.3.109-13.el7.x86_64.rpm" \
-      "https://mirrors.huaweicloud.com/centos-vault/7.9.2009/os/x86_64/Packages/libaio-0.3.109-13.el7.x86_64.rpm"
-    do
-      if curl -fL "$url" -o /tmp/libaio.rpm; then
-        rpm -ivh --nodeps --force /tmp/libaio.rpm || true
-        extract_rpm_libs /tmp/libaio.rpm
-        break
-      fi
-    done
-  fi
-  ldconfig 2>/dev/null || true
   ensure_libaio
 }
 
