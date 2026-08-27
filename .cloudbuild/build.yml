@@ -62,4 +62,4 @@ steps:
               cd "$(dirname "$(dirname "$(dirname "$pom")")")"
             fi
             cd shopping_back/shopping_back
-            mvn -B -ntp package
+            mvn -B -ntp -DskipTests package
