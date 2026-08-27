@@ -3,7 +3,7 @@ env:
   resource:
     type: docker
     arch: X86
-    class: 8U16G
+    class: 2U4G
 steps:
   BUILD:
     - maven:
