@@ -102,7 +102,9 @@
 
 这张卡片自己起一套 Compose（MySQL、后端、前端、Chrome），用独立端口 `18080`，测完会删掉容器和数据卷。必须接在「集成测试」后面：接口都过不了就不必开浏览器。
 
-不要用 `cloudbuild@docker20.10`（会去 Docker Hub 超时）。不要用 `docker` 步骤跑 Compose：该插件只允许 `build/tag/push/pull/login/logout/save`，`docker version`、`docker run`、`docker compose` 都会在解析阶段被拒。`sh` 步骤没有 Docker socket。YAML 用 `swr` 步骤，镜像走华为云 SWR 的 `codeci/dockerindocker`，在里面执行 `scripts/ci-e2e.sh`。
+不要用 `cloudbuild@docker20.10`（会去 Docker Hub 超时）。不要用 `docker run` / `docker compose`：`docker` 插件只允许 `build/tag/push/pull/login/logout/save`。`sh` 没有 Docker socket；`swr` dockerindocker 在 CodeArts 里没有特权，起不了 dockerd（iptables Permission denied）。
+
+因此 E2E 改成 **`docker pull` + `docker build` + `docker save`**：在构建镜像时安装 Chromium、MariaDB、Nginx，跑 `scripts/ci-e2e-incontainer.sh`，再用一个很小的 export 镜像把 Surefire 和截图带出来。
 
 控制台操作：
 
@@ -128,9 +130,9 @@
 
 构建任务会把这两个包传到软件发布库目录 `/NewSecondMall-e2e/`。流水线里打开该 Build 插件，勾选把构建产物作为流水线产物；下载处应能看到这两个 `.tgz`。
 
-步骤顺序：`e2e-test`（SWR dockerindocker 环境，允许失败以便上传）→ `upload-e2e-surefire` / `upload-e2e-artifacts` → `e2e-gate`（按测试退出码决定整张卡片红绿）。
+步骤顺序：`e2e-test`（docker pull/build/save，允许失败以便导出产物）→ `e2e-extract` → 上传两个 `.tgz` → `e2e-gate`。
 
-`e2e-test` 使用 CodeArts「自定义构建环境」(`swr`)，镜像为华为云 SWR 上的 dockerindocker。这才能同时跑任意 bash 和 `docker compose`。镜像默认走 DaoCloud 前缀，避免访问 Docker Hub。
+`e2e-test` 用 CodeArts 允许的 Docker 命令在镜像构建里跑浏览器用例，不再在执行机上 `docker compose`。基础镜像走 DaoCloud 的 Maven 17。
 
 若 `e2e-test` 报找不到 socket 或拉镜像失败，把该步骤完整日志发我。
 

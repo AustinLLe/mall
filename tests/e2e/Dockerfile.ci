@@ -1,0 +1,31 @@
+ARG DOCKER_HUB=docker.m.daocloud.io
+FROM ${DOCKER_HUB}/library/maven:3.9.11-eclipse-temurin-17 AS e2e
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl wget xz-utils \
+    nginx mariadb-server \
+    chromium chromium-driver \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+COPY . .
+
+ARG CI_DB_PASSWORD
+ARG CI_MYSQL_ROOT_PASSWORD
+ENV CI_DB_PASSWORD=${CI_DB_PASSWORD}
+ENV CI_MYSQL_ROOT_PASSWORD=${CI_MYSQL_ROOT_PASSWORD}
+
+RUN bash scripts/ci-e2e-incontainer.sh; \
+    status=$?; \
+    mkdir -p e2e-tests/target/surefire-reports e2e-tests/target/e2e-artifacts; \
+    tar -czf e2e-surefire-reports.tgz -C e2e-tests/target surefire-reports; \
+    tar -czf e2e-artifacts.tgz -C e2e-tests/target e2e-artifacts; \
+    if [ ! -f e2e-exit-code.txt ]; then echo "$status" > e2e-exit-code.txt; fi
+
+FROM scratch AS export
+COPY --from=e2e /work/e2e-exit-code.txt /e2e-exit-code.txt
+COPY --from=e2e /work/e2e-surefire-reports.tgz /e2e-surefire-reports.tgz
+COPY --from=e2e /work/e2e-artifacts.tgz /e2e-artifacts.tgz

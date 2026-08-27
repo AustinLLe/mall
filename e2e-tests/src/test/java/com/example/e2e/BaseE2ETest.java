@@ -20,6 +20,7 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
@@ -82,6 +83,22 @@ abstract class BaseE2ETest {
                     URI.create(remoteUrl).toURL(), options);
             remoteDriver.setFileDetector(new LocalFileDetector());
             driver = remoteDriver;
+        } else if ("chrome".equalsIgnoreCase(System.getProperty("e2e.browser", ""))) {
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--window-size=1440,1000");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--user-data-dir=" + Path.of(
+                    System.getProperty("java.io.tmpdir"),
+                    "newsecondmall-e2e-" + System.nanoTime()));
+            String chromeBinary = System.getProperty("e2e.chromeBinary", "").trim();
+            if (!chromeBinary.isBlank()) {
+                options.setBinary(chromeBinary);
+            }
+            if (headless) {
+                options.addArguments("--headless=new");
+            }
+            driver = new ChromeDriver(options);
         } else {
             EdgeOptions options = new EdgeOptions();
             options.addArguments("--inprivate");

@@ -46,7 +46,7 @@ CodeArts 使用以下文件运行独立的 E2E 测试阶段：
 - `CI_DB_PASSWORD`：E2E 数据库普通用户密码；
 - `CI_MYSQL_ROOT_PASSWORD`：E2E MySQL root 密码。
 
-CI 会依次构建并启动 MySQL、后端、前端和 Selenium Chrome 容器，等待服务健康后执行全部 E2E 用例。无论成功或失败，都会打包：
+CI 会通过 `docker build` 在镜像里启动 MariaDB、后端、Nginx 前端和 Chromium，跑完全部 E2E 用例。无论成功或失败，都会把报告打进 export 镜像再 `docker save` 取出：
 
 - `e2e-surefire-reports.tgz`（Surefire 报告）
 - `e2e-artifacts.tgz`（截图、页面源码、容器日志）
