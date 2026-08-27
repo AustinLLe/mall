@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
@@ -459,7 +460,7 @@ class ShopServiceTest {
         order.setScene("new");
         order.setSellerName("卖家A");
         order.setCreatedAt(LocalDateTime.now());
-        when(orderMapper.selectBuyerOrders(100)).thenReturn(List.of(order));
+        when(orderMapper.selectBuyerOrdersFiltered(eq(100), isNull())).thenReturn(List.of(order));
 
         List<ShopDtos.OrderView> result = shopService.createOrders(
                 new ShopDtos.CreateOrderRequest(List.of(new ShopDtos.CreateOrderItem("101", 2))),
@@ -488,7 +489,7 @@ class ShopServiceTest {
         order.setScene("new");
         order.setSellerName("测试卖家");
 
-        when(orderMapper.selectBuyerOrders(100)).thenReturn(List.of(order));
+        when(orderMapper.selectBuyerOrdersFiltered(eq(100), isNull())).thenReturn(List.of(order));
         List<OrderView> result = shopService.orders(buyerUser());
         assertNotNull(result);
         assertEquals(1, result.size());
