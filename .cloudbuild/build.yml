@@ -14,7 +14,7 @@ steps:
         inputs:
           scm: codehub
           url: https://codehub.devcloud.cn-north-4.huaweicloud.com/a111c887c5a545eda4c6976ba10c1a75/NewSecondMall.git
-          branch: feature/lqy-first-stage
+          branch: ${codeBranch}
           lfs: true
           submodule: true
           depth: 1
@@ -62,4 +62,4 @@ steps:
               cd "$(dirname "$(dirname "$(dirname "$pom")")")"
             fi
             cd shopping_back/shopping_back
-            mvn -DskipTests package
+            mvn -B -ntp package
