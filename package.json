@@ -1,5 +1,12 @@
 {
+  "scripts": {
+    "test:api": "node tests/api/run-newman.mjs"
+  },
   "dependencies": {
     "iconv-lite": "^0.7.2"
+  },
+  "devDependencies": {
+    "newman": "^6.2.2",
+    "newman-reporter-htmlextra": "^1.23.1"
   }
 }
