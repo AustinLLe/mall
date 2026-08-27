@@ -5,6 +5,10 @@
 # 不要 kubectl apply -f k8s/
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+commonAnnotations:
+  songguo.dev/image-tag: "mytest-20260827"
+  songguo.dev/commit-id: "unknown"
+  songguo.dev/pipeline-number: "manual"
 resources:
   - namespace.yaml
   - configmap-app.yaml

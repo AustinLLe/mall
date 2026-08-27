@@ -22,13 +22,23 @@ $ErrorActionPreference = "Stop"
 
 $Registry = "swr.cn-north-4.myhuaweicloud.com"
 $Org = "songguo"
-$Catalog = @{
-    backend  = @{ Dockerfile = "deploy/backend.Dockerfile";  Image = "shop-backend" }
-    frontend = @{ Dockerfile = "deploy/frontend.Dockerfile"; Image = "shop-frontend" }
-}
-
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $RepoRoot
+$CatalogPath = Join-Path $PSScriptRoot "services.conf"
+$Catalog = @{}
+Get-Content -LiteralPath $CatalogPath | ForEach-Object {
+    $line = $_.Trim()
+    if ($line -and -not $line.StartsWith("#")) {
+        $parts = $line.Split("|")
+        if ($parts.Count -ne 5) { throw "Invalid service catalog entry: $line" }
+        $Catalog[$parts[0]] = @{
+            Dockerfile = $parts[1]
+            Image = $parts[2]
+            Deployment = $parts[3]
+            Container = $parts[4]
+        }
+    }
+}
 
 $Tag = $Tag.Trim()
 $Service = $Service.Trim().ToLowerInvariant()
@@ -38,6 +48,9 @@ if ($Tag -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$') {
 }
 if ($Tag -eq "latest") {
     throw "Do not use tag 'latest'. Pick a tag that will not overwrite history."
+}
+if (-not $Tag.StartsWith("release-")) {
+    throw "Release tags must start with 'release-' (for example release-manual-20260828-1030)."
 }
 if (-not $Catalog.ContainsKey($Service)) {
     $names = ($Catalog.Keys | Sort-Object) -join ", "
@@ -75,6 +88,11 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "docker not found. Start Docker Desktop first."
 }
 
+docker manifest inspect $image *> $null
+if ($LASTEXITCODE -eq 0) {
+    throw "Refusing to overwrite existing image: $image"
+}
+
 Write-Host "Building and pushing $image"
 docker buildx build --provenance=false --sbom=false --platform linux/amd64 `
     -f $item.Dockerfile `
@@ -90,6 +108,13 @@ if ($LASTEXITCODE -ne 0) {
 
 Set-KustomizeNewTag -Path $kustomizePath -FullImageName $imageName -NewTag $Tag
 Write-Host "Updated k8s/kustomization.yaml -> $imageName newTag=$Tag"
+
+$raw = [System.IO.File]::ReadAllText($kustomizePath)
+$raw = [regex]::Replace($raw, '(?m)(songguo\.dev/image-tag:\s+).+$', "`${1}`"$Tag`"", 1)
+$raw = [regex]::Replace($raw, '(?m)(songguo\.dev/commit-id:\s+).+$', "`${1}`"manual`"", 1)
+$raw = [regex]::Replace($raw, '(?m)(songguo\.dev/pipeline-number:\s+).+$', "`${1}`"manual`"", 1)
+$utf8 = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($kustomizePath, $raw, $utf8)
 
 if ($Apply) {
     if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) {
