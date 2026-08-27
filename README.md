@@ -24,6 +24,19 @@
 
 任何密码、Token 和 AI Key 都不得提交到仓库。请通过环境变量或未纳入版本控制的 `application-local.properties` 配置。
 
+## Docker 一键部署
+
+新机器只需安装 Git 和 Docker Desktop，不需要预先安装 Maven、Java、Node.js 或 HBuilderX。
+
+```powershell
+Copy-Item deploy\.env.example deploy\.env
+# 编辑 deploy\.env，替换数据库密码和 PUBLIC_ORIGIN
+docker compose --env-file deploy\.env -f deploy\docker-compose.yml up -d --build
+docker compose --env-file deploy\.env -f deploy\docker-compose.yml ps
+```
+
+也可双击 `NewSecondMall-启动面板.cmd`，选择第 9 项。Docker 会在多阶段构建中自动安装依赖、编译前后端并启动 MySQL、backend 和 frontend 三个容器。
+
 ## 文档入口
 
 - [项目详细说明](docs/README.md)

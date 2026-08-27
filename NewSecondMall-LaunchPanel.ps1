@@ -315,7 +315,7 @@ function Initialize-DeployEnv {
             Copy-Item -LiteralPath $Script:DeployEnvExample -Destination $Script:DeployEnv -Force
             Write-Host "已从 .env.example 复制 deploy/.env" -ForegroundColor Cyan
         } else {
-            Set-Content -LiteralPath $Script:DeployEnv -Value "HTTP_PORT=80`nH5_DIST_DIR=shopping_front/unpackage/dist/build/h5`n" -Encoding UTF8
+            Set-Content -LiteralPath $Script:DeployEnv -Value "HTTP_PORT=80`n" -Encoding UTF8
             Write-Host "已创建空的 deploy/.env" -ForegroundColor Cyan
         }
     }
@@ -366,81 +366,6 @@ function Initialize-DeployEnv {
         Set-EnvFileValue $Script:DeployEnv 'HTTP_PORT' '80'
     }
     return $true
-}
-
-function Invoke-BackendPackage {
-    $mvnw = Join-Path $Script:Back 'mvnw.cmd'
-    if (-not (Test-Path -LiteralPath $mvnw)) {
-        Write-Host "后端目录不正确：$Script:Back" -ForegroundColor Red
-        return $false
-    }
-    Write-Host ''
-    Write-Host '—— 1/3 打包后端 JAR ——' -ForegroundColor Cyan
-    Push-Location -LiteralPath $Script:Back
-    try {
-        & .\mvnw.cmd -DskipTests package
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host 'Maven 打包失败，请查看上面的输出。' -ForegroundColor Red
-            return $false
-        }
-    } finally {
-        Pop-Location
-    }
-    $jars = @(Get-ChildItem -LiteralPath (Join-Path $Script:Back 'target') -Filter 'shopping_back-*.jar' -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notmatch 'sources|javadoc' })
-    if ($jars.Count -lt 1) {
-        Write-Host "打包完成但找不到 JAR：$Script:Back\target\shopping_back-*.jar" -ForegroundColor Red
-        return $false
-    }
-    Write-Host "JAR 已生成：$($jars[0].FullName)" -ForegroundColor Green
-    return $true
-}
-
-function Invoke-FrontPublish {
-    if (-not (Test-Path -LiteralPath $Script:HBuilderXCli)) {
-        Write-Host '没有自动找到 HBuilderX CLI，无法发行 H5。' -ForegroundColor Red
-        Write-Host '请安装 HBuilderX，或设置环境变量 HBUILDERX_CLI_EXE 为 cli.exe 的完整路径。' -ForegroundColor Yellow
-        Write-Host '也可先用第 2 项打开 HBuilderX，确认能手动「发行 → 网站-H5」后再试第 9 项。'
-        return $false
-    }
-    Write-Host ''
-    Write-Host '—— 2/3 发行前端 H5（publish，不是第 3 项的 launch 开发预览） ——' -ForegroundColor Cyan
-    & $Script:HBuilderXCli publish --platform h5 --project $Script:Front
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host 'cli publish --platform h5 未成功，改试 publish web ...' -ForegroundColor Yellow
-        & $Script:HBuilderXCli publish web --project $Script:Front
-    }
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host 'HBuilderX 发行 H5 失败。可先用第 2 项打开工程后再试。' -ForegroundColor Red
-        return $false
-    }
-    return $true
-}
-
-function Resolve-H5DistDir {
-    $h5Index = Join-Path $Script:Front 'unpackage\dist\build\h5\index.html'
-    $webIndex = Join-Path $Script:Front 'unpackage\dist\build\web\index.html'
-    $h5Rel = 'shopping_front/unpackage/dist/build/h5'
-    $webRel = 'shopping_front/unpackage/dist/build/web'
-    $h5Ok = Test-Path -LiteralPath $h5Index
-    $webOk = Test-Path -LiteralPath $webIndex
-    if (-not $h5Ok -and -not $webOk) {
-        Write-Host '发行结束但找不到 index.html。预期目录：' -ForegroundColor Red
-        Write-Host "  $h5Rel"
-        Write-Host "  $webRel"
-        return $null
-    }
-    $chosen = $h5Rel
-    if ($webOk -and -not $h5Ok) {
-        $chosen = $webRel
-    } elseif ($webOk -and $h5Ok) {
-        $h5Time = (Get-Item -LiteralPath $h5Index).LastWriteTime
-        $webTime = (Get-Item -LiteralPath $webIndex).LastWriteTime
-        if ($webTime -ge $h5Time) { $chosen = $webRel }
-    }
-    Set-EnvFileValue $Script:DeployEnv 'H5_DIST_DIR' $chosen
-    Write-Host "H5 产物目录：$chosen" -ForegroundColor Green
-    return $chosen
 }
 
 function Get-DockerPublicUrl {
@@ -529,18 +454,14 @@ function Start-DockerStack {
     Write-Host '========================================================'
     Write-Host ''
     Write-Host '第 3 项是开发预览（launch web → localhost:5173）。'
-    Write-Host '本项会打包 JAR、发行静态 H5，再 docker compose up。'
+    Write-Host '本项由 Docker 在隔离的构建阶段编译后端 JAR 和前端 H5，本机不需要 Maven 或 HBuilderX。'
     Write-Host ''
 
     if (-not (Test-DockerCli)) { Pause; return }
     if (-not (Initialize-DeployEnv)) { Pause; return }
-    if (-not (Invoke-BackendPackage)) { Pause; return }
-    if (-not (Invoke-FrontPublish)) { Pause; return }
-    $dist = Resolve-H5DistDir
-    if (-not $dist) { Pause; return }
 
     Write-Host ''
-    Write-Host '—— 3/3 docker compose up --build ——' -ForegroundColor Cyan
+    Write-Host '—— docker compose up --build ——' -ForegroundColor Cyan
     Push-Location -LiteralPath $Script:DeployDir
     try {
         docker compose --env-file .env -f docker-compose.yml up -d --build

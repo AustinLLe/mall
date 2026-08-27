@@ -49,8 +49,6 @@ services:
     build:
       context: ..
       dockerfile: deploy/frontend.Dockerfile
-      args:
-        H5_DIST_DIR: ${H5_DIST_DIR:-shopping_front/unpackage/dist/build/h5}
     restart: unless-stopped
     # 唯一对外端口。不要给 backend / mysql 增加 ports。
     ports:
