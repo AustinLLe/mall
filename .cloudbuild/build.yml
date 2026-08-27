@@ -31,10 +31,13 @@ steps:
             export MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}"
             export CI_MINIMAL=true
             chmod +x scripts/build-and-test.sh tests/blackbox/smoke.sh shopping_back/shopping_back/mvnw
-            repo_pom="$(find /data/workspace -path '*/shopping_back/shopping_back/pom.xml' | head -n 1)"
+            echo "=====当前目录====="
+            pwd
+            ls -la
+            repo_pom="$(find /data /var /home /root /workspace /tmp -path '*/shopping_back/shopping_back/pom.xml' 2>/dev/null | head -n 1)"
             if [ -z "${repo_pom:-}" ]; then
               echo "找不到仓库根目录"
-              find /data/workspace -maxdepth 6 -name pom.xml | sed -n '1,20p'
+              find /data /var /home /root /workspace /tmp -maxdepth 7 -name pom.xml 2>/dev/null | sed -n '1,30p'
               exit 1
             fi
             cd "$(dirname "$(dirname "$(dirname "$repo_pom")")")"
