@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "test:api": "node tests/api/run-newman.mjs"
+    "test:api": "node tests/api/run-newman.mjs",
+    "test:e2e": "node tests/e2e/run-e2e.mjs"
   },
   "dependencies": {
     "iconv-lite": "^0.7.2"

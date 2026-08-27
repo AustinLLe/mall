@@ -18,18 +18,15 @@ class BuyerAndStoreE2ETest extends BaseE2ETest {
         String title = openFirstProduct();
 
         clickUniElement(wait.until(ExpectedConditions.elementToBeClickable(
-                By.cssSelector(".side-secondary"))));
+                By.cssSelector("[data-testid='favorite-product']"))));
         openPage("pages/user/index");
         wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), "足迹收藏"));
 
-        WebElement favoriteNav = wait.until(currentDriver -> currentDriver
-                .findElements(By.cssSelector(".side-item"))
-                .stream()
-                .filter(item -> item.getText().contains("商品收藏"))
-                .findFirst()
-                .orElse(null));
+        WebElement favoriteNav = wait.until(ExpectedConditions.elementToBeClickable(
+                By.cssSelector("[data-testid='buyer-nav-favorite']")));
         clickUniElement(favoriteNav);
-        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), title));
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(
+                By.cssSelector("[data-testid='interaction-title']"), title));
 
         assertTrue(driver.getPageSource().contains(title));
         saveScreenshot("EV-E2E-BUYER-FAVORITE-01");

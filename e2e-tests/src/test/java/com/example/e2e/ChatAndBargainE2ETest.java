@@ -3,6 +3,7 @@ package com.example.e2e;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -29,16 +30,21 @@ class ChatAndBargainE2ETest extends BaseE2ETest {
             clickUniElement(wait.until(ExpectedConditions.elementToBeClickable(
                     By.cssSelector(".conversation-item"))));
         }
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector(".chat-pane .composer")));
+        wait.until(ExpectedConditions.attributeToBe(
+                By.cssSelector("[data-testid='chat-composer']"),
+                "data-conversation-ready",
+                "true"));
 
         String message = "E2E议价消息-" + LocalDateTime.now()
                 .format(DateTimeFormatter.ofPattern("MMddHHmmss")) + "，可以便宜一些吗？";
         setInputValue(wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.cssSelector(".message-input textarea"))), message);
-        List<WebElement> sendButtons = wait.until(
-                ExpectedConditions.numberOfElementsToBeMoreThan(By.cssSelector(".composer-actions .send-btn"), 1));
-        clickUniElement(sendButtons.get(sendButtons.size() - 1));
-        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.cssSelector(".messages"), message));
+                By.cssSelector("[data-testid='chat-input'] textarea"))), message);
+        wait.until(ExpectedConditions.attributeToBe(
+                By.cssSelector("[data-testid='chat-input'] textarea"), "value", message));
+        clickUniElement(wait.until(ExpectedConditions.elementToBeClickable(
+                By.cssSelector("[data-testid='chat-send']"))));
+        waitFor(Duration.ofSeconds(30)).until(ExpectedConditions.textToBePresentInElementLocated(
+                By.cssSelector("[data-testid='chat-messages']"), message));
 
         WebElement bargainButton = wait.until(currentDriver -> currentDriver
                 .findElements(By.cssSelector(".header-actions .ghost-btn"))
