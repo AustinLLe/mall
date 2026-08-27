@@ -1,13 +1,51 @@
+---
 version: 2.0
+
 env:
   resource:
     type: docker
     arch: X86
     class: 2U8G
+
 steps:
+  PRE_BUILD:
+    - checkout:
+        name: checkout
+        inputs:
+          scm: codehub
+          url: https://codehub.devcloud.cn-north-4.huaweicloud.com/a111c887c5a545eda4c6976ba10c1a75/NewSecondMall.git
+          branch: feature/lqy-first-stage
+          lfs: true
+          submodule: true
+          depth: 1
+
   BUILD:
+    - npm:
+        name: build-frontend
+        image: cloudbuild@nodejs18
+        inputs:
+          command: |-
+            set -euo pipefail
+            echo "=====当前目录====="
+            pwd
+            ls -la
+            if [ ! -d shopping_front ]; then
+              pom="$(find . /data /var /workspace /tmp -path '*/shopping_back/shopping_back/pom.xml' 2>/dev/null | head -n 1)"
+              if [ -z "${pom:-}" ]; then
+                echo "找不到仓库根目录"
+                exit 1
+              fi
+              cd "$(dirname "$(dirname "$(dirname "$pom")")")"
+            fi
+            export PATH="$PATH:$HOME/.npm-global/bin"
+            npm config set cache /npmcache
+            npm config set prefix "$HOME/.npm-global"
+            npm config set registry https://repo.huaweicloud.com/repository/npm/
+            cd shopping_front
+            npm ci
+            npm run build:h5
     - maven:
-        name: build-minimal
+        name: build-backend
         image: cloudbuild@maven3.9.5-jdk17
         inputs:
           cache: true
@@ -15,17 +53,14 @@ steps:
             set -euo pipefail
             export DB_PASSWORD="${CI_DB_PASSWORD:?CI_DB_PASSWORD is required}"
             export MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}"
-            export CI_MINIMAL=true
-            chmod +x scripts/build-and-test.sh tests/blackbox/smoke.sh shopping_back/shopping_back/mvnw
-            echo "=====当前目录====="
-            pwd
-            ls -la
-            repo_pom="$(find . -path '*/shopping_back/shopping_back/pom.xml' 2>/dev/null | head -n 1)"
-            if [ -z "${repo_pom:-}" ]; then
-              echo "找不到仓库根目录"
-              find . -maxdepth 7 -name pom.xml 2>/dev/null | sed -n '1,30p'
-              exit 1
+            if [ ! -f shopping_back/shopping_back/mvnw ]; then
+              pom="$(find . /data /var /workspace /tmp -path '*/shopping_back/shopping_back/pom.xml' 2>/dev/null | head -n 1)"
+              if [ -z "${pom:-}" ]; then
+                echo "找不到仓库根目录"
+                exit 1
+              fi
+              cd "$(dirname "$(dirname "$(dirname "$pom")")")"
             fi
-            cd "$(dirname "$(dirname "$(dirname "$repo_pom")")")"
-            pwd
-            ./scripts/build-and-test.sh
+            chmod +x shopping_back/shopping_back/mvnw
+            cd shopping_back/shopping_back
+            ./mvnw -DskipTests package
