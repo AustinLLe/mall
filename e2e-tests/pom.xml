@@ -50,6 +50,7 @@
                     <systemPropertyVariables>
                         <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
                     </systemPropertyVariables>
+                    <forkedProcessTimeoutInSeconds>720</forkedProcessTimeoutInSeconds>
                 </configuration>
             </plugin>
         </plugins>

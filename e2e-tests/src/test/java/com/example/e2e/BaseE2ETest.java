@@ -21,6 +21,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
@@ -88,6 +89,10 @@ abstract class BaseE2ETest {
             options.addArguments("--window-size=1440,1000");
             options.addArguments("--no-sandbox");
             options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--disable-extensions");
+            options.addArguments("--no-first-run");
+            options.addArguments("--remote-allow-origins=*");
             options.addArguments("--user-data-dir=" + Path.of(
                     System.getProperty("java.io.tmpdir"),
                     "newsecondmall-e2e-" + System.nanoTime()));
@@ -98,7 +103,17 @@ abstract class BaseE2ETest {
             if (headless) {
                 options.addArguments("--headless=new");
             }
-            driver = new ChromeDriver(options);
+            String chromeDriver = System.getProperty("e2e.chromeDriver", "").trim();
+            ChromeDriverService.Builder serviceBuilder = new ChromeDriverService.Builder()
+                    .withTimeout(Duration.ofSeconds(45));
+            if (!chromeDriver.isBlank()) {
+                serviceBuilder.usingDriverExecutable(Path.of(chromeDriver).toFile());
+            }
+            System.out.println("Starting ChromeDriver"
+                    + (chromeDriver.isBlank() ? "" : " at " + chromeDriver)
+                    + (chromeBinary.isBlank() ? "" : " binary=" + chromeBinary));
+            driver = new ChromeDriver(serviceBuilder.build(), options);
+            System.out.println("ChromeDriver ready");
         } else {
             EdgeOptions options = new EdgeOptions();
             options.addArguments("--inprivate");

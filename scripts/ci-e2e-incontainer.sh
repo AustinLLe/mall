@@ -100,7 +100,7 @@ echo "===== 构建并启动后端 ====="
   mvn -B -ntp -DskipTests package
 )
 jar="$(ls -1 shopping_back/shopping_back/target/shopping_back-*.jar | head -n 1)"
-java -jar "$jar" &
+java -jar "$jar" >/tmp/shopping-back.log 2>&1 &
 
 echo "等待 http://127.0.0.1:18080/api/products"
 ok=0
@@ -129,9 +129,24 @@ if [ -z "$chrome_bin" ]; then
   echo "找不到 Chrome/Chromium"
   exit 1
 fi
+chromedriver_bin=""
+for candidate in /usr/bin/chromedriver /usr/lib/chromium/chromedriver; do
+  if [ -x "$candidate" ]; then
+    chromedriver_bin="$candidate"
+    break
+  fi
+done
+if [ -z "$chromedriver_bin" ]; then
+  echo "找不到 chromedriver"
+  exit 1
+fi
 echo "使用浏览器: ${chrome_bin}"
+echo "使用 ChromeDriver: ${chromedriver_bin}"
+"${chrome_bin}" --version || true
+"${chromedriver_bin}" --version || true
 
 echo "===== 运行 E2E ====="
+export SE_OFFLINE=true
 set +e
 mvn -B -ntp -f e2e-tests/pom.xml test \
   -Dmaven.compiler.release=17 \
@@ -139,7 +154,13 @@ mvn -B -ntp -f e2e-tests/pom.xml test \
   -De2e.headless=true \
   -De2e.baseUrl=http://127.0.0.1:18080 \
   -De2e.chromeBinary="${chrome_bin}" \
+  -De2e.chromeDriver="${chromedriver_bin}" \
+  -Dwebdriver.chrome.driver="${chromedriver_bin}" \
   -De2e.timeoutSeconds=20
 e2e_status=$?
 set -e
+if [ "${e2e_status}" -ne 0 ]; then
+  echo "===== 后端日志尾部 ====="
+  tail -n 80 /tmp/shopping-back.log || true
+fi
 exit "${e2e_status}"
