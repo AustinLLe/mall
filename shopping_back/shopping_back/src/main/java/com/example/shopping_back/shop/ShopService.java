@@ -1039,10 +1039,13 @@ public class ShopService {
     }
 
     private void validatePublish(PublishRequest request) {
-        if (request.price() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "价格不能为空");
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "商品参数不能为空");
         }
-        if (request.price().compareTo(BigDecimal.ZERO) <= 0) {
+        if (isBlank(request.title())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "标题不能为空");
+        }
+        if (request.price() == null || request.price().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "价格必须大于 0");
         }
         if ("used".equals(normalizeScene(request.scene()))) {
