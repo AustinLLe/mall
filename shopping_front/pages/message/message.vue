@@ -233,7 +233,7 @@
 	import { fetchProduct, requestAiAssist } from '@/services/shop.js'
 		// #ifdef H5
 	import SockJS from 'sockjs-client'
-	import Stomp from 'stompjs'
+	import Stomp from 'stompjs/lib/stomp.js'
 		// #endif
 	import { fetchMe } from '@/services/auth.js'
 	import { get, post, put, del } from '@/utils/request.js'

@@ -9,6 +9,14 @@ export PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-http://localhost}"
 export HTTP_PORT="${HTTP_PORT:-8088}"
 export IMAGE_TAG="$image_tag"
 
+java_version="$(java -version 2>&1 | awk -F '"' '/version/ {print $2; exit}')"
+java_major="${java_version%%.*}"
+if [[ "$java_major" != "21" ]]; then
+  echo "ERROR: Java 21 is required, current java version is: ${java_version:-unknown}" >&2
+  echo "Please select JDK 21 in the CodeArts build environment before running this script." >&2
+  exit 1
+fi
+
 cd "$root_dir/shopping_front"
 npm ci
 npm run build:h5
