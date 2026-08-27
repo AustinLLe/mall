@@ -20,10 +20,11 @@ steps:
           depth: 1
 
   BUILD:
-    - swr:
+    - maven:
         name: start-env-integration-api
-        image: cloudbuild@docker20.10
+        image: cloudbuild@maven3.9.5-jdk17
         inputs:
+          cache: false
           command: |-
             set -euo pipefail
             if [ ! -f scripts/ci-integration-api.sh ]; then
