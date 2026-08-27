@@ -5,7 +5,7 @@ WORKDIR /build
 COPY shopping_back/shopping_back/pom.xml ./pom.xml
 COPY shopping_back/shopping_back/src ./src
 RUN --mount=type=cache,target=/root/.m2 \
-  mvn -B -ntp -DskipTests package
+  mvn -B -ntp clean test package
 
 FROM eclipse-temurin:21-jre-alpine
 

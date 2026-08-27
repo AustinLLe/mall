@@ -82,6 +82,13 @@ class ShopServiceTest {
         );
 
         validProduct = createValidProductRecord();
+
+         StoreRecord mockStore = new StoreRecord();
+        mockStore.setStoreId(1);
+        mockStore.setSellerId(100);
+        mockStore.setStoreName("测试店铺");
+        lenient().when(storeMapper.selectBySeller(100)).thenReturn(mockStore);
+        lenient().when(storeMapper.followerCount(1)).thenReturn(0);
     }
 
     @Test
@@ -94,11 +101,15 @@ class ShopServiceTest {
         when(productMapper.selectById(101)).thenReturn(validProduct);
 
         ShopDtos.PublishRequest request = createValidPublishRequest();
-        ShopDtos.ProductView result = shopService.publish(request, null);
+        ShopDtos.ProductView result = shopService.publish(request, sellerUser());
 
         assertNotNull(result);
         assertEquals("测试商品", result.title());
         verify(productMapper, times(1)).insert(any(ProductRecord.class));
+    }
+
+    private AuthUserView sellerUser() {
+        return new AuthUserView(100, "seller", "138****8000", 100, "seller", "卖家", false, "normal", "");
     }
 
     @Test
@@ -118,7 +129,7 @@ class ShopServiceTest {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> shopService.publish(request, null)
+                () -> shopService.publish(request,sellerUser())
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
@@ -141,7 +152,7 @@ class ShopServiceTest {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> shopService.publish(request, null)
+                () -> shopService.publish(request, sellerUser())
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
