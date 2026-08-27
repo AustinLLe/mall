@@ -25,3 +25,5 @@ hs_err_pid*
 NewSecondMall-db.local.cmd
 NewSecondMall-db.local.json
 application-local.properties
+node_modules/
+tests/api/reports/
