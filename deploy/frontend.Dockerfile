@@ -12,6 +12,7 @@ FROM nginx:1.28-alpine
 
 COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/dist/build/h5/ /usr/share/nginx/html/
+COPY shopping_front/static/ /usr/share/nginx/html/static/
 
 EXPOSE 80
 
