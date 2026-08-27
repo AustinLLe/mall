@@ -70,9 +70,9 @@
 文件：`.cloudbuild/integration-api.yml`  
 脚本：`scripts/ci-integration-api.sh`
 
-一张卡片里顺序做三件事：本机起 MariaDB + 后端 jar → `tests/blackbox/smoke.sh`（接口冒烟）→ Newman `npm run test:api`。必须放在同一个步骤里，环境才能一直活着。
+一张卡片里顺序做三件事：华为云镜像下载 MySQL 二进制包并启动后端 → `tests/blackbox/smoke.sh`（接口冒烟）→ Newman `npm run test:api`。必须放在同一个步骤里，环境才能一直活着。
 
-不要用 `cloudbuild@docker20.10` 或 Docker Compose：华为云执行机访问不了 Docker Hub（`registry-1.docker.io` 超时）。这张卡片沿用已经跑通的 `cloudbuild@maven3.9.5-jdk17`。
+不要用 `cloudbuild@docker20.10`、Docker Compose，也不要在构建镜像里 `yum install`：执行机访问不了 Docker Hub，且 yum 源是空的。
 
 控制台操作（和单元测试任务同一套办法）：
 

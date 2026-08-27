@@ -19,52 +19,105 @@ backend_port="${BACKEND_PORT:-8080}"
 base_url="http://127.0.0.1:${backend_port}"
 mysql_sock="/tmp/ci-mysql.sock"
 mysql_data="/tmp/ci-mysql-data"
+mysql_home="/tmp/ci-mysql-dist"
 node_home="/tmp/ci-node"
+mysql_tarball_url="${MYSQL_TARBALL_URL:-https://repo.huaweicloud.com/repository/toolkit/mysql/Downloads/MySQL-8.0/mysql-8.0.28-linux-glibc2.17-x86_64-minimal.tar.xz}"
 
 mysql_cmd() {
-  mysql --socket="$mysql_sock" -uroot --protocol=SOCKET "$@"
+  "${mysql_home}/bin/mysql" --socket="$mysql_sock" -uroot --protocol=SOCKET "$@"
+}
+
+enable_yum_mirrors() {
+  mkdir -p /etc/yum.repos.d
+  cat > /etc/yum.repos.d/ci-huawei.repo <<'EOF'
+[ci-centos7]
+name=ci-centos7
+baseurl=https://mirrors.huaweicloud.com/centos/7/os/x86_64/
+enabled=1
+gpgcheck=0
+skip_if_unavailable=1
+[ci-centos7-extras]
+name=ci-centos7-extras
+baseurl=https://mirrors.huaweicloud.com/centos/7/extras/x86_64/
+enabled=1
+gpgcheck=0
+skip_if_unavailable=1
+EOF
+}
+
+extract_mysql_xz() {
+  mkdir -p "$mysql_home"
+  if tar -xJf /tmp/mysql.tar.xz -C "$mysql_home" --strip-components=1; then
+    return 0
+  fi
+  if command -v xz >/dev/null 2>&1; then
+    xz -dc /tmp/mysql.tar.xz | tar -x -C "$mysql_home" --strip-components=1
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - <<'PY'
+import tarfile
+tarfile.open("/tmp/mysql.tar.xz", "r:xz").extractall("/tmp/ci-mysql-unpack")
+PY
+    inner="$(find /tmp/ci-mysql-unpack -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+    cp -a "${inner}/." "$mysql_home/"
+    return 0
+  fi
+  return 1
 }
 
 install_mysql() {
-  if command -v mysqld >/dev/null 2>&1 && command -v mysql >/dev/null 2>&1; then
+  if [ -x "${mysql_home}/bin/mysqld" ] && [ -x "${mysql_home}/bin/mysql" ]; then
+    export PATH="${mysql_home}/bin:${PATH}"
     return 0
   fi
-  echo "安装 MariaDB（不走 Docker Hub）"
-  if command -v apt-get >/dev/null 2>&1; then
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -y
-    apt-get install -y mariadb-server mariadb-client curl ca-certificates
-  elif command -v yum >/dev/null 2>&1; then
-    yum install -y mariadb-server mariadb curl
-  elif command -v dnf >/dev/null 2>&1; then
-    dnf install -y mariadb-server mariadb curl
-  elif command -v microdnf >/dev/null 2>&1; then
-    microdnf install -y mariadb-server mariadb curl
+  if command -v mysqld >/dev/null 2>&1 && command -v mysql >/dev/null 2>&1; then
+    mysql_home="$(dirname "$(dirname "$(command -v mysqld)")")"
+    return 0
+  fi
+
+  echo "OS 信息："
+  cat /etc/os-release 2>/dev/null || true
+  echo "从华为云镜像下载 MySQL 二进制包（不走 yum、不走 Docker Hub）"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fL "$mysql_tarball_url" -o /tmp/mysql.tar.xz
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O /tmp/mysql.tar.xz "$mysql_tarball_url"
   else
-    echo "当前构建镜像没有包管理器，无法安装 MySQL。"
-    echo "也不要改用 docker20.10：华为云执行机访问不了 registry-1.docker.io。"
+    echo "没有 curl/wget，尝试用华为云 yum 源安装 curl"
+    enable_yum_mirrors
+    yum install -y curl
+    curl -fL "$mysql_tarball_url" -o /tmp/mysql.tar.xz
+  fi
+
+  if ! extract_mysql_xz; then
+    echo "解压 xz 失败，安装 xz/libaio 后重试"
+    enable_yum_mirrors
+    yum install -y xz libaio || yum install -y xz libaio-devel || true
+    extract_mysql_xz
+  fi
+  if [ ! -x "${mysql_home}/bin/mysqld" ]; then
+    echo "MySQL 二进制包解压失败"
+    ls -la "$mysql_home" || true
     exit 1
   fi
+  export PATH="${mysql_home}/bin:${PATH}"
 }
 
 start_mysql() {
   mkdir -p "$mysql_data"
+  export PATH="${mysql_home}/bin:${PATH}"
   if [ ! -d "$mysql_data/mysql" ]; then
-    if command -v mysql_install_db >/dev/null 2>&1; then
-      mysql_install_db --datadir="$mysql_data" --user="$(id -un)" --auth-root-authentication-method=normal
-    elif command -v mariadb-install-db >/dev/null 2>&1; then
-      mariadb-install-db --datadir="$mysql_data" --user="$(id -un)" --auth-root-authentication-method=normal
-    else
-      mysqld --initialize-insecure --datadir="$mysql_data" --user="$(id -un)"
-    fi
+    "${mysql_home}/bin/mysqld" --basedir="$mysql_home" --datadir="$mysql_data" --initialize-insecure --user="$(id -un)"
   fi
-  mysqld \
+  "${mysql_home}/bin/mysqld" \
+    --basedir="$mysql_home" \
     --datadir="$mysql_data" \
     --socket="$mysql_sock" \
     --pid-file=/tmp/ci-mysql.pid \
     --port=3306 \
     --bind-address=127.0.0.1 \
-    --skip-networking=0 &
+    --user="$(id -un)" &
   echo "等待 MySQL 就绪"
   ok=0
   for _ in $(seq 1 60); do
@@ -75,8 +128,22 @@ start_mysql() {
     sleep 2
   done
   if [ "$ok" -ne 1 ]; then
-    echo "MySQL 未启动"
-    exit 1
+    echo "MySQL 未启动。若缺 libaio，会尝试从华为云 yum 源补依赖后再起一次。"
+    enable_yum_mirrors
+    yum install -y libaio numactl-libs ncurses-compat-libs || true
+    "${mysql_home}/bin/mysqld" \
+      --basedir="$mysql_home" \
+      --datadir="$mysql_data" \
+      --socket="$mysql_sock" \
+      --pid-file=/tmp/ci-mysql.pid \
+      --port=3306 \
+      --bind-address=127.0.0.1 \
+      --user="$(id -un)" &
+    sleep 5
+    if ! mysql_cmd -e "SELECT 1" >/dev/null 2>&1; then
+      echo "MySQL 仍未启动"
+      exit 1
+    fi
   fi
   mysql_cmd <<SQL
 CREATE DATABASE IF NOT EXISTS shop_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
@@ -144,7 +211,7 @@ echo "===== 2/3 集成测试 ====="
 SMOKE_SKIP_FRONTEND=true bash tests/blackbox/smoke.sh "${base_url}"
 
 echo "===== 3/3 接口测试 ====="
-mysql --socket="$mysql_sock" -u"$DB_USERNAME" -p"$DB_PASSWORD" --protocol=SOCKET shop_db \
+"${mysql_home}/bin/mysql" --socket="$mysql_sock" -u"$DB_USERNAME" -p"$DB_PASSWORD" --protocol=SOCKET shop_db \
   < tests/api/fixtures/setup.sql
 install_node
 if [ -d "${node_home}/bin" ]; then
