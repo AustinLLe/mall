@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 1. 构建 | 已有构建任务 NewSecondMall | `.cloudbuild/build.yml` |
 | 2. 单元测试 | 再建一个构建任务，流水线里第二张卡片 | `.cloudbuild/unit-test.yml` |
-| 3. 接口测试 | 以后加（Newman，需要已启动的 API） | `tests/api` |
+| 3. 启动测试环境 + 集成测试 + 接口测试 | 再建一个构建任务，流水线第三张卡片 | `.cloudbuild/integration-api.yml` |
 | 4. 构建镜像 | 以后加 | Dockerfile |
 | 5. 部署 | 以后加 | `k8s/` |
 | 6. 健康检查 | 以后加 | 探活脚本 |
@@ -63,13 +63,40 @@
 
 流水线画布上应看到两块：构建 → 单元测试。点进第二块，步骤里才会出现名为 `unit-test` 的行。
 
-`NewSecondMall` 任务不要加 `CB_BUILD_YAML_PATH`。两个任务都要有 `codeBranch`，默认值 `feature/lqy-first-stage`。
+`NewSecondMall` 任务不要加 `CB_BUILD_YAML_PATH`。每个构建任务都要有 `codeBranch`，默认值 `feature/lqy-first-stage`。
+
+## 集成与接口测试（第 3 张卡片）
+
+文件：`.cloudbuild/integration-api.yml`  
+脚本：`scripts/ci-integration-api.sh`
+
+一张卡片里顺序做三件事：Compose 起 MySQL/后端/前端 → `tests/blackbox/smoke.sh` → Newman `npm run test:api`。必须放在同一个步骤里，环境才能一直活着。
+
+控制台操作（和单元测试任务同一套办法）：
+
+1. 编译构建 → 新建任务，名称 `NewSecondMall-integration-api`。
+2. 源码仍选 NewSecondMall，默认分支 `feature/lqy-first-stage`。
+3. 先随便保存，**不要**在代码化里改 `build.yml`。
+4. 参数设置增加：
+
+| 名称 | 默认值 |
+| --- | --- |
+| `CB_BUILD_YAML_PATH` | `.cloudbuild/integration-api.yml` |
+| `codeBranch` | `feature/lqy-first-stage`（运行时设置打开） |
+| `CI_DB_PASSWORD` | `CiShop2026_Test` |
+| `CI_MYSQL_ROOT_PASSWORD` | `CiRoot2026_Test` |
+
+5. 规格 `2U8G`。保存后从任务列表点 **执行**，不要从代码化点保存并执行。
+6. 单独跑绿后，流水线在「单元测试」后新增阶段「集成测试」，拖入 Build，任务选 `NewSecondMall-integration-api`，依赖单元测试。
+
+执行记录里步骤名是 `start-env-integration-api`。日志里会有 `1/3 启动测试环境`、`2/3 集成测试`、`3/3 接口测试`。
 
 ## 流水线 YAML 占位
 
 `.codearts/workflow/pipeline.yml` 里：
 
 - `REPLACE_WITH_BUILD_JOB_ID`：现有构建任务详情页 URL 末尾 32 位
-- `REPLACE_WITH_UNIT_TEST_JOB_ID`：新建的单元测试构建任务同样位置
+- `REPLACE_WITH_UNIT_TEST_JOB_ID`：单元测试构建任务同样位置
+- `REPLACE_WITH_INTEGRATION_API_JOB_ID`：集成与接口测试构建任务同样位置
 
 控制台选好任务后会自动填 `jobId`。不要手写，不要用 `official_git_clone`。
