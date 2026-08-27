@@ -130,7 +130,9 @@
 
 步骤顺序：`e2e-test`（PRE_BUILD 的 shell，允许失败以便上传）→ `upload-e2e-surefire` / `upload-e2e-artifacts` → `e2e-gate`（按测试退出码决定整张卡片红绿）。
 
-这张卡会拉 `selenium/standalone-chrome` 和 `maven:3.9.11-eclipse-temurin-17`。若再出现 Docker Hub 超时，把日志发我。
+`e2e-test` 跑在 CodeArts 的 shell 镜像里，镜像本身没有 docker。脚本会从华为云下载 Docker 静态客户端，再装 compose 插件，通过执行机的 Docker socket（`k8sdockerondocker`）起容器。镜像默认走 DaoCloud 前缀，避免再访问 Docker Hub。
+
+若 `e2e-test` 报找不到 socket 或拉镜像失败，把该步骤完整日志发我。
 
 ## 流水线 YAML 占位
 
