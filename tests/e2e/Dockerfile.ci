@@ -1,14 +1,23 @@
 ARG DOCKER_HUB=docker.m.daocloud.io
-FROM ${DOCKER_HUB}/library/maven:3.9.11-eclipse-temurin-17 AS e2e
+FROM ${DOCKER_HUB}/library/debian:bookworm-slim AS e2e
 
 USER root
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl wget xz-utils \
-    nginx mariadb-server \
-    chromium chromium-driver \
-    fonts-liberation \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i 's|deb.debian.org|mirrors.huaweicloud.com|g; s|security.debian.org|mirrors.huaweicloud.com/debian-security|g' /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+      sed -i 's|deb.debian.org|mirrors.huaweicloud.com|g; s|security.debian.org|mirrors.huaweicloud.com/debian-security|g' /etc/apt/sources.list; \
+    fi; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates curl wget xz-utils \
+      openjdk-17-jdk-headless maven \
+      nginx mariadb-server \
+      chromium chromium-driver \
+      fonts-liberation; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /work
 COPY . .

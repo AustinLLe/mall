@@ -24,7 +24,7 @@ steps:
         name: e2e-test
         inputs:
           command: |-
-            docker pull docker.m.daocloud.io/library/maven:3.9.11-eclipse-temurin-17
+            docker pull docker.m.daocloud.io/library/debian:bookworm-slim
             docker build --build-arg DOCKER_HUB=docker.m.daocloud.io --build-arg CI_DB_PASSWORD --build-arg CI_MYSQL_ROOT_PASSWORD -f tests/e2e/Dockerfile.ci -t newsecondmall-e2e-export:ci --target export .
             docker save newsecondmall-e2e-export:ci -o e2e-image.tar
           ignore_fail: true

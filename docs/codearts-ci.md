@@ -132,7 +132,7 @@
 
 步骤顺序：`e2e-test`（docker pull/build/save，允许失败以便导出产物）→ `e2e-extract` → 上传两个 `.tgz` → `e2e-gate`。
 
-`e2e-test` 用 CodeArts 允许的 Docker 命令在镜像构建里跑浏览器用例，不再在执行机上 `docker compose`。基础镜像走 DaoCloud 的 Maven 17。
+`e2e-test` 用 CodeArts 允许的 Docker 命令在镜像构建里跑浏览器用例。基础镜像改成较小的 `debian:bookworm-slim`，再用华为云 Debian 源安装 JDK、Maven、Chromium，避免去 DaoCloud 拉几百 MB 的 Maven 镜像。
 
 若 `e2e-test` 报找不到 socket 或拉镜像失败，把该步骤完整日志发我。
 
