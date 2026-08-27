@@ -78,9 +78,34 @@ ensure_docker_socket() {
       return 0
     fi
   done
-  echo "未挂载 docker.sock，改用当前 docker 默认连接"
-  find /var /run /tmp /opt -name 'docker.sock' 2>/dev/null | head -n 20 || true
+  echo "未发现 docker.sock，稍后如需要会启动 dockerd"
   return 0
+}
+
+ensure_docker_daemon() {
+  if docker info >/dev/null 2>&1; then
+    echo "Docker 守护进程已可用"
+    return 0
+  fi
+  if ! command -v dockerd >/dev/null 2>&1; then
+    echo "没有 dockerd，也连不上 Docker 守护进程"
+    docker info || true
+    return 1
+  fi
+  echo "正在启动 dockerd"
+  mkdir -p /var/run
+  dockerd --host=unix:///var/run/docker.sock >/tmp/dockerd.log 2>&1 &
+  local i
+  for i in $(seq 1 40); do
+    if docker info >/dev/null 2>&1; then
+      echo "dockerd 已就绪"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "dockerd 未就绪："
+  cat /tmp/dockerd.log || true
+  return 1
 }
 
 ensure_docker_cli() {
@@ -155,6 +180,7 @@ ls -l /var/run/docker.sock /run/docker.sock 2>&1 || true
 
 ensure_docker_socket
 ensure_docker_cli
+ensure_docker_daemon
 ensure_docker_compose
 docker version
 docker info
