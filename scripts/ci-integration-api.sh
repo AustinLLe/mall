@@ -46,25 +46,41 @@ skip_if_unavailable=1
 EOF
 }
 
-ensure_libaio() {
+ensure_mysqld_native_libs() {
   mkdir -p "$ci_libs"
-  local bundled="ci/native/libaio.so.1"
-  if [ -f "$bundled" ]; then
-    cp -a "$bundled" "${ci_libs}/libaio.so.1"
-    echo "使用仓库内 ${bundled}"
+  if [ -d ci/native ]; then
+    cp -a ci/native/. "$ci_libs/"
+    echo "已复制 ci/native 到 ${ci_libs}："
+    ls -l "$ci_libs"
   fi
   export LD_LIBRARY_PATH="${ci_libs}:/usr/lib64:/lib64:${mysql_home}/lib:${LD_LIBRARY_PATH:-}"
-  if [ -e "${ci_libs}/libaio.so.1" ] || [ -e /usr/lib64/libaio.so.1 ] || [ -e /lib64/libaio.so.1 ]; then
-    echo "libaio.so.1 已就绪，LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
-    return 0
+  if [ ! -e "${ci_libs}/libaio.so.1" ]; then
+    echo "缺少 ci/native/libaio.so.1"
+    exit 1
   fi
-  echo "仍然找不到 libaio.so.1"
-  ls -la ci/native "$ci_libs" 2>/dev/null || true
-  exit 1
+  if [ ! -e "${ci_libs}/libnuma.so.1" ]; then
+    echo "缺少 ci/native/libnuma.so.1"
+    exit 1
+  fi
 }
 
 install_mysqld_libs() {
-  ensure_libaio
+  ensure_mysqld_native_libs
+}
+
+check_mysqld_libs() {
+  export LD_LIBRARY_PATH="${ci_libs}:/usr/lib64:/lib64:${mysql_home}/lib:${LD_LIBRARY_PATH:-}"
+  if ! command -v ldd >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "mysqld 动态库依赖："
+  ldd "${mysql_home}/bin/mysqld" || true
+  missing="$(ldd "${mysql_home}/bin/mysqld" | awk '/not found/ {print $1}' || true)"
+  if [ -n "${missing:-}" ]; then
+    echo "mysqld 还缺少这些库："
+    printf '%s\n' "$missing"
+    exit 1
+  fi
 }
 
 extract_mysql_xz() {
@@ -133,6 +149,7 @@ start_mysql() {
   mkdir -p "$mysql_data"
   export PATH="${mysql_home}/bin:${PATH}"
   install_mysqld_libs
+  check_mysqld_libs
   if [ ! -d "$mysql_data/mysql" ]; then
     "${mysql_home}/bin/mysqld" --basedir="$mysql_home" --datadir="$mysql_data" --initialize-insecure --user="$(id -un)"
   fi
