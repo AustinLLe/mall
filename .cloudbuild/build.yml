@@ -21,17 +21,14 @@ steps:
 
   BUILD:
     - maven:
-        name: build-and-test
+        name: build-minimal
         image: cloudbuild@maven3.9.5-jdk17
         inputs:
           cache: true
           command: |-
-            set -e
-            apk add --no-cache nodejs npm docker-cli docker-cli-compose
-            chmod +x scripts/build-and-test.sh tests/blackbox/smoke.sh
-            export DB_PASSWORD="${CI_DB_PASSWORD}"
-            export MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD}"
-            export PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-http://localhost}"
-            export HTTP_PORT="${HTTP_PORT:-8088}"
-            export RUN_E2E="${RUN_E2E:-false}"
+            set -euo pipefail
+            export DB_PASSWORD="${CI_DB_PASSWORD:?CI_DB_PASSWORD is required}"
+            export MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}"
+            export CI_MINIMAL=true
+            chmod +x scripts/build-and-test.sh tests/blackbox/smoke.sh shopping_back/shopping_back/mvnw
             ./scripts/build-and-test.sh

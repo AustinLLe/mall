@@ -9,6 +9,25 @@ export PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-http://localhost}"
 export HTTP_PORT="${HTTP_PORT:-8088}"
 export IMAGE_TAG="$image_tag"
 
+if [[ "${CI_MINIMAL:-false}" == "true" ]]; then
+  cd "$root_dir/shopping_front"
+  npm ci
+  npm run build:h5
+
+  cd "$root_dir/shopping_back/shopping_back"
+  ./mvnw -DskipTests package
+  exit 0
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "ERROR: Docker is required for the compose smoke test." >&2
+  exit 1
+fi
+if ! docker compose version >/dev/null 2>&1; then
+  echo "ERROR: Docker Compose v2 is required." >&2
+  exit 1
+fi
+
 java_version="$(java -version 2>&1 | awk -F '"' '/version/ {print $2; exit}')"
 java_major="${java_version%%.*}"
 if [[ "$java_major" != "17" ]]; then
@@ -26,6 +45,7 @@ cd "$root_dir/shopping_back/shopping_back"
 ./mvnw package -DskipTests
 
 cd "$root_dir"
+docker compose -f deploy/docker-compose.yml down --remove-orphans >/dev/null 2>&1 || true
 docker compose -f deploy/docker-compose.yml up -d --build
 trap 'docker compose -f deploy/docker-compose.yml down' EXIT
 docker compose -f deploy/docker-compose.yml ps
