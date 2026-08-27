@@ -33,11 +33,20 @@ public class AuthService {
     }
 
     public synchronized LoginResponse register(RegisterRequest req) {
+        if (req == null || isBlank(req.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "用户名不能为空");
+        }
+        if (isBlank(req.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "密码不能为空");
+        }
         String username = req.getUsername().trim();
         if (userMapper.findByUsername(username) != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
         }
         String phone = req.getPhone() == null ? "" : req.getPhone().trim();
+        if (!phone.isEmpty() && userMapper.findByPhone(phone) != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone already registered");
+        }
         String role = normalizeRegisterRole(req.getRole());
         StoredUser user = new StoredUser(username, encoder.encode(req.getPassword()), phone, role);
         userMapper.insertUser(user);
@@ -202,5 +211,9 @@ public class AuthService {
             return "管理员";
         }
         return "买家";
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }
