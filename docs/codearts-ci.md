@@ -12,9 +12,9 @@
 | 2. 单元测试 | 再建一个构建任务，流水线里第二张卡片 | `.cloudbuild/unit-test.yml` |
 | 3. 启动测试环境 + 集成测试 + 接口测试 | 再建一个构建任务，流水线第三张卡片 | `.cloudbuild/integration-api.yml` |
 | 4. 端到端测试 | 再建构建任务，流水线第四张卡片 | `.cloudbuild/e2e.yml` |
-| 5. 构建镜像 | 以后加 | Dockerfile |
-| 6. 部署 | 以后加 | `k8s/` |
-| 7. 健康检查 | 以后加 | 探活脚本 |
+| 5. 镜像制作 | 再建构建任务，流水线第五张卡片 | `.cloudbuild/publish-images.yml` |
+| 6. 部署到 Kubernetes | 再建构建任务，流水线第六张卡片；必须串行 | `.cloudbuild/deploy-k8s.yml` |
+| 7. 健康检查 | 再建构建任务，流水线第七张卡片 | `.cloudbuild/health.yml` |
 
 不要用流水线里的「下载仓库」+ shell 自己编译。那条路会空目录、`auth info is empty`。
 
@@ -49,7 +49,7 @@
 
 文件：`.cloudbuild/unit-test.yml`
 
-这是另一个构建任务，不要改现有 NewSecondMall 那份 YAML 路径。步骤只有：checkout → `mvn test`。
+这是另一个构建任务，不要改现有 NewSecondMall 那份 YAML 路径。步骤：checkout → `mvn test jacoco:report`（含队友补充的地址/购物车/中心/聊天/店铺单测），并上传 Surefire 与 JaCoCo 报告。
 
 控制台操作：
 
@@ -71,7 +71,7 @@
 文件：`.cloudbuild/integration-api.yml`  
 脚本：`scripts/ci-integration-api.sh`
 
-一张卡片里顺序做三件事：华为云镜像下载 MySQL 二进制包并启动后端 → `tests/blackbox/smoke.sh`（接口冒烟）→ Newman `npm run test:api`。必须放在同一个步骤里，环境才能一直活着。
+一张卡片里顺序做三件事：华为云镜像下载 MySQL 二进制包并启动后端 → `tests/blackbox/smoke.sh`（接口冒烟）→ Newman `npm run test:api`（含 UC03、UC05–UC15 扩展用例）。必须放在同一个步骤里，环境才能一直活着。Newman 报告上传为 `api-newman-reports.tgz`。
 
 不要用 `cloudbuild@docker20.10`、Docker Compose，也不要在构建镜像里 `yum install`：执行机访问不了 Docker Hub，且 yum 源是空的。
 
@@ -140,6 +140,72 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `CI_DB_PASSWORD`
 
 若 `e2e-test` 报找不到 socket 或拉镜像失败，把该步骤完整日志发我。
 
+## 镜像制作（第 5 张卡片）
+
+文件：`.cloudbuild/publish-images.yml`  
+脚本：`scripts/ci-prepare-release.sh`、`scripts/ci-finalize-publish.sh`
+
+Tag 固定为 `release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORTER}`（系统参数：提交号前 8 位），前后端推同一个新 Tag。同一 Tag 已存在时拒绝覆盖，要发新版本必须先有新提交或新的流水线号。不要用 `cloudbuild@docker20.10`、不要 `docker buildx`。`docker` 插件只做 `login/pull/build/push`，不能跑 `$(cat)` / `cut`，基础镜像走 SWR `ddn-k8s`。
+
+CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` / `SWR_PASSWORD`（和 E2E 密码同一限制）。这两个参数 **不要勾选私密**，只放在构建任务里，禁止写入仓库。ECS 私钥给后面两张卡，那些用 shell，可以勾选私密。
+
+控制台操作：
+
+1. 编译构建 → 新建任务，名称 `NewSecondMall-publish-images`。
+2. 源码选 NewSecondMall，默认分支 `feature/lqy-first-stage`。
+3. 不要改代码化里的 `build.yml`。
+4. 参数设置：
+
+| 名称 | 说明 |
+| --- | --- |
+| `CB_BUILD_YAML_PATH` | `.cloudbuild/publish-images.yml` |
+| `codeBranch` | `feature/lqy-first-stage`（打开运行时设置） |
+| `PIPELINE_NUMBER` | 流水线执行序号，打开运行时设置；正式流水线里映射系统参数「流水线运行序号」 |
+| `SWR_USERNAME` | SWR 登录用户，**不要**勾选私密 |
+| `SWR_PASSWORD` | SWR 登录密码，**不要**勾选私密 |
+
+不要再建 `COMMIT_ID`、`COMMIT_ID_SHORTER`（系统已有）。不要再填自定义 `COMMIT_ID_SHORT=manual00`。Tag 为 `release-<流水线号>-<提交号前8位>`，例如 `release-1-809eed02`。
+
+5. 规格 `2U8G`。保存后从任务列表点 **执行**。
+6. 流水线在「端到端测试」后新增阶段「镜像制作」，拖入 Build，任务选 `NewSecondMall-publish-images`，依赖 E2E。勾选把构建产物作为流水线产物。
+
+产物：`ci-artifacts/release/`（kustomization、release-metadata.json、tgz）。
+
+## 部署到 Kubernetes（第 6 张卡片）
+
+文件：`.cloudbuild/deploy-k8s.yml`  
+脚本：`scripts/ci-deploy-k8s.sh`、`ops/remote-deploy.sh`
+
+这张卡 SSH 到 ECS，上传已打好 Tag 的 `k8s/`，`kubectl apply -k`，等 rollout，失败则采集日志并回滚到上一成功版本。流水线仍显示失败。
+
+控制台操作：
+
+1. 新建任务 `NewSecondMall-deploy-k8s`，YAML 路径 `.cloudbuild/deploy-k8s.yml`。
+2. 参数除 `codeBranch`、`PIPELINE_NUMBER` 外增加：
+
+| 名称 | 说明 |
+| --- | --- |
+| `ECS_HOST` | 例如 `120.46.222.10` |
+| `ECS_USER` | 例如 `root` |
+| `ECS_SSH_PRIVATE_KEY` | 部署私钥，可勾选私密；平台会把 PEM 换行收成一行，脚本写入前会自动补回。不要把私钥发到聊天。平台注入文件时改用 `ECS_SSH_KEY_FILE` |
+| `ECS_HOST_KEY` | 已核对的 known_hosts 完整行 |
+| `HEALTHCHECK_BASE_URL` | 可选，默认 `http://127.0.0.1`（在 ECS 上探活） |
+| `FAILURE_DEMO` | 可选，默认 `false`，禁止加入自动触发 |
+
+3. 规格 `2U8G`。流水线新增阶段「部署到 Kubernetes」，依赖镜像制作。阶段不要并行。
+4. 部署失败也会先上传 `ci-artifacts/**`，再由 `deploy-gate` 标红。
+
+若步骤报没有 `ssh`，把该步骤完整日志发我。
+
+## 健康检查（第 7 张卡片）
+
+文件：`.cloudbuild/health.yml`  
+脚本：`scripts/ci-k8s-health.sh`、`ops/remote-health.sh`
+
+单独再查一次：mysql / backend / frontend 均为 `1/1`，Deployment 注解里的 Tag / Commit / 流水线号，以及 `/` 与 `/api/products` 返回 HTTP 200。
+
+新建任务 `NewSecondMall-health`，YAML 路径 `.cloudbuild/health.yml`。参数与部署任务相同（`PIPELINE_NUMBER`、ECS SSH）。流水线放在部署后面，依赖部署阶段。
+
 ## 流水线 YAML 占位
 
 `.codearts/workflow/pipeline.yml` 里：
@@ -148,5 +214,10 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `CI_DB_PASSWORD`
 - `REPLACE_WITH_UNIT_TEST_JOB_ID`：单元测试构建任务同样位置
 - `REPLACE_WITH_INTEGRATION_API_JOB_ID`：集成与接口测试构建任务同样位置
 - `REPLACE_WITH_E2E_JOB_ID`：端到端测试构建任务同样位置
+- `REPLACE_WITH_PUBLISH_JOB_ID`：镜像制作构建任务同样位置
+- `REPLACE_WITH_DEPLOY_JOB_ID`：Kubernetes 部署构建任务同样位置
+- `REPLACE_WITH_HEALTH_JOB_ID`：健康检查构建任务同样位置
 
 控制台选好任务后会自动填 `jobId`。不要手写，不要用 `official_git_clone`。
+
+第一次接这三张卡时，从当前分支 **手工执行** 流水线。先不要给 `master` Push 开自动部署。部署阶段必须串行，避免两次发布同时改 ECS。

@@ -1,5 +1,5 @@
-ARG DOCKER_HUB=docker.io
-FROM ${DOCKER_HUB}/library/node:22-alpine AS build
+ARG DOCKER_HUB=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io
+FROM ${DOCKER_HUB}/library/node:18-alpine AS build
 
 WORKDIR /build
 
@@ -9,8 +9,8 @@ RUN npm ci --no-audit --no-fund
 COPY shopping_front/ ./
 RUN npm run build:h5
 
-ARG DOCKER_HUB=docker.io
-FROM ${DOCKER_HUB}/library/nginx:1.28-alpine
+ARG DOCKER_HUB=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io
+FROM ${DOCKER_HUB}/library/nginx:1.27-alpine
 
 COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/dist/build/h5/ /usr/share/nginx/html/

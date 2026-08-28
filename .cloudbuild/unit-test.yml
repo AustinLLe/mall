@@ -38,4 +38,21 @@ steps:
               cd "$(dirname "$(dirname "$(dirname "$pom")")")"
             fi
             cd shopping_back/shopping_back
-            mvn -B -ntp test
+            mvn -B -ntp test jacoco:report
+            cd ../..
+            tar -czf unit-test-surefire.tgz -C shopping_back/shopping_back/target surefire-reports
+            if [ -d shopping_back/shopping_back/target/site/jacoco ]; then
+              tar -czf unit-test-jacoco.tgz -C shopping_back/shopping_back/target/site jacoco
+            fi
+    - upload_artifact:
+        name: upload-unit-surefire
+        inputs:
+          path: "unit-test-surefire.tgz"
+          custom_upload_path: /NewSecondMall-unit-test/
+          ignore_fail: true
+    - upload_artifact:
+        name: upload-unit-jacoco
+        inputs:
+          path: "unit-test-jacoco.tgz"
+          custom_upload_path: /NewSecondMall-unit-test/
+          ignore_fail: true

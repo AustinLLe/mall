@@ -7,8 +7,9 @@
 - `k8s/`：Namespace、ConfigMap、MySQL、后端、前端、Ingress 和 Kustomize 配置。
 - `ops/services.conf`：发布服务清单；后续增加微服务时在这里登记。
 - `ops/push-swr.ps1`：Windows 人工构建和推送单个镜像。
-- `scripts/ci-release.sh`：CodeArts 镜像发布和 Kubernetes 自动部署入口。
+- `scripts/ci-publish-images.sh` / `scripts/ci-deploy-k8s.sh` / `scripts/ci-k8s-health.sh`：本地或 Linux CI 入口；CodeArts 对应三张卡。
 - `ops/remote-deploy.sh`：ECS 上执行 rollout、健康检查、诊断和回滚。
+- `ops/remote-health.sh`：ECS 上独立健康检查。
 
 仓库中不得保存华为云密码、AK/SK、SWR Token、数据库口令、SSH 私钥或 ECS 密码。
 
@@ -66,7 +67,7 @@ curl -fsS http://127.0.0.1/api/products
 
 ## 自动发布与回滚
 
-CodeArts 使用 `.cloudbuild/release.yml`。每次成功发布保存在 `/opt/soft-shop/releases/<IMAGE_TAG>`，`current` 指向最近成功版本，默认保留最近 10 个版本。
+CodeArts 使用 `.cloudbuild/publish-images.yml`、`.cloudbuild/deploy-k8s.yml`、`.cloudbuild/health.yml` 三张串行卡片。每次成功发布保存在 `/opt/soft-shop/releases/<IMAGE_TAG>`，`current` 指向最近成功版本，默认保留最近 10 个版本。
 
 失败时脚本先保存 Deployment 描述、Events 和 Pod 日志，再重新应用 `current` 指向的上一成功版本。回滚成功后，本次流水线仍保持失败状态，便于保留真实失败记录。
 
@@ -83,4 +84,4 @@ sudo kubectl -n shop rollout status deployment/frontend --timeout=300s
 - 禁止使用或覆盖 `latest`。
 - 禁止将凭据写入 Git、README、流水线 YAML 或发布产物。
 - 曾经出现在仓库或聊天中的 SWR/ECS 凭据必须立即撤销并轮换。
-- 正式流水线只监听 `master`；功能分支仅运行构建和测试。
+- 当前先手工触发功能分支；确认后再把正式流水线改为只监听 `master`。功能分支仅运行构建和测试时，不要打开自动部署。

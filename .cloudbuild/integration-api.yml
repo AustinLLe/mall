@@ -38,3 +38,12 @@ steps:
             export CI_DB_PASSWORD="${CI_DB_PASSWORD:?CI_DB_PASSWORD is required}"
             export CI_MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}"
             bash scripts/ci-integration-api.sh
+            if [ -d tests/api/reports ]; then
+              tar -czf api-newman-reports.tgz -C tests/api reports
+            fi
+    - upload_artifact:
+        name: upload-api-reports
+        inputs:
+          path: "api-newman-reports.tgz"
+          custom_upload_path: /NewSecondMall-integration-api/
+          ignore_fail: true
