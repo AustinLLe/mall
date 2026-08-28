@@ -15,8 +15,10 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestWatcher;
 import org.openqa.selenium.By;
 import org.openqa.selenium.OutputType;
+import org.openqa.selenium.PageLoadStrategy;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
@@ -74,21 +76,14 @@ abstract class BaseE2ETest {
 
         if (!remoteUrl.isBlank()) {
             ChromeOptions options = new ChromeOptions();
-            options.addArguments("--window-size=1440,1000");
-            options.addArguments("--no-sandbox");
-            options.addArguments("--disable-dev-shm-usage");
-            if (headless) {
-                options.addArguments("--headless=new");
-            }
+            applyChromeCiOptions(options, headless);
             RemoteWebDriver remoteDriver = new RemoteWebDriver(
                     URI.create(remoteUrl).toURL(), options);
             remoteDriver.setFileDetector(new LocalFileDetector());
             driver = remoteDriver;
         } else if ("chrome".equalsIgnoreCase(System.getProperty("e2e.browser", ""))) {
             ChromeOptions options = new ChromeOptions();
-            options.addArguments("--window-size=1440,1000");
-            options.addArguments("--no-sandbox");
-            options.addArguments("--disable-dev-shm-usage");
+            applyChromeCiOptions(options, headless);
             options.addArguments("--disable-gpu");
             options.addArguments("--disable-extensions");
             options.addArguments("--no-first-run");
@@ -99,9 +94,6 @@ abstract class BaseE2ETest {
             String chromeBinary = System.getProperty("e2e.chromeBinary", "").trim();
             if (!chromeBinary.isBlank()) {
                 options.setBinary(chromeBinary);
-            }
-            if (headless) {
-                options.addArguments("--headless=new");
             }
             String chromeDriver = System.getProperty("e2e.chromeDriver", "").trim();
             ChromeDriverService.Builder serviceBuilder = new ChromeDriverService.Builder()
@@ -116,6 +108,7 @@ abstract class BaseE2ETest {
             System.out.println("ChromeDriver ready");
         } else {
             EdgeOptions options = new EdgeOptions();
+            options.setPageLoadStrategy(PageLoadStrategy.EAGER);
             options.addArguments("--inprivate");
             options.addArguments("--window-size=1440,1000");
             options.addArguments("--user-data-dir=" + Path.of(
@@ -128,7 +121,29 @@ abstract class BaseE2ETest {
         }
         // CodeArts Chromium already gets --window-size. driver.manage().window().setSize()
         // can hang for minutes on setCurrentWindowSize and fail the suite.
+        // Default pageLoad is 300s; Chromium 151 can stall on the first get() for ~3 min.
+        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
+        warmUpBrowser();
         wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+    }
+
+    private static void applyChromeCiOptions(ChromeOptions options, boolean headless) {
+        // SPA hash routes never fire a full window.load; waiting for it hangs get().
+        options.setPageLoadStrategy(PageLoadStrategy.EAGER);
+        options.addArguments("--window-size=1440,1000");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        if (headless) {
+            options.addArguments("--headless=new");
+        }
+    }
+
+    private void warmUpBrowser() {
+        try {
+            driver.get("about:blank");
+        } catch (TimeoutException warmupTimedOut) {
+            System.out.println("Chrome warmup navigation timed out, continuing");
+        }
     }
 
     private void closeBrowser() {
@@ -181,7 +196,12 @@ abstract class BaseE2ETest {
     protected void openPage(String route) {
         // Query string forces a full load. Hash-only changes lose to login's
         // delayed reLaunch, and cannot switchTab into a tabBar page.
-        driver.get(baseUrl + "/?e2e=" + System.nanoTime() + "#/" + route);
+        String url = baseUrl + "/?e2e=" + System.nanoTime() + "#/" + route;
+        try {
+            driver.get(url);
+        } catch (TimeoutException pageLoadTimedOut) {
+            System.out.println("page load timed out, continuing if the SPA is usable: " + url);
+        }
     }
 
     protected void waitForUrlContains(String fragment) {
