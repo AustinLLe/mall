@@ -15,13 +15,17 @@ ci_release_env() {
   fi
   : "${COMMIT_ID:?COMMIT_ID is required}"
   export COMMIT_ID
-  # Always take the current commit prefix. Ignore CodeArts custom COMMIT_ID_SHORT=manual00.
-  COMMIT_ID_SHORT="$(printf '%s' "$COMMIT_ID" | cut -c1-8)"
+  # CodeArts docker plugin can substitute ${COMMIT_ID_SHORTER} (first 8 chars) but cannot run $(cut).
+  # Prefer the system param so bash IMAGE_TAG matches docker -t. Fall back to cut locally.
+  COMMIT_ID_SHORT="${COMMIT_ID_SHORTER:-$(printf '%s' "$COMMIT_ID" | cut -c1-8)}"
   export COMMIT_ID_SHORT
-  # Docker plugin cannot run $(cat) or substring; it only substitutes ${COMMIT_ID}.
-  # Keep image tags identical in bash and docker YAML: release-<pipeline>-<full-sha>.
-  IMAGE_TAG="${IMAGE_TAG:-release-${PIPELINE_NUMBER}-${COMMIT_ID}}"
+  IMAGE_TAG="${IMAGE_TAG:-release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORT}}"
   export IMAGE_TAG
+  if [[ -n "${BUILDNUMBER:-}${JOB_ID:-}" && -z "${COMMIT_ID_SHORTER:-}" ]]; then
+    echo "COMMIT_ID_SHORTER is empty. Docker YAML would tag release-${PIPELINE_NUMBER}- and miss kustomize." >&2
+    echo "Do not create a custom parameter named COMMIT_ID_SHORTER. Use the CodeArts system parameter." >&2
+    exit 1
+  fi
   SOURCE_BRANCH="${SOURCE_BRANCH:-${codeBranch:-feature/lqy-first-stage}}"
   export SOURCE_BRANCH
   CI_ARTIFACT_DIR="${CI_ARTIFACT_DIR:-$PWD/ci-artifacts}"
@@ -33,5 +37,5 @@ ci_release_env() {
   SWR_ORGANIZATION="${SWR_ORGANIZATION:-songguo}"
   export SWR_ORGANIZATION
   mkdir -p "$CI_ARTIFACT_DIR"
-  echo "Release env IMAGE_TAG=${IMAGE_TAG} PIPELINE_NUMBER=${PIPELINE_NUMBER} COMMIT_ID=${COMMIT_ID} COMMIT_ID_SHORT=${COMMIT_ID_SHORT}"
+  echo "Release env IMAGE_TAG=${IMAGE_TAG} PIPELINE_NUMBER=${PIPELINE_NUMBER} COMMIT_ID=${COMMIT_ID} COMMIT_ID_SHORTER=${COMMIT_ID_SHORTER:-} COMMIT_ID_SHORT=${COMMIT_ID_SHORT}"
 }

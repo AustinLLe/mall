@@ -15,7 +15,7 @@ source_branch="$SOURCE_BRANCH"
 artifact_root="$CI_ARTIFACT_DIR"
 release_dir="$artifact_root/release"
 
-expected_tag="release-${pipeline_number}-${commit_id}"
+expected_tag="release-${pipeline_number}-${commit_short}"
 if [[ "$image_tag" != "$expected_tag" ]]; then
   echo "IMAGE_TAG must be exactly $expected_tag" >&2
   exit 2

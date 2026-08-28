@@ -145,7 +145,7 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `CI_DB_PASSWORD`
 文件：`.cloudbuild/publish-images.yml`  
 脚本：`scripts/ci-prepare-release.sh`、`scripts/ci-finalize-publish.sh`
 
-Tag 固定为 `release-${PIPELINE_NUMBER}-${COMMIT_ID}`（完整 Commit），前后端推同一个新 Tag。不要用 `cloudbuild@docker20.10`、不要 `docker buildx`。`docker` 插件只做 `login/pull/build/push`，基础镜像走 SWR `ddn-k8s`。
+Tag 固定为 `release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORTER}`（系统参数：提交号前 8 位），前后端推同一个新 Tag。不要用 `cloudbuild@docker20.10`、不要 `docker buildx`。`docker` 插件只做 `login/pull/build/push`，不能跑 `$(cat)` / `cut`，基础镜像走 SWR `ddn-k8s`。
 
 CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` / `SWR_PASSWORD`（和 E2E 密码同一限制）。这两个参数 **不要勾选私密**，只放在构建任务里，禁止写入仓库。ECS 私钥给后面两张卡，那些用 shell，可以勾选私密。
 
@@ -164,7 +164,7 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` /
 | `SWR_USERNAME` | SWR 登录用户，**不要**勾选私密 |
 | `SWR_PASSWORD` | SWR 登录密码，**不要**勾选私密 |
 
-不要再建 `COMMIT_ID`（系统已有）。不要再填 `COMMIT_ID_SHORT`。Docker 插件不能截取字符串，Tag 为 `release-<流水线号>-<完整Commit>`，例如 `release-1-809eed02e247e7c703b9a59b668bcb565f7b6dab`。元数据里仍会记下前 8 位。
+不要再建 `COMMIT_ID`、`COMMIT_ID_SHORTER`（系统已有）。不要再填自定义 `COMMIT_ID_SHORT=manual00`。Tag 为 `release-<流水线号>-<提交号前8位>`，例如 `release-1-809eed02`。
 
 5. 规格 `2U8G`。保存后从任务列表点 **执行**。
 6. 流水线在「端到端测试」后新增阶段「镜像制作」，拖入 Build，任务选 `NewSecondMall-publish-images`，依赖 E2E。勾选把构建产物作为流水线产物。
