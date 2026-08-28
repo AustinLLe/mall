@@ -222,13 +222,13 @@ public interface CenterMapper {
 
     @Select("SELECT id, item_title AS title, '收藏商品' AS `desc`, 'favorite' AS type, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS createdAt, " +
             "CASE WHEN goods_id IS NOT NULL AND goods_id <> 1 THEN goods_id " +
-            "ELSE COALESCE((SELECT g.goods_id FROM goods g WHERE g.goods_name = favorite_goods.item_title ORDER BY g.goods_id DESC LIMIT 1), goods_id) END AS targetId " +
+            "ELSE COALESCE((SELECT g.goods_id FROM goods g WHERE g.goods_name COLLATE utf8mb4_general_ci = favorite_goods.item_title COLLATE utf8mb4_general_ci ORDER BY g.goods_id DESC LIMIT 1), goods_id) END AS targetId " +
             "FROM favorite_goods WHERE user_id = #{userId} ORDER BY id DESC LIMIT 20")
     List<InteractionItem> favorites(@Param("userId") Integer userId);
 
     @Select("SELECT id, item_title AS title, '浏览足迹' AS `desc`, 'history' AS type, DATE_FORMAT(viewed_at, '%Y-%m-%d %H:%i') AS createdAt, " +
             "CASE WHEN goods_id IS NOT NULL AND goods_id <> 1 THEN goods_id " +
-            "ELSE COALESCE((SELECT g.goods_id FROM goods g WHERE g.goods_name = browse_history.item_title ORDER BY g.goods_id DESC LIMIT 1), goods_id) END AS targetId " +
+            "ELSE COALESCE((SELECT g.goods_id FROM goods g WHERE g.goods_name COLLATE utf8mb4_general_ci = browse_history.item_title COLLATE utf8mb4_general_ci ORDER BY g.goods_id DESC LIMIT 1), goods_id) END AS targetId " +
             "FROM browse_history WHERE user_id = #{userId} ORDER BY id DESC LIMIT 20")
     List<InteractionItem> browseHistory(@Param("userId") Integer userId);
 
