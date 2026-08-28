@@ -96,6 +96,7 @@ public class ChatController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found");
         }
         authorizeConversationAccess(currentUser, conversation);
+        request.setCovId(covId);
         request.setSenderId(currentUser.getUserId());
         ChatMessage chatMessage = chatMessageService.sendMessageAndBroadcast(request);
         conversationService.updateLastActiveTime(covId);
