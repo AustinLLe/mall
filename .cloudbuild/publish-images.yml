@@ -26,13 +26,14 @@ steps:
         inputs:
           cache: false
           command: |-
-            set -euo pipefail
-            script="$(find . /data /var /workspace /tmp -path '*/scripts/ci-publish-prepare-job.sh' 2>/dev/null | head -n 1)"
-            if [ -z "${script:-}" ]; then
+            set -eu
+            if [ ! -f scripts/ci-publish-prepare-job.sh ]; then
+              echo "cwd=$(pwd)"
+              ls -la
               echo "找不到 ci-publish-prepare-job.sh"
               exit 1
             fi
-            bash "$script"
+            bash scripts/ci-publish-prepare-job.sh
     - upload_artifact:
         name: upload-prepare-evidence
         inputs:
@@ -58,13 +59,12 @@ steps:
         inputs:
           cache: false
           command: |-
-            set -euo pipefail
-            script="$(find . /data /var /workspace /tmp -path '*/scripts/ci-publish-finalize-job.sh' 2>/dev/null | head -n 1)"
-            if [ -z "${script:-}" ]; then
+            set -eu
+            if [ ! -f scripts/ci-publish-finalize-job.sh ]; then
               echo "找不到 ci-publish-finalize-job.sh"
               exit 1
             fi
-            bash "$script"
+            bash scripts/ci-publish-finalize-job.sh
     - upload_artifact:
         name: upload-publish-evidence
         inputs:
@@ -77,10 +77,9 @@ steps:
         inputs:
           cache: false
           command: |-
-            set -euo pipefail
-            script="$(find . /data /var /workspace /tmp -path '*/scripts/ci-publish-gate.sh' 2>/dev/null | head -n 1)"
-            if [ -z "${script:-}" ]; then
+            set -eu
+            if [ ! -f scripts/ci-publish-gate.sh ]; then
               echo "找不到 ci-publish-gate.sh"
               exit 1
             fi
-            bash "$script"
+            bash scripts/ci-publish-gate.sh

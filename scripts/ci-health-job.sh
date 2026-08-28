@@ -6,14 +6,9 @@ write_status() {
   printf '%s\n' "$1" > ci-artifacts/health-status
 }
 
-script="$(find . /data /var /workspace /tmp -path '*/scripts/ci-cd-common.sh' 2>/dev/null | head -n 1)"
-if [[ -z "${script:-}" ]]; then
-  echo "找不到仓库根目录" >&2
-  write_status 1
-  exit 0
-fi
-# shellcheck disable=SC1090
-source "$script"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=ci-cd-common.sh
+source "$repo_root/scripts/ci-cd-common.sh"
 ci_enter_repo
 ci_release_env
 
@@ -25,7 +20,7 @@ fi
 
 mkdir -p ci-artifacts
 set +e
-bash scripts/ci-k8s-health.sh 2>&1 | tee ci-artifacts/kubernetes-health.log
+bash "$repo_root/scripts/ci-k8s-health.sh" 2>&1 | tee ci-artifacts/kubernetes-health.log
 status=${PIPESTATUS[0]}
 set -e
 write_status "$status"

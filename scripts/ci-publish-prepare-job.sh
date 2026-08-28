@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script="$(find . /data /var /workspace /tmp -path '*/scripts/ci-cd-common.sh' 2>/dev/null | head -n 1)"
-if [[ -z "${script:-}" ]]; then
-  echo "找不到仓库根目录" >&2
-  exit 1
-fi
-# shellcheck disable=SC1090
-source "$script"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=ci-cd-common.sh
+source "$repo_root/scripts/ci-cd-common.sh"
 ci_enter_repo
 ci_release_env
-bash scripts/ci-prepare-release.sh
+bash "$repo_root/scripts/ci-prepare-release.sh"

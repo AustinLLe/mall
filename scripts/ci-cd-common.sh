@@ -8,8 +8,13 @@ ci_enter_repo() {
 }
 
 ci_release_env() {
-  : "${PIPELINE_NUMBER:?PIPELINE_NUMBER is required}"
+  PIPELINE_NUMBER="${PIPELINE_NUMBER:-${BUILD_NUMBER:-1}}"
+  export PIPELINE_NUMBER
+  if [[ -z "${COMMIT_ID:-}" ]]; then
+    COMMIT_ID="$(git rev-parse HEAD 2>/dev/null || true)"
+  fi
   : "${COMMIT_ID:?COMMIT_ID is required}"
+  export COMMIT_ID
   COMMIT_ID_SHORT="${COMMIT_ID_SHORT:-$(printf '%s' "$COMMIT_ID" | cut -c1-8)}"
   export COMMIT_ID_SHORT
   IMAGE_TAG="${IMAGE_TAG:-release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORT}}"
@@ -25,4 +30,5 @@ ci_release_env() {
   SWR_ORGANIZATION="${SWR_ORGANIZATION:-songguo}"
   export SWR_ORGANIZATION
   mkdir -p "$CI_ARTIFACT_DIR"
+  echo "Release env IMAGE_TAG=${IMAGE_TAG} PIPELINE_NUMBER=${PIPELINE_NUMBER} COMMIT_ID=${COMMIT_ID} COMMIT_ID_SHORT=${COMMIT_ID_SHORT}"
 }

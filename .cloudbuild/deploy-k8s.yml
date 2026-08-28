@@ -24,13 +24,12 @@ steps:
         name: deploy-k8s
         inputs:
           command: |-
-            set -e
-            script="$(find . /data /var /workspace /tmp -path '*/scripts/ci-deploy-job.sh' 2>/dev/null | head -n 1)"
-            if [ -z "${script:-}" ]; then
+            set -eu
+            if [ ! -f scripts/ci-deploy-job.sh ]; then
               echo "找不到 ci-deploy-job.sh"
               exit 1
             fi
-            bash "$script"
+            bash scripts/ci-deploy-job.sh
           ignore_fail: true
     - upload_artifact:
         name: upload-deploy-evidence
@@ -42,10 +41,9 @@ steps:
         name: deploy-gate
         inputs:
           command: |-
-            set -e
-            script="$(find . /data /var /workspace /tmp -path '*/scripts/ci-deploy-gate.sh' 2>/dev/null | head -n 1)"
-            if [ -z "${script:-}" ]; then
+            set -eu
+            if [ ! -f scripts/ci-deploy-gate.sh ]; then
               echo "找不到 ci-deploy-gate.sh"
               exit 1
             fi
-            bash "$script"
+            bash scripts/ci-deploy-gate.sh
