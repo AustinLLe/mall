@@ -86,6 +86,16 @@ check_rollout_and_health() {
     -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image,VERSION:.metadata.annotations.songguo\\.dev/image-tag || return $?
   curl -fsS --retry 5 --retry-delay 3 --max-time 10 "$health_base_url/" >/dev/null || return $?
   curl -fsS --retry 5 --retry-delay 3 --max-time 10 "$health_base_url/api/products" >/dev/null || return $?
+
+  # 数据库层健康检查（戴坤廷交付）
+  if [[ -x "$release_source/deploy/db/tools/health-check.sh" ]]; then
+    echo "[health-check] running DB health check"
+    if ! DB_CONTAINER="$(kubectl -n "$namespace" get pod -l app.kubernetes.io/name=mysql -o jsonpath='{.items[0].metadata.name}')" \
+         DB_NAME=shop_db bash "$release_source/deploy/db/tools/health-check.sh" --quick; then
+      echo "[health-check] FAILED" >&2
+      return 1
+    fi
+  fi
 }
 
 rollback() {
