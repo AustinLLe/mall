@@ -49,7 +49,7 @@
 
 文件：`.cloudbuild/unit-test.yml`
 
-这是另一个构建任务，不要改现有 NewSecondMall 那份 YAML 路径。步骤只有：checkout → `mvn test`。
+这是另一个构建任务，不要改现有 NewSecondMall 那份 YAML 路径。步骤：checkout → `mvn test jacoco:report`（含队友补充的地址/购物车/中心/聊天/店铺单测），并上传 Surefire 与 JaCoCo 报告。
 
 控制台操作：
 
@@ -71,7 +71,7 @@
 文件：`.cloudbuild/integration-api.yml`  
 脚本：`scripts/ci-integration-api.sh`
 
-一张卡片里顺序做三件事：华为云镜像下载 MySQL 二进制包并启动后端 → `tests/blackbox/smoke.sh`（接口冒烟）→ Newman `npm run test:api`。必须放在同一个步骤里，环境才能一直活着。
+一张卡片里顺序做三件事：华为云镜像下载 MySQL 二进制包并启动后端 → `tests/blackbox/smoke.sh`（接口冒烟）→ Newman `npm run test:api`（含 UC03、UC05–UC15 扩展用例）。必须放在同一个步骤里，环境才能一直活着。Newman 报告上传为 `api-newman-reports.tgz`。
 
 不要用 `cloudbuild@docker20.10`、Docker Compose，也不要在构建镜像里 `yum install`：执行机访问不了 Docker Hub，且 yum 源是空的。
 
