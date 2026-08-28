@@ -14,12 +14,15 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestWatcher;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
@@ -82,15 +85,49 @@ abstract class BaseE2ETest {
                     URI.create(remoteUrl).toURL(), options);
             remoteDriver.setFileDetector(new LocalFileDetector());
             driver = remoteDriver;
+        } else if ("chrome".equalsIgnoreCase(System.getProperty("e2e.browser", ""))) {
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--window-size=1440,1000");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--disable-extensions");
+            options.addArguments("--no-first-run");
+            options.addArguments("--remote-allow-origins=*");
+            options.addArguments("--user-data-dir=" + Path.of(
+                    System.getProperty("java.io.tmpdir"),
+                    "newsecondmall-e2e-" + System.nanoTime()));
+            String chromeBinary = System.getProperty("e2e.chromeBinary", "").trim();
+            if (!chromeBinary.isBlank()) {
+                options.setBinary(chromeBinary);
+            }
+            if (headless) {
+                options.addArguments("--headless=new");
+            }
+            String chromeDriver = System.getProperty("e2e.chromeDriver", "").trim();
+            ChromeDriverService.Builder serviceBuilder = new ChromeDriverService.Builder()
+                    .withTimeout(Duration.ofSeconds(45));
+            if (!chromeDriver.isBlank()) {
+                serviceBuilder.usingDriverExecutable(Path.of(chromeDriver).toFile());
+            }
+            System.out.println("Starting ChromeDriver"
+                    + (chromeDriver.isBlank() ? "" : " at " + chromeDriver)
+                    + (chromeBinary.isBlank() ? "" : " binary=" + chromeBinary));
+            driver = new ChromeDriver(serviceBuilder.build(), options);
+            System.out.println("ChromeDriver ready");
         } else {
             EdgeOptions options = new EdgeOptions();
             options.addArguments("--inprivate");
             options.addArguments("--window-size=1440,1000");
+            options.addArguments("--user-data-dir=" + Path.of(
+                    System.getProperty("java.io.tmpdir"),
+                    "newsecondmall-e2e-" + System.nanoTime()));
             if (headless) {
                 options.addArguments("--headless=new");
             }
             driver = new EdgeDriver(options);
         }
+        driver.manage().window().setSize(new Dimension(1440, 1000));
         wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
     }
 
@@ -142,7 +179,9 @@ abstract class BaseE2ETest {
     }
 
     protected void openPage(String route) {
-        driver.get(baseUrl + "/#/" + route);
+        // Query string forces a full load. Hash-only changes lose to login's
+        // delayed reLaunch, and cannot switchTab into a tabBar page.
+        driver.get(baseUrl + "/?e2e=" + System.nanoTime() + "#/" + route);
     }
 
     protected void waitForUrlContains(String fragment) {
@@ -201,6 +240,13 @@ abstract class BaseE2ETest {
                 Object token = ((JavascriptExecutor) currentDriver).executeScript(
                         "return window.localStorage.getItem('auth_token');");
                 return token != null && !token.toString().isBlank();
+            } catch (WebDriverException navigationInProgress) {
+                return false;
+            }
+        });
+        wait.until(currentDriver -> {
+            try {
+                return !currentDriver.getCurrentUrl().contains("/pages/auth/login");
             } catch (WebDriverException navigationInProgress) {
                 return false;
             }

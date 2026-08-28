@@ -1,4 +1,5 @@
-FROM maven:3.9.11-eclipse-temurin-21-alpine AS build
+ARG DOCKER_HUB=docker.io
+FROM ${DOCKER_HUB}/library/maven:3.9.11-eclipse-temurin-17-alpine AS build
 
 WORKDIR /build
 
@@ -7,7 +8,8 @@ COPY shopping_back/shopping_back/src ./src
 RUN --mount=type=cache,target=/root/.m2 \
   mvn -B -ntp clean test package
 
-FROM eclipse-temurin:21-jre-alpine
+ARG DOCKER_HUB=docker.io
+FROM ${DOCKER_HUB}/library/eclipse-temurin:17-jre-alpine
 
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app

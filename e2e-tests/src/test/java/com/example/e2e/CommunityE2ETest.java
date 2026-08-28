@@ -17,9 +17,10 @@ class CommunityE2ETest extends BaseE2ETest {
     void buyerCanCreateTopicPostCommentAndLike() {
         loginWithPreset(0, "demo", "demo123");
         openPage("pages/browse/browse");
+        waitForUrlContains("/pages/browse/browse");
 
         clickUniElement(wait.until(ExpectedConditions.elementToBeClickable(
-                By.cssSelector(".create-shortcut"))));
+                By.cssSelector(".create-shortcut, .create-toggle"))));
         String suffix = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMddHHmmss"));
         String topicTitle = "E2E社区话题-" + suffix;
         List<WebElement> topicInputs = wait.until(ExpectedConditions.numberOfElementsToBe(

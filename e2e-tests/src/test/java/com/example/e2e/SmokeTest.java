@@ -13,7 +13,7 @@ class SmokeTest extends BaseE2ETest {
         openPage("pages/home/home");
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.tagName("body")));
 
-        assertTrue(driver.getCurrentUrl().contains("/#/pages/home/home"));
+        assertTrue(driver.getCurrentUrl().contains("pages/home/home"));
         assertTrue(driver.findElement(By.tagName("body")).isDisplayed());
     }
 }

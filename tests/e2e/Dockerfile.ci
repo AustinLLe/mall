@@ -1,0 +1,40 @@
+ARG DOCKER_HUB=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io
+FROM ${DOCKER_HUB}/library/debian:bookworm-slim AS e2e
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+RUN set -eux; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i 's|deb.debian.org|mirrors.huaweicloud.com|g; s|security.debian.org|mirrors.huaweicloud.com/debian-security|g' /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+      sed -i 's|deb.debian.org|mirrors.huaweicloud.com|g; s|security.debian.org|mirrors.huaweicloud.com/debian-security|g' /etc/apt/sources.list; \
+    fi; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates curl wget xz-utils \
+      openjdk-17-jdk-headless maven \
+      nginx mariadb-server \
+      chromium chromium-driver \
+      fonts-liberation; \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+ARG CI_DB_PASSWORD
+ARG CI_MYSQL_ROOT_PASSWORD
+ENV CI_DB_PASSWORD=${CI_DB_PASSWORD}
+ENV CI_MYSQL_ROOT_PASSWORD=${CI_MYSQL_ROOT_PASSWORD}
+COPY . .
+
+RUN if [ -f tests/e2e/.ci-secrets ]; then set -a; . tests/e2e/.ci-secrets; set +a; fi; \
+    bash scripts/ci-e2e-incontainer.sh; \
+    status=$?; \
+    mkdir -p e2e-tests/target/surefire-reports e2e-tests/target/e2e-artifacts; \
+    tar -czf e2e-surefire-reports.tgz -C e2e-tests/target surefire-reports; \
+    tar -czf e2e-artifacts.tgz -C e2e-tests/target e2e-artifacts; \
+    if [ ! -f e2e-exit-code.txt ]; then echo "$status" > e2e-exit-code.txt; fi
+
+FROM scratch AS export
+COPY --from=e2e /work/e2e-exit-code.txt /e2e-exit-code.txt
+COPY --from=e2e /work/e2e-surefire-reports.tgz /e2e-surefire-reports.tgz
+COPY --from=e2e /work/e2e-artifacts.tgz /e2e-artifacts.tgz
