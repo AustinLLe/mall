@@ -187,7 +187,7 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` /
 | --- | --- |
 | `ECS_HOST` | 例如 `120.46.222.10` |
 | `ECS_USER` | 例如 `root` |
-| `ECS_SSH_PRIVATE_KEY` | 部署私钥，可勾选私密；平台注入文件时改用 `ECS_SSH_KEY_FILE` |
+| `ECS_SSH_PRIVATE_KEY` | 部署私钥，可勾选私密；平台会把 PEM 换行收成一行，脚本写入前会自动补回。不要把私钥发到聊天。平台注入文件时改用 `ECS_SSH_KEY_FILE` |
 | `ECS_HOST_KEY` | 已核对的 known_hosts 完整行 |
 | `HEALTHCHECK_BASE_URL` | 可选，默认 `http://127.0.0.1`（在 ECS 上探活） |
 | `FAILURE_DEMO` | 可选，默认 `false`，禁止加入自动触发 |
