@@ -25,8 +25,10 @@ class BuyerAndStoreE2ETest extends BaseE2ETest {
         WebElement favoriteNav = wait.until(ExpectedConditions.elementToBeClickable(
                 By.cssSelector("[data-testid='buyer-nav-favorite']")));
         clickUniElement(favoriteNav);
-        wait.until(ExpectedConditions.textToBePresentInElementLocated(
-                By.cssSelector("[data-testid='interaction-title']"), title));
+        wait.until(currentDriver -> currentDriver
+                .findElements(By.cssSelector("[data-testid='interaction-title']"))
+                .stream()
+                .anyMatch(element -> element.getText().contains(title)));
 
         assertTrue(driver.getPageSource().contains(title));
         saveScreenshot("EV-E2E-BUYER-FAVORITE-01");
@@ -63,19 +65,29 @@ class BuyerAndStoreE2ETest extends BaseE2ETest {
 
     private String openFirstProduct() {
         openPage("pages/home/home");
-        List<WebElement> cards = wait.until(
-                ExpectedConditions.numberOfElementsToBeMoreThan(By.cssSelector(".goods-card"), 0));
-        String title = wait.until(currentDriver -> currentDriver
-                .findElements(By.cssSelector(".goods-title"))
-                .stream()
-                .map(element -> element.getText().trim())
-                .filter(value -> !value.isBlank())
-                .findFirst()
-                .orElse(null));
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector(".js-home-grid")));
+        WebElement card = wait.until(currentDriver -> {
+            List<WebElement> items = currentDriver.findElements(
+                    By.cssSelector(".js-home-grid .goods-card"));
+            WebElement seeded = firstNamedCard(items, false);
+            return seeded != null ? seeded : firstNamedCard(items, true);
+        });
+        String title = card.findElement(By.cssSelector(".goods-title")).getText().trim();
         assertFalse(title.isBlank());
-        clickUniElement(cards.get(0));
+        clickUniElement(card);
         waitForUrlContains("/pages/goods/detail");
         wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), title));
         return title;
+    }
+
+    private static WebElement firstNamedCard(List<WebElement> items, boolean allowE2e) {
+        for (WebElement item : items) {
+            String text = item.findElement(By.cssSelector(".goods-title")).getText().trim();
+            if (text.isBlank() || (!allowE2e && text.startsWith("E2E"))) {
+                continue;
+            }
+            return item;
+        }
+        return null;
     }
 }
