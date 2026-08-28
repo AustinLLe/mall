@@ -2,14 +2,23 @@
 
 ## 目标流水线
 
-为 `master` 配置 Push 触发，阶段严格串行：
+为当前功能分支配置手工触发（先不要给 `master` Push 开自动部署）。阶段严格串行：
 
 ```text
 代码检出 → 编译 → 单元测试 → API 测试 → E2E 测试
-        → 镜像制作与部署 → Kubernetes 健康检查
+        → 镜像制作 → 部署到 Kubernetes → 健康检查
 ```
 
-任一步失败时后续阶段不得运行。镜像制作与部署阶段引用 `.cloudbuild/release.yml`，E2E 阶段引用 `.cloudbuild/e2e.yml`。
+任一步失败时后续阶段不得运行。
+
+| 阶段 | 仓库文件 |
+| --- | --- |
+| E2E | `.cloudbuild/e2e.yml` |
+| 镜像制作 | `.cloudbuild/publish-images.yml` |
+| 部署 | `.cloudbuild/deploy-k8s.yml` |
+| 健康检查 | `.cloudbuild/health.yml` |
+
+`.cloudbuild/release.yml` 已停用（会拉 `cloudbuild@docker20.10` 超时）。不要把镜像和部署合成一张卡。
 
 ## 流水线参数与凭据
 
@@ -19,12 +28,12 @@ CodeArts 系统参数直接传入构建任务：`PIPELINE_NUMBER`、`COMMIT_ID`�
 release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORT}
 ```
 
-在 CodeArts 凭据管理或加密参数中配置，禁止填写在仓库文件中：
+在 CodeArts 构建任务参数中配置，禁止填写在仓库文件中：
 
 | 名称 | 用途 |
 | --- | --- |
-| `SWR_USERNAME` | 登录华北-北京四 SWR |
-| `SWR_PASSWORD` | SWR 流水线专用凭据 |
+| `SWR_USERNAME` | 登录华北-北京四 SWR；给镜像制作任务。不要勾选私密参数，否则 docker 插件读不到 |
+| `SWR_PASSWORD` | 同上 |
 | `ECS_HOST` | ECS 地址，当前为 `120.46.222.10` |
 | `ECS_USER` | 部署用户，当前为 `root` |
 | `ECS_SSH_PRIVATE_KEY` | CodeArts 专用部署私钥；平台注入文件时改传 `ECS_SSH_KEY_FILE` |
@@ -39,15 +48,17 @@ release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORT}
 1. 编译和单元测试：后端执行 Maven test 并保留 Surefire、JaCoCo；前端安装依赖并构建。
 2. API 测试：运行 `npm run test:api`，发布 `tests/api/reports/`。
 3. E2E 测试：运行 `.cloudbuild/e2e.yml`，发布 Surefire、截图、页面源码和 Compose 日志。
-4. 发布部署：运行 `.cloudbuild/release.yml`。部署失败也会先上传 `ci-artifacts/**`，再由 release gate 标记失败。
-5. 为部署阶段启用串行执行；新的 master Push 必须排队，不能同时操作 ECS。
+4. 镜像制作：docker 插件 login/build/push 两个 SWR 镜像，Tag 相同且不可变。
+5. 部署：SSH 到 ECS 执行 `ops/remote-deploy.sh`。失败先上传 `ci-artifacts/**`，再回滚上一成功版本，流水线仍为失败。
+6. 健康检查：再确认 Pod `1/1`、Deployment 注解、`/` 与 `/api/products` HTTP 200。
+7. 部署与健康检查必须串行；新的执行必须排队，不能同时操作 ECS。
 
 ## 交付证据
 
-- `ci-artifacts/release/release-metadata.json`：Commit、流水线编号、镜像 Tag 和 Digest。
-- `ci-artifacts/image-publish.log`：镜像构建/推送日志。
+- `ci-artifacts/release/release-metadata.json`：Commit、流水线编号、镜像 Tag。
 - `ci-artifacts/kubernetes-deploy.log`：SSH 部署与健康检查日志。
 - `ci-artifacts/deploy/`：describe、events 和 Pod 日志。
+- `ci-artifacts/health/health.log`：独立健康检查日志。
 - CodeArts 流水线执行历史：至少保留一次完整成功和一次受控失败记录。
 
 ## 验收标准
@@ -60,4 +71,4 @@ release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORT}
 
 ## 受控失败演示
 
-得到 ECS 负责人确认后，手工执行一次 `FAILURE_DEMO=true` 的发布任务。脚本让本次前端引用不存在的 Tag，旧 Pod 在滚动更新期间保持服务；超时后采集 `ImagePullBackOff` 现场并回滚。演示结束后确认首页和 API 为 200，并保留该次失败记录。
+得到 ECS 负责人确认后，手工执行一次 `FAILURE_DEMO=true` 的**部署**任务。脚本让本次前端引用不存在的 Tag，旧 Pod 在滚动更新期间保持服务；超时后采集 `ImagePullBackOff` 现场并回滚。演示结束后确认首页和 API 为 200，并保留该次失败记录。

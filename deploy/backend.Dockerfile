@@ -1,14 +1,15 @@
-ARG DOCKER_HUB=docker.io
-FROM ${DOCKER_HUB}/library/maven:3.9.11-eclipse-temurin-17-alpine AS build
+ARG DOCKER_HUB=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io
+FROM ${DOCKER_HUB}/library/maven:3-eclipse-temurin-17 AS build
 
 WORKDIR /build
 
 COPY shopping_back/shopping_back/pom.xml ./pom.xml
 COPY shopping_back/shopping_back/src ./src
-RUN --mount=type=cache,target=/root/.m2 \
-  mvn -B -ntp clean test package
+# CodeArts docker 插件是经典 docker build，没有 BuildKit cache mount。
+# 单元测试已在流水线前序卡片跑过，镜像构建只打包。
+RUN mvn -B -ntp -DskipTests package
 
-ARG DOCKER_HUB=docker.io
+ARG DOCKER_HUB=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io
 FROM ${DOCKER_HUB}/library/eclipse-temurin:17-jre-alpine
 
 RUN addgroup -S app && adduser -S app -G app
