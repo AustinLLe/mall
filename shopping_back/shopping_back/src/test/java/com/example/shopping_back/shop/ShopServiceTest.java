@@ -21,6 +21,7 @@ import com.example.shopping_back.shop.ShopDtos.AuditRequest;
 import com.example.shopping_back.shop.ShopDtos.AuditResult;
 import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
+import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.TopicPostView;
 import com.example.shopping_back.shop.ShopDtos.TopicView;
 import com.example.shopping_back.shop.mapper.ShopOrderMapper;
@@ -86,20 +87,17 @@ class ShopServiceTest {
 
         validProduct = createValidProductRecord();
 
-         StoreRecord mockStore = new StoreRecord();
+        StoreRecord mockStore = new StoreRecord();
         mockStore.setStoreId(1);
         mockStore.setSellerId(100);
         mockStore.setStoreName("测试店铺");
         lenient().when(storeMapper.selectBySeller(100)).thenReturn(mockStore);
         lenient().when(storeMapper.followerCount(1)).thenReturn(0);
+        lenient().when(storeMapper.selectById(1)).thenReturn(mockStore);
     }
 
     @Test
     void createProductSuccess() {
-        StoreRecord store = new StoreRecord();
-        store.setStoreId(1);
-        store.setSellerId(10);
-        when(storeMapper.selectBySeller(10)).thenReturn(store);
         doAnswer(invocation -> {
             ProductRecord product = invocation.getArgument(0);
             product.setGoodsId(101);
@@ -644,7 +642,7 @@ class ShopServiceTest {
     }
 
     private AuthUserView sellerUser() {
-        return new AuthUserView(10, "seller", "138****8000", 100, "seller", "卖家", false, "normal", "");
+        return new AuthUserView(100, "seller", "138****8000", 100, "seller", "卖家", false, "normal", "");
     }
 
     private ShopDtos.PublishRequest createValidPublishRequest() {
@@ -901,5 +899,481 @@ class ShopServiceTest {
         // 验证：insertOrder 被调用时，数量为 1（即价格 * 1）
         verify(orderMapper, times(1))
             .insertOrder(anyInt(), anyInt(), anyInt(), anyString(), eq(BigDecimal.valueOf(399)));
+    }
+    
+    // ==================== 编辑商品测试（TC-PROD-11 / BUG-UNIT-003） ====================
+
+    @Test
+    // TC-PROD-11 编辑商品成功
+    void updateProductSuccess() {
+        AuthUserView seller = new AuthUserView(100, "seller", "138****8000", 100, "seller", "卖家", false, "normal", "");
+
+        ProductRecord product = new ProductRecord();
+        product.setGoodsId(101);
+        product.setSellerId(100);
+        product.setGoodsName("测试商品");
+        product.setCategory("数码");
+        product.setGoodsDesc("描述");
+        product.setGoodsCondition("9成新");
+        product.setStory("故事");
+        product.setPrice(BigDecimal.valueOf(399));
+        product.setFloorPrice(BigDecimal.valueOf(320));
+        product.setScene("new");
+        product.setAddress("北京");
+        product.setImage("/images/test.jpg");
+        product.setStatus("approved");
+        product.setCreateTime(LocalDateTime.now());
+
+        when(productMapper.selectById(101)).thenReturn(product);
+        when(productMapper.update(any(ProductRecord.class))).thenReturn(1);
+
+        ProductRecord updated = product;
+        updated.setGoodsName("更新后的标题");
+        when(productMapper.selectById(101)).thenReturn(updated);
+
+        ShopDtos.UpdateProductRequest request = new ShopDtos.UpdateProductRequest(
+                "更新后的标题",
+                "数码",
+                BigDecimal.valueOf(599),
+                "/images/updated.jpg",
+                "9成新",
+                "更新后的描述",
+                "更新后的故事",
+                BigDecimal.valueOf(500),
+                "北京"
+        );
+
+        ShopDtos.ProductView result = shopService.updateProduct("101", request, seller);
+        assertNotNull(result);
+        assertEquals("更新后的标题", result.title());
+        verify(productMapper, times(1)).update(any(ProductRecord.class));
+    }
+
+        // ==================== 按状态筛选订单测试（TC-ORD-03 / BUG-UNIT-005） ====================
+
+    @Test
+    // TC-ORD-03 按状态筛选订单
+    void ordersWithStatusFilter() {
+        OrderRecord order = new OrderRecord();
+        order.setOrderId(10);
+        order.setBuyerId(100);
+        order.setSellerId(50);
+        order.setGoodsId(101);
+        order.setStatus("pending_ship");
+        order.setAmount(BigDecimal.valueOf(699));
+        order.setGoodsName("测试耳机");
+        order.setGoodsImage("/images/test.jpg");
+        order.setScene("new");
+        order.setSellerName("测试卖家");
+
+        when(orderMapper.selectBuyerOrdersFiltered(100, "pending_ship")).thenReturn(List.of(order));
+
+        List<OrderView> result = shopService.orders(buyerUser(), "待发货");
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("待收货", result.get(0).status());  // 订单状态映射后为"待收货"
+    }
+
+    @Test
+    // TC-ORD-03 按无效状态筛选 -> 回退到所有订单（null 表示不筛选）
+    void ordersWithInvalidStatusFallback() {
+        OrderRecord order = new OrderRecord();
+        order.setOrderId(11);
+        order.setBuyerId(100);
+        order.setSellerId(50);
+        order.setGoodsId(101);
+        order.setStatus("completed");
+        order.setAmount(BigDecimal.valueOf(399));
+        order.setGoodsName("测试商品");
+        order.setGoodsImage("/images/test.jpg");
+        order.setScene("used");
+        order.setSellerName("测试卖家");
+
+        when(orderMapper.selectBuyerOrdersFiltered(100, null)).thenReturn(List.of(order));
+
+        List<OrderView> result = shopService.orders(buyerUser(), "invalid_status");
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        verify(orderMapper, times(1)).selectBuyerOrdersFiltered(100, null);
+    }
+
+    // ==================== 取消订单测试（TC-ORD-04 / BUG-UNIT-006） ====================
+
+    @Test
+    // TC-ORD-04 取消订单成功
+    void cancelOrderSuccess() {
+        OrderRecord order = new OrderRecord();
+        order.setOrderId(10);
+        order.setBuyerId(100);
+        order.setSellerId(50);
+        order.setGoodsId(101);
+        order.setStatus("pending_pay");
+
+        when(orderMapper.selectOrder(10)).thenReturn(order);
+        when(orderMapper.updateOrderStatus(10, "cancelled")).thenReturn(1);
+
+        OrderView result = shopService.cancelOrder("10", buyerUser());
+        assertNotNull(result);
+        verify(orderMapper, times(1)).updateOrderStatus(10, "cancelled");
+    }
+
+    @Test
+    // TC-ORD-04 未登录取消订单 -> 401
+    void cancelOrderRejectsUnauthenticated() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> shopService.cancelOrder("10", null)
+        );
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    }
+
+    @Test
+    // TC-ORD-04 取消不存在订单 -> 404
+    void cancelOrderRejectsNotFound() {
+        when(orderMapper.selectOrder(999)).thenReturn(null);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> shopService.cancelOrder("999", buyerUser())
+        );
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
+    // TC-ORD-04 取消非本人订单 -> 404（实际返回 404，因为 order.getBuyerId() != user.getUserId()）
+    void cancelOrderRejectsNotOwner() {
+        OrderRecord order = new OrderRecord();
+        order.setOrderId(10);
+        order.setBuyerId(200);
+        order.setSellerId(50);
+        order.setGoodsId(101);
+        order.setStatus("pending_pay");
+
+        when(orderMapper.selectOrder(10)).thenReturn(order);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> shopService.cancelOrder("10", buyerUser())
+        );
+        // 代码中 order == null || !user.getUserId().equals(order.getBuyerId()) 返回 404
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+        // ==================== 补充覆盖率测试（shop 模块） ====================
+
+    @Test
+    // stores() 异常降级：Mapper 抛异常时返回内存列表
+    void stores_handlesMapperExceptionGracefully() {
+        when(storeMapper.selectNormalStores()).thenThrow(new RuntimeException("DB error"));
+        List<StoreView> result = shopService.stores();
+        assertNotNull(result);
+        assertFalse(result.isEmpty()); // 内存列表有预设店铺
+    }
+
+    @Test
+    // myStore() 正常返回店铺详情
+    void myStore_returnsStoreDetail() {
+        AuthUserView seller = sellerUser(); // userId=10
+        // 已在 setUp 中 mock storeMapper.selectBySeller(10) 返回店铺
+        ShopDtos.StoreDetailView result = shopService.myStore(seller);
+        assertNotNull(result);
+        assertEquals("测试店铺", result.name());
+        assertEquals(100, result.sellerId());
+    }
+
+    @Test
+    // updateMyStore() 正常更新店铺
+    void updateMyStore_success() {
+        AuthUserView seller = sellerUser();
+        ShopDtos.StoreUpdateRequest request = new ShopDtos.StoreUpdateRequest(
+                "新店铺名", "新简介", "新徽章", List.of("服务1", "服务2")
+        );
+        when(storeMapper.updateSellerStore(anyInt(), anyInt(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(1);
+        // mock myStore 中调用的方法
+        when(storeMapper.followerCount(anyInt())).thenReturn(0);
+        ShopDtos.StoreDetailView result = shopService.updateMyStore(request, seller);
+        assertNotNull(result);
+        verify(storeMapper, times(1)).updateSellerStore(anyInt(), anyInt(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    // updateMyStore() 未登录抛出 401
+    void updateMyStore_rejectsNullUser() {
+        ShopDtos.StoreUpdateRequest request = new ShopDtos.StoreUpdateRequest("name", "desc", "badge", List.of());
+        assertThrows(ResponseStatusException.class, () -> shopService.updateMyStore(request, null));
+    }
+
+    @Test
+    // store() 当用户已登录时返回 followed 状态
+    void store_withFollowedStatus() {
+        StoreRecord store = new StoreRecord();
+        store.setStoreId(1);
+        store.setSellerId(10);
+        store.setStoreName("测试店铺");
+        store.setStoreDesc("描述");
+        store.setStatus("normal");
+        when(storeMapper.selectById(1)).thenReturn(store);
+        when(storeMapper.isFollowed(100, 1)).thenReturn(1); // 用户已关注
+        when(storeMapper.followerCount(1)).thenReturn(10);
+        // storeProducts 的 mock
+        when(productMapper.selectBySeller(10)).thenReturn(List.of(validProduct));
+
+        AuthUserView buyer = buyerUser(); // userId=100
+        ShopDtos.StoreDetailView result = shopService.store("1", buyer);
+        assertNotNull(result);
+        assertTrue(result.followed());
+    }
+
+    @Test
+    // topics() 异常降级
+    void topics_handlesMapperExceptionGracefully() {
+        when(topicMapper.selectTopics(anyString(), anyString())).thenThrow(new RuntimeException("DB error"));
+        List<TopicView> result = shopService.topics("all", "");
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    // topic() 话题不存在抛 404
+    void topic_notFound() {
+        when(topicMapper.selectTopic(anyInt(), isNull())).thenReturn(null);
+        assertThrows(ResponseStatusException.class, () -> shopService.topic("999", null));
+    }
+
+    @Test
+    // createTopic() 标题为空抛 400
+    void createTopic_rejectsEmptyTitle() {
+        AuthUserView buyer = buyerUser();
+        ShopDtos.TopicCreateRequest request = new ShopDtos.TopicCreateRequest("", "desc", "type", "cover", List.of());
+        assertThrows(ResponseStatusException.class, () -> shopService.createTopic(request, buyer));
+    }
+
+    @Test
+    // createTopic() 描述为空抛 400
+    void createTopic_rejectsEmptyDesc() {
+        AuthUserView buyer = buyerUser();
+        ShopDtos.TopicCreateRequest request = new ShopDtos.TopicCreateRequest("title", "", "type", "cover", List.of());
+        assertThrows(ResponseStatusException.class, () -> shopService.createTopic(request, buyer));
+    }
+
+    @Test
+    // createTopicPost() 内容为空抛 400
+    void createTopicPost_rejectsEmptyContent() {
+        AuthUserView buyer = buyerUser();
+        // mock 话题存在
+        TopicRecord topic = new TopicRecord();
+        topic.setTopicId(1);
+        topic.setStatus("normal");
+        when(topicMapper.selectTopic(1, 100)).thenReturn(topic);
+
+        ShopDtos.TopicPostRequest request = new ShopDtos.TopicPostRequest("", List.of(), "", "");
+        assertThrows(ResponseStatusException.class, () -> shopService.createTopicPost("1", request, buyer));
+    }
+
+    @Test
+    // createTopicPost() 话题不存在抛 404
+    void createTopicPost_rejectsTopicNotFound() {
+        AuthUserView buyer = buyerUser();
+        when(topicMapper.selectTopic(anyInt(), anyInt())).thenReturn(null);
+        ShopDtos.TopicPostRequest request = new ShopDtos.TopicPostRequest("内容", List.of(), "", "");
+        assertThrows(ResponseStatusException.class, () -> shopService.createTopicPost("999", request, buyer));
+    }
+
+    @Test
+    // createTopicComment() 评论内容为空抛 400
+    void createTopicComment_rejectsEmptyContent() {
+        AuthUserView buyer = buyerUser();
+        when(topicMapper.topicIdByPost(1)).thenReturn(1);
+        ShopDtos.TopicCommentRequest request = new ShopDtos.TopicCommentRequest("");
+        assertThrows(ResponseStatusException.class, () -> shopService.createTopicComment("1", request, buyer));
+    }
+
+    @Test
+    // createTopicComment() 帖子不存在抛 404
+    void createTopicComment_rejectsPostNotFound() {
+        AuthUserView buyer = buyerUser();
+        when(topicMapper.topicIdByPost(999)).thenReturn(null);
+        ShopDtos.TopicCommentRequest request = new ShopDtos.TopicCommentRequest("评论");
+        assertThrows(ResponseStatusException.class, () -> shopService.createTopicComment("999", request, buyer));
+    }
+
+    @Test
+    // toggleTopicPostAction() 想要/收藏动作
+    void toggleTopicPostAction_wantAndCollect() {
+        AuthUserView buyer = buyerUser();
+        when(topicMapper.topicIdByPost(1)).thenReturn(1);
+        // 第一次：添加 want
+        when(topicMapper.actionExists(1, 100, "want")).thenReturn(0);
+        when(topicMapper.insertAction(1, 100, "want")).thenReturn(1);
+        when(topicMapper.selectPosts(1, 100)).thenReturn(List.of(createTopicPostRecord(1, "内容")));
+        List<TopicPostView> result1 = shopService.toggleTopicPostAction("1", "want", buyer);
+        assertNotNull(result1);
+
+        // 第二次：取消 want
+        when(topicMapper.actionExists(1, 100, "want")).thenReturn(1);
+        when(topicMapper.deleteAction(1, 100, "want")).thenReturn(1);
+        when(topicMapper.selectPosts(1, 100)).thenReturn(List.of(createTopicPostRecord(1, "内容")));
+        List<TopicPostView> result2 = shopService.toggleTopicPostAction("1", "want", buyer);
+        assertNotNull(result2);
+
+        // 收藏同理
+        when(topicMapper.actionExists(1, 100, "collect")).thenReturn(0);
+        when(topicMapper.insertAction(1, 100, "collect")).thenReturn(1);
+        when(topicMapper.selectPosts(1, 100)).thenReturn(List.of(createTopicPostRecord(1, "内容")));
+        List<TopicPostView> result3 = shopService.toggleTopicPostAction("1", "collect", buyer);
+        assertNotNull(result3);
+    }
+
+    @Test
+    // toggleTopicPostLike() 取消点赞（点赞已存在）
+    void toggleTopicPostLike_cancelLike() {
+        AuthUserView buyer = buyerUser();
+        when(topicMapper.topicIdByPost(1)).thenReturn(1);
+        // likeExists 返回 1，表示已点赞，执行删除
+        when(topicMapper.likeExists(1, 100)).thenReturn(1);
+        when(topicMapper.deleteLike(1, 100)).thenReturn(1);
+        when(topicMapper.selectPosts(1, 100)).thenReturn(List.of(createTopicPostRecord(1, "内容")));
+        List<TopicPostView> result = shopService.toggleTopicPostLike("1", buyer);
+        assertNotNull(result);
+        verify(topicMapper, times(1)).deleteLike(1, 100);
+    }
+
+    @Test
+    // cancelOrder() 订单已取消抛 CONFLICT
+    void cancelOrder_alreadyCancelled() {
+        OrderRecord order = new OrderRecord();
+        order.setOrderId(10);
+        order.setBuyerId(100);
+        order.setStatus("cancelled");
+        when(orderMapper.selectOrder(10)).thenReturn(order);
+        assertThrows(ResponseStatusException.class, () -> shopService.cancelOrder("10", buyerUser()));
+    }
+
+    @Test
+    // reviewOrder() 订单不属于当前用户抛 404
+    void reviewOrder_throwsWhenNotBuyer() {
+        OrderRecord order = new OrderRecord();
+        order.setOrderId(10);
+        order.setBuyerId(200); // 不是当前用户
+        order.setStatus("completed");
+        when(orderMapper.selectOrder(10)).thenReturn(order);
+        ShopDtos.ReviewRequest request = new ShopDtos.ReviewRequest(5, 5, "好评");
+        assertThrows(ResponseStatusException.class, () -> shopService.reviewOrder("10", request, buyerUser()));
+    }
+
+    @Test
+    // reviewOrder() 订单未完成抛 400
+    void reviewOrder_throwsWhenNotCompleted() {
+        OrderRecord order = new OrderRecord();
+        order.setOrderId(10);
+        order.setBuyerId(100);
+        order.setStatus("pending");
+        when(orderMapper.selectOrder(10)).thenReturn(order);
+        ShopDtos.ReviewRequest request = new ShopDtos.ReviewRequest(5, 5, "好评");
+        assertThrows(ResponseStatusException.class, () -> shopService.reviewOrder("10", request, buyerUser()));
+    }
+
+    @Test
+    // reviewOrder() 已评价抛 CONFLICT
+    void reviewOrder_throwsWhenAlreadyReviewed() {
+        OrderRecord order = new OrderRecord();
+        order.setOrderId(10);
+        order.setBuyerId(100);
+        order.setStatus("completed");
+        when(orderMapper.selectOrder(10)).thenReturn(order);
+        when(orderMapper.reviewCountByOrder(10)).thenReturn(1);
+        ShopDtos.ReviewRequest request = new ShopDtos.ReviewRequest(5, 5, "好评");
+        assertThrows(ResponseStatusException.class, () -> shopService.reviewOrder("10", request, buyerUser()));
+    }
+
+    @Test
+    // publish() 未登录抛 401
+    void publish_rejectsUnauthenticated() {
+        ShopDtos.PublishRequest request = createValidPublishRequest();
+        // ensureSellerStore 中 user 为 null 会抛 401
+        assertThrows(ResponseStatusException.class, () -> shopService.publish(request, null));
+    }
+
+    @Test
+    // updateProduct() 非卖家抛 403
+    void updateProduct_rejectsNonSeller() {
+        ProductRecord product = new ProductRecord();
+        product.setGoodsId(101);
+        product.setSellerId(100);
+        ShopDtos.UpdateProductRequest request = new ShopDtos.UpdateProductRequest("title", "category", BigDecimal.TEN, "", "", "", "", null, "");
+        AuthUserView buyer = buyerUser(); // role = buyer
+        assertThrows(ResponseStatusException.class, () -> shopService.updateProduct("101", request, buyer));
+    }
+
+    @Test
+    // updateProduct() 非商品所有者抛 403
+    void updateProduct_rejectsNotOwner() {
+        ProductRecord product = new ProductRecord();
+        product.setGoodsId(101);
+        product.setSellerId(200); // 不是当前用户
+        when(productMapper.selectById(101)).thenReturn(product);
+        ShopDtos.UpdateProductRequest request = new ShopDtos.UpdateProductRequest("title", "category", BigDecimal.TEN, "", "", "", "", null, "");
+        AuthUserView seller = sellerUser(); // userId=10
+        assertThrows(ResponseStatusException.class, () -> shopService.updateProduct("101", request, seller));
+    }
+
+    @Test
+    // updateProduct() 商品不存在抛 404
+    void updateProduct_rejectsProductNotFound() {
+        when(productMapper.selectById(999)).thenReturn(null);
+        ShopDtos.UpdateProductRequest request = new ShopDtos.UpdateProductRequest("title", "category", BigDecimal.TEN, "", "", "", "", null, "");
+        AuthUserView seller = sellerUser();
+        assertThrows(ResponseStatusException.class, () -> shopService.updateProduct("999", request, seller));
+    }
+
+    @Test
+    // updateProduct() 价格<=0 抛 400
+    void updateProduct_rejectsNonPositivePrice() {
+        ProductRecord product = new ProductRecord();
+        product.setGoodsId(101);
+        product.setSellerId(10);
+        product.setPrice(BigDecimal.TEN);
+        when(productMapper.selectById(101)).thenReturn(product);
+        ShopDtos.UpdateProductRequest request = new ShopDtos.UpdateProductRequest("title", "category", BigDecimal.ZERO, "", "", "", "", null, "");
+        AuthUserView seller = sellerUser();
+        assertThrows(ResponseStatusException.class, () -> shopService.updateProduct("101", request, seller));
+    }
+
+    @Test
+    // audit() 无效 action 抛 400
+    void audit_rejectsInvalidAction() {
+        ShopDtos.AuditRequest request = new ShopDtos.AuditRequest("invalid", "");
+        assertThrows(ResponseStatusException.class, () -> shopService.audit("1", request));
+    }
+
+    @Test
+    // audit() 商品不存在抛 404
+    void audit_rejectsNotFound() {
+        // 让 productMapper.updateAuditStatus 返回 0，且内存列表中没有该商品
+        when(productMapper.updateAuditStatus(anyInt(), anyString(), anyString())).thenReturn(0);
+        ShopDtos.AuditRequest request = new ShopDtos.AuditRequest("approve", "");
+        assertThrows(ResponseStatusException.class, () -> shopService.audit("999", request));
+    }
+
+    @Test
+    // assist() 商品不存在抛 404
+    void assist_rejectsProductNotFound() {
+        when(productMapper.selectById(anyInt())).thenReturn(null);
+        ShopDtos.AiAssistRequest request = new ShopDtos.AiAssistRequest("999", "question", BigDecimal.TEN);
+        assertThrows(ResponseStatusException.class, () -> shopService.assist(request));
+    }
+
+    // 辅助方法：创建话题帖子记录
+    private TopicPostRecord createTopicPostRecord(Integer postId, String content) {
+        TopicPostRecord record = new TopicPostRecord();
+        record.setPostId(postId);
+        record.setTopicId(1);
+        record.setUsername("alice");
+        record.setContent(content);
+        record.setCreatedAt(LocalDateTime.now());
+        record.setLikeCount(0);
+        record.setCommentCount(0);
+        return record;
     }
 }

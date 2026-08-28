@@ -20,7 +20,6 @@ import com.example.shopping_back.auth.mapper.UserMapper;
 import com.example.shopping_back.auth.model.StoredUser;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -164,29 +163,28 @@ class AuthServiceTest {
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
     }
 
-    // @Test
-    // // 注册失败：手机号已被注册
-    // void registerRejectsDuplicatePhone() {
-    //     // 模拟：数据库里已经有一个手机号为 "13800138000" 的用户
-    //     when(userMapper.findByPhone("13800138000")).thenReturn(
-    //         new StoredUser("alice", "hash", "13800138000", "buyer")
-    //     );
+    @Test
+    // 注册失败：手机号已被注册
+    void registerRejectsDuplicatePhone() {
+        // 模拟：数据库里已经有一个手机号为 "13800138000" 的用户
+        when(userMapper.findByPhone("13800138000")).thenReturn(
+            new StoredUser("alice", "hash", "13800138000", "buyer")
+        );
 
-    //     RegisterRequest request = new RegisterRequest();
-    //     request.setUsername("newuser");
-    //     request.setPassword("secret123");
-    //     request.setPhone("13800138000");
-    //     request.setRole("buyer");
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername("newuser");
+        request.setPassword("secret123");
+        request.setPhone("13800138000");
+        request.setRole("buyer");
 
-    //     ResponseStatusException error = assertThrows(
-    //         ResponseStatusException.class,
-    //         () -> authService.register(request)
-    //     );
-    //     assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
-    // }
+        ResponseStatusException error = assertThrows(
+            ResponseStatusException.class,
+            () -> authService.register(request)
+        );
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+    }
 
     @Test
-    @Disabled("后端暂未实现空字段校验，待实现后启用")
     // 注册失败：必填字段为空
     void registerRejectsEmptyFields() {
         RegisterRequest request = new RegisterRequest();

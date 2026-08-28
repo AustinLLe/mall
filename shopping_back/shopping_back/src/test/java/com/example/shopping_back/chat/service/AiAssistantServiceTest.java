@@ -1,7 +1,9 @@
 package com.example.shopping_back.chat.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -39,5 +41,55 @@ class AiAssistantServiceTest {
         String answer = service.ask("怎么下单");
 
         assertTrue(answer.contains("下单"));
+    }
+
+        // ==================== 补充 AiAssistantService 覆盖率测试 ====================
+
+    @Test
+    // AI 模型返回空字符串时，回退到 fallback
+    void ask_fallbackWhenAiReturnsEmpty() {
+        ChatLanguageModel model = mock(ChatLanguageModel.class);
+        when(model.generate(anyString())).thenReturn("");
+        AiAssistantService service = new AiAssistantService(Optional.of(model));
+
+        String answer = service.ask("怎么买最省心");
+        assertNotNull(answer);
+        assertTrue(answer.contains("松果集市") || answer.contains("购物"));
+    }
+
+    @Test
+    // AI 模型抛出异常时，回退到 fallback
+    void ask_fallbackWhenAiThrowsException() {
+        ChatLanguageModel model = mock(ChatLanguageModel.class);
+        when(model.generate(anyString())).thenThrow(new RuntimeException("AI error"));
+        AiAssistantService service = new AiAssistantService(Optional.of(model));
+
+        String answer = service.ask("怎么卖东西");
+        assertNotNull(answer);
+        assertTrue(answer.contains("卖家") || answer.contains("发布"));
+    }
+
+    @Test
+    // 问题包含"运费/发货"关键词 -> 回退到物流指南
+    void ask_fallbackForShippingQuestion() {
+        AiAssistantService service = new AiAssistantService(Optional.empty());
+        String answer = service.ask("运费怎么算");
+        assertTrue(answer.contains("运费") || answer.contains("发货") || answer.contains("物流"));
+    }
+
+    @Test
+    // 问题包含"AI/议价/客服"关键词 -> 回退到 AI/客服指南
+    void ask_fallbackForAiQuestion() {
+        AiAssistantService service = new AiAssistantService(Optional.empty());
+        String answer = service.ask("AI议价怎么用");
+        assertTrue(answer.contains("AI") || answer.contains("议价") || answer.contains("客服"));
+    }
+
+    @Test
+    // 问题包含"担保/安全/纠纷"关键词 -> 回退到担保指南
+    void ask_fallbackForSecurityQuestion() {
+        AiAssistantService service = new AiAssistantService(Optional.empty());
+        String answer = service.ask("平台安全吗");
+        assertTrue(answer.contains("担保") || answer.contains("保障") || answer.contains("安全"));
     }
 }
