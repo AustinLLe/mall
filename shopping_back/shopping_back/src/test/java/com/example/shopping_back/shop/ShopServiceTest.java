@@ -96,6 +96,10 @@ class ShopServiceTest {
 
     @Test
     void createProductSuccess() {
+        StoreRecord store = new StoreRecord();
+        store.setStoreId(1);
+        store.setSellerId(10);
+        when(storeMapper.selectBySeller(10)).thenReturn(store);
         doAnswer(invocation -> {
             ProductRecord product = invocation.getArgument(0);
             product.setGoodsId(101);
@@ -109,10 +113,6 @@ class ShopServiceTest {
         assertNotNull(result);
         assertEquals("测试商品", result.title());
         verify(productMapper, times(1)).insert(any(ProductRecord.class));
-    }
-
-    private AuthUserView sellerUser() {
-        return new AuthUserView(100, "seller", "138****8000", 100, "seller", "卖家", false, "normal", "");
     }
 
     @Test
@@ -641,6 +641,10 @@ class ShopServiceTest {
 
     private AuthUserView buyerUser() {
         return new AuthUserView(100, "alice", "138****8000", 100, "buyer", "买家", false, "normal", "");
+    }
+
+    private AuthUserView sellerUser() {
+        return new AuthUserView(10, "seller", "138****8000", 100, "seller", "卖家", false, "normal", "");
     }
 
     private ShopDtos.PublishRequest createValidPublishRequest() {
