@@ -14,7 +14,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestWatcher;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Dimension;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.JavascriptExecutor;
@@ -127,7 +126,8 @@ abstract class BaseE2ETest {
             }
             driver = new EdgeDriver(options);
         }
-        driver.manage().window().setSize(new Dimension(1440, 1000));
+        // CodeArts Chromium already gets --window-size. driver.manage().window().setSize()
+        // can hang for minutes on setCurrentWindowSize and fail the suite.
         wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
     }
 
