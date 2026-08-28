@@ -27,3 +27,5 @@ NewSecondMall-db.local.json
 application-local.properties
 node_modules/
 tests/api/reports/
+e2e-tests/reports/
+ci-artifacts/

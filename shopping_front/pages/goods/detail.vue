@@ -207,7 +207,7 @@
 						<view class="side-card">
 							<text class="side-title">购买动作</text>
 							<button class="side-primary" @click="goMessage">联系卖家</button>
-							<button class="side-secondary" @click="favoriteCurrent">收藏商品</button>
+							<button data-testid="favorite-product" class="side-secondary" @click="favoriteCurrent">收藏商品</button>
 							<button class="side-secondary" @click="openStore">进入店铺</button>
 						</view>
 

@@ -137,7 +137,7 @@
                 <text class="section-more">数据库同步</text>
               </view>
               <view class="shortcut-grid">
-                <view v-for="item in buyerShortcuts" :key="item.key" class="shortcut" @click="handleNav(item)">
+                <view v-for="item in buyerShortcuts" :key="item.key" :data-testid="'buyer-nav-' + item.key" class="shortcut" @click="handleNav(item)">
                   <text class="shortcut-title">{{ item.label }}</text>
                   <text class="shortcut-desc">{{ item.desc }}</text>
                 </view>
@@ -163,7 +163,7 @@
                 @click="openInteraction(item)"
               >
                 <view>
-                  <text class="interaction-title">{{ item.title }}</text>
+                  <text data-testid="interaction-title" class="interaction-title">{{ item.title }}</text>
                   <text class="interaction-desc">{{ item.desc }} · {{ item.createdAt }}</text>
                 </view>
                 <text v-if="canOpenInteraction(item)" class="interaction-arrow">›</text>

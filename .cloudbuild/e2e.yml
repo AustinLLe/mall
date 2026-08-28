@@ -1,0 +1,31 @@
+---
+version: 2.0
+
+env:
+  resource:
+    type: docker
+    arch: X86
+    class: 2U8G
+
+steps:
+  PRE_BUILD:
+    - checkout:
+        name: checkout
+        inputs:
+          scm: codehub
+          url: https://codehub.devcloud.cn-north-4.huaweicloud.com/a111c887c5a545eda4c6976ba10c1a75/NewSecondMall.git
+          branch: ${codeBranch}
+          lfs: true
+          submodule: true
+          depth: 1
+
+  BUILD:
+    - swr:
+        name: e2e-test
+        image: cloudbuild@docker20.10
+        inputs:
+          command: |-
+            set -euo pipefail
+            export CI_DB_PASSWORD="${CI_DB_PASSWORD:?CI_DB_PASSWORD is required}"
+            export CI_MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}"
+            bash scripts/ci-e2e.sh

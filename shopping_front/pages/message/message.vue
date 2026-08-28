@@ -101,7 +101,7 @@
 								</template>
 							</view>
 						</view>
-						<scroll-view class="messages" scroll-y :scroll-top="scrollTop" :show-scrollbar="false">
+						<scroll-view data-testid="chat-messages" class="messages" scroll-y :scroll-top="scrollTop" :show-scrollbar="false">
 							<view class="session-tip">
 								<view class="line"></view>
 								<text>上次聊到这里</text>
@@ -133,7 +133,7 @@
 										</view>
 										<view v-else class="bubble" :class="{ 'ai-bubble': msg.type === 'AI_REPLY' }">
 											<text v-if="msg.type === 'AI_REPLY'" class="ai-tag">AI</text>
-											<text>{{ msg.content }}</text>
+											<text data-testid="chat-message-content">{{ msg.content }}</text>
 										</view>
 										<text v-if="msg.senderId === myUserId" class="read-receipt">
 											{{ msg.isRead ? '已读' : '未读' }}
@@ -157,7 +157,7 @@
 							</view>
 						</scroll-view>
 
-						<view class="composer" @click.stop>
+						<view data-testid="chat-composer" :data-conversation-ready="Boolean(covId)" class="composer" @click.stop>
 							<view v-if="showEmojiPicker" class="emoji-panel">
 								<view class="emoji-title">{{ currentEmojiGroupName }}</view>
 								<scroll-view class="emoji-grid" scroll-y :show-scrollbar="false">
@@ -187,6 +187,7 @@
 								<text class="counter">{{ inputContent.length }} / 500</text>
 							</view>
 							<textarea
+								data-testid="chat-input"
 								v-model="inputContent"
 								class="message-input"
 								maxlength="500"
@@ -195,7 +196,7 @@
 							></textarea>
 							<view class="composer-actions">
 								<button class="send-btn secondary" @click="viewProduct">查看宝贝</button>
-								<button class="send-btn" @click="sendMessage">发送</button>
+								<button data-testid="chat-send" class="send-btn" @click="sendMessage">发送</button>
 							</view>
 						</view>
 					</template>
@@ -724,6 +725,8 @@
 				// 避免 STOMP send 静默失败导致消息丢失
 				try {
 					await post(`/api/chat/conversations/${this.covId}/messages`, payload)
+					// REST 已确认写入后立即刷新，避免 WebSocket 尚未连接时界面漏掉自己的消息。
+					await this.refreshHistory()
 					return true
 				} catch (error) {
 					console.error('消息发送失败', error)

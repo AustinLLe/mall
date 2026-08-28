@@ -95,6 +95,10 @@ class ShopServiceTest {
 
     @Test
     void createProductSuccess() {
+        StoreRecord store = new StoreRecord();
+        store.setStoreId(1);
+        store.setSellerId(10);
+        when(storeMapper.selectBySeller(10)).thenReturn(store);
         doAnswer(invocation -> {
             ProductRecord product = invocation.getArgument(0);
             product.setGoodsId(101);
@@ -459,7 +463,7 @@ class ShopServiceTest {
         order.setScene("new");
         order.setSellerName("卖家A");
         order.setCreatedAt(LocalDateTime.now());
-        when(orderMapper.selectBuyerOrders(100)).thenReturn(List.of(order));
+        when(orderMapper.selectBuyerOrdersFiltered(100, null)).thenReturn(List.of(order));
 
         List<ShopDtos.OrderView> result = shopService.createOrders(
                 new ShopDtos.CreateOrderRequest(List.of(new ShopDtos.CreateOrderItem("101", 2))),
@@ -488,7 +492,7 @@ class ShopServiceTest {
         order.setScene("new");
         order.setSellerName("测试卖家");
 
-        when(orderMapper.selectBuyerOrders(100)).thenReturn(List.of(order));
+        when(orderMapper.selectBuyerOrdersFiltered(100, null)).thenReturn(List.of(order));
         List<OrderView> result = shopService.orders(buyerUser());
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -640,6 +644,10 @@ class ShopServiceTest {
 
     private AuthUserView buyerUser() {
         return new AuthUserView(100, "alice", "138****8000", 100, "buyer", "买家", false, "normal", "");
+    }
+
+    private AuthUserView sellerUser() {
+        return new AuthUserView(10, "seller", "138****8000", 100, "seller", "卖家", false, "normal", "");
     }
 
     private ShopDtos.PublishRequest createValidPublishRequest() {

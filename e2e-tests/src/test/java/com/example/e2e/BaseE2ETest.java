@@ -1,6 +1,8 @@
 package com.example.e2e;
 
 import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -18,14 +20,19 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.remote.LocalFileDetector;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 
 abstract class BaseE2ETest {
 
-    private static final Path SCREENSHOT_DIR = Path.of("reports", "screenshots");
+    private static final Path ARTIFACT_DIR = Path.of(
+            System.getProperty("e2e.artifactDir", "target/e2e-artifacts"));
+    private static final Path SCREENSHOT_DIR = ARTIFACT_DIR.resolve("screenshots");
     private static final DateTimeFormatter FILE_TIME =
             DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS");
 
@@ -37,6 +44,7 @@ abstract class BaseE2ETest {
         @Override
         public void testFailed(ExtensionContext context, Throwable cause) {
             saveScreenshot("FAILED-" + context.getRequiredTestMethod().getName());
+            savePageSource("FAILED-" + context.getRequiredTestMethod().getName());
             closeBrowser();
         }
 
@@ -54,19 +62,36 @@ abstract class BaseE2ETest {
 
     private final String baseUrl = normalizeBaseUrl(
             System.getProperty("e2e.baseUrl", "http://127.0.0.1:5173"));
+    private final int timeoutSeconds = Integer.parseInt(
+            System.getProperty("e2e.timeoutSeconds", "20"));
 
     @BeforeEach
-    void setUpBrowser() {
-        EdgeOptions options = new EdgeOptions();
-        options.addArguments("--inprivate");
-        options.addArguments("--window-size=1440,1000");
+    void setUpBrowser() throws Exception {
+        String remoteUrl = System.getProperty("e2e.remoteUrl", "").trim();
+        boolean headless = Boolean.parseBoolean(System.getProperty("e2e.headless", "false"));
 
-        if (Boolean.parseBoolean(System.getProperty("e2e.headless", "false"))) {
-            options.addArguments("--headless=new");
+        if (!remoteUrl.isBlank()) {
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--window-size=1440,1000");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+            if (headless) {
+                options.addArguments("--headless=new");
+            }
+            RemoteWebDriver remoteDriver = new RemoteWebDriver(
+                    URI.create(remoteUrl).toURL(), options);
+            remoteDriver.setFileDetector(new LocalFileDetector());
+            driver = remoteDriver;
+        } else {
+            EdgeOptions options = new EdgeOptions();
+            options.addArguments("--inprivate");
+            options.addArguments("--window-size=1440,1000");
+            if (headless) {
+                options.addArguments("--headless=new");
+            }
+            driver = new EdgeDriver(options);
         }
-
-        driver = new EdgeDriver(options);
-        wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
     }
 
     private void closeBrowser() {
@@ -95,6 +120,25 @@ abstract class BaseE2ETest {
             System.err.println("Unable to save E2E screenshot: " + screenshotError.getMessage());
             return null;
         }
+    }
+
+    protected void savePageSource(String evidenceName) {
+        if (driver == null) {
+            return;
+        }
+        try {
+            Files.createDirectories(ARTIFACT_DIR);
+            String safeName = evidenceName.replaceAll("[^a-zA-Z0-9._-]", "-");
+            Path target = ARTIFACT_DIR.resolve(
+                    safeName + "-" + LocalDateTime.now().format(FILE_TIME) + ".html");
+            Files.writeString(target, driver.getPageSource(), StandardCharsets.UTF_8);
+        } catch (IOException | WebDriverException sourceError) {
+            System.err.println("Unable to save E2E page source: " + sourceError.getMessage());
+        }
+    }
+
+    protected WebDriverWait waitFor(Duration timeout) {
+        return new WebDriverWait(driver, timeout);
     }
 
     protected void openPage(String route) {
