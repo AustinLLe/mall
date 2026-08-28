@@ -15,7 +15,8 @@ ci_release_env() {
   fi
   : "${COMMIT_ID:?COMMIT_ID is required}"
   export COMMIT_ID
-  COMMIT_ID_SHORT="${COMMIT_ID_SHORT:-$(printf '%s' "$COMMIT_ID" | cut -c1-8)}"
+  # Always take the current commit prefix. Ignore CodeArts custom COMMIT_ID_SHORT=manual00.
+  COMMIT_ID_SHORT="$(printf '%s' "$COMMIT_ID" | cut -c1-8)"
   export COMMIT_ID_SHORT
   IMAGE_TAG="${IMAGE_TAG:-release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORT}}"
   export IMAGE_TAG

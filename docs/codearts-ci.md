@@ -160,11 +160,11 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` /
 | --- | --- |
 | `CB_BUILD_YAML_PATH` | `.cloudbuild/publish-images.yml` |
 | `codeBranch` | `feature/lqy-first-stage`（打开运行时设置） |
-| `PIPELINE_NUMBER` | 流水线执行序号，打开运行时设置，流水线里映射系统参数 |
-| `COMMIT_ID` | 完整 Commit，打开运行时设置 |
-| `COMMIT_ID_SHORT` | Commit 前 8 位，打开运行时设置 |
+| `PIPELINE_NUMBER` | 流水线执行序号，打开运行时设置；正式流水线里映射系统参数「流水线运行序号」 |
 | `SWR_USERNAME` | SWR 登录用户，**不要**勾选私密 |
 | `SWR_PASSWORD` | SWR 登录密码，**不要**勾选私密 |
+
+不要再建 `COMMIT_ID`（系统已有）。不要再填 `COMMIT_ID_SHORT=manual00`：脚本会用当前 Commit 前 8 位，Tag 形如 `release-流水线号-854bf999`。构建任务里若已有 `COMMIT_ID_SHORT`，删掉或把默认值留空。
 
 5. 规格 `2U8G`。保存后从任务列表点 **执行**。
 6. 流水线在「端到端测试」后新增阶段「镜像制作」，拖入 Build，任务选 `NewSecondMall-publish-images`，依赖 E2E。勾选把构建产物作为流水线产物。
@@ -181,7 +181,7 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` /
 控制台操作：
 
 1. 新建任务 `NewSecondMall-deploy-k8s`，YAML 路径 `.cloudbuild/deploy-k8s.yml`。
-2. 参数除 `codeBranch`、`PIPELINE_NUMBER`、`COMMIT_ID`、`COMMIT_ID_SHORT` 外增加：
+2. 参数除 `codeBranch`、`PIPELINE_NUMBER` 外增加：
 
 | 名称 | 说明 |
 | --- | --- |

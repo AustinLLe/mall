@@ -60,4 +60,5 @@ cat > "$release_dir/release-metadata.json" <<EOF
 }
 EOF
 
+printf '%s\n' "$image_tag" > "$artifact_root/image-tag.txt"
 echo "Prepared release artifacts for $image_tag"

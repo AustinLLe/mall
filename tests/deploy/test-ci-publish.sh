@@ -44,6 +44,17 @@ grep -q 'shop-backend:release-27-abc12345' "$test_root/artifacts/release/release
 grep -q 'shop-frontend:release-27-abc12345' "$test_root/artifacts/release/release-metadata.json"
 [[ -f "$test_root/artifacts/release-release-27-abc12345.tgz" ]]
 
+# Custom COMMIT_ID_SHORT=manual00 must not override the commit prefix.
+unset IMAGE_TAG
+export COMMIT_ID_SHORT="manual00"
+export PIPELINE_NUMBER="1"
+export COMMIT_ID="854bf9990721a83e8f807ae3351a96ee7a861740"
+export CI_ARTIFACT_DIR="$test_root/artifacts-auto"
+mkdir -p "$CI_ARTIFACT_DIR"
+bash "$repo_root/scripts/ci-prepare-release.sh"
+grep -q 'newTag: release-1-854bf999' "$CI_ARTIFACT_DIR/release/k8s/kustomization.yaml"
+[[ "$(tr -d '[:space:]' < "$CI_ARTIFACT_DIR/image-tag.txt")" == "release-1-854bf999" ]]
+
 export IMAGE_TAG="wrong-tag"
 if bash "$repo_root/scripts/ci-publish-images.sh" >/dev/null 2>&1; then
   echo "Invalid tag unexpectedly passed validation" >&2
