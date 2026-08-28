@@ -145,7 +145,7 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `CI_DB_PASSWORD`
 文件：`.cloudbuild/publish-images.yml`  
 脚本：`scripts/ci-prepare-release.sh`、`scripts/ci-finalize-publish.sh`
 
-Tag 固定为 `release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORTER}`（系统参数：提交号前 8 位），前后端推同一个新 Tag。不要用 `cloudbuild@docker20.10`、不要 `docker buildx`。`docker` 插件只做 `login/pull/build/push`，不能跑 `$(cat)` / `cut`，基础镜像走 SWR `ddn-k8s`。
+Tag 固定为 `release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORTER}`（系统参数：提交号前 8 位），前后端推同一个新 Tag。同一 Tag 已存在时拒绝覆盖，要发新版本必须先有新提交或新的流水线号。不要用 `cloudbuild@docker20.10`、不要 `docker buildx`。`docker` 插件只做 `login/pull/build/push`，不能跑 `$(cat)` / `cut`，基础镜像走 SWR `ddn-k8s`。
 
 CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` / `SWR_PASSWORD`（和 E2E 密码同一限制）。这两个参数 **不要勾选私密**，只放在构建任务里，禁止写入仓库。ECS 私钥给后面两张卡，那些用 shell，可以勾选私密。
 
