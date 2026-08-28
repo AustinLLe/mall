@@ -23,10 +23,9 @@ EOF
 chmod +x "$test_root/bin/docker"
 
 export PATH="$test_root/bin:$PATH"
-export IMAGE_TAG="release-27-abc12345"
+export IMAGE_TAG="release-27-abc1234567890def"
 export PIPELINE_NUMBER="27"
 export COMMIT_ID="abc1234567890def"
-export COMMIT_ID_SHORT="abc12345"
 export SOURCE_BRANCH="master"
 export CI_ARTIFACT_DIR="$test_root/artifacts"
 export SWR_USERNAME="test-user"
@@ -35,16 +34,15 @@ export SWR_PASSWORD="test-password"
 bash "$repo_root/scripts/ci-publish-images.sh"
 
 kustomization="$test_root/artifacts/release/k8s/kustomization.yaml"
-[[ "$(grep -c 'newTag: release-27-abc12345' "$kustomization")" -eq 2 ]]
-grep -q 'songguo.dev/image-tag: "release-27-abc12345"' "$kustomization"
+[[ "$(grep -c 'newTag: release-27-abc1234567890def' "$kustomization")" -eq 2 ]]
+grep -q 'songguo.dev/image-tag: "release-27-abc1234567890def"' "$kustomization"
 grep -q 'songguo.dev/commit-id: "abc1234567890def"' "$kustomization"
 grep -q 'songguo.dev/pipeline-number: "27"' "$kustomization"
-grep -q '"imageTag": "release-27-abc12345"' "$test_root/artifacts/release/release-metadata.json"
-grep -q 'shop-backend:release-27-abc12345' "$test_root/artifacts/release/release-metadata.json"
-grep -q 'shop-frontend:release-27-abc12345' "$test_root/artifacts/release/release-metadata.json"
-[[ -f "$test_root/artifacts/release-release-27-abc12345.tgz" ]]
+grep -q '"imageTag": "release-27-abc1234567890def"' "$test_root/artifacts/release/release-metadata.json"
+grep -q 'shop-backend:release-27-abc1234567890def' "$test_root/artifacts/release/release-metadata.json"
+grep -q 'shop-frontend:release-27-abc1234567890def' "$test_root/artifacts/release/release-metadata.json"
+[[ -f "$test_root/artifacts/release-release-27-abc1234567890def.tgz" ]]
 
-# Custom COMMIT_ID_SHORT=manual00 must not override the commit prefix.
 unset IMAGE_TAG
 export COMMIT_ID_SHORT="manual00"
 export PIPELINE_NUMBER="1"
@@ -52,8 +50,8 @@ export COMMIT_ID="854bf9990721a83e8f807ae3351a96ee7a861740"
 export CI_ARTIFACT_DIR="$test_root/artifacts-auto"
 mkdir -p "$CI_ARTIFACT_DIR"
 bash "$repo_root/scripts/ci-prepare-release.sh"
-grep -q 'newTag: release-1-854bf999' "$CI_ARTIFACT_DIR/release/k8s/kustomization.yaml"
-[[ "$(tr -d '[:space:]' < "$CI_ARTIFACT_DIR/image-tag.txt")" == "release-1-854bf999" ]]
+grep -q 'newTag: release-1-854bf9990721a83e8f807ae3351a96ee7a861740' "$CI_ARTIFACT_DIR/release/k8s/kustomization.yaml"
+[[ "$(tr -d '[:space:]' < "$CI_ARTIFACT_DIR/image-tag.txt")" == "release-1-854bf9990721a83e8f807ae3351a96ee7a861740" ]]
 
 export IMAGE_TAG="wrong-tag"
 if bash "$repo_root/scripts/ci-publish-images.sh" >/dev/null 2>&1; then

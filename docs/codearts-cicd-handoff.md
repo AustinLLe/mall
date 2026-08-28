@@ -22,11 +22,13 @@
 
 ## 流水线参数与凭据
 
-CodeArts 系统参数直接传入构建任务：`PIPELINE_NUMBER`、`COMMIT_ID`、`COMMIT_ID_SHORT`。最终版本固定生成为：
+CodeArts 系统参数直接传入构建任务：`PIPELINE_NUMBER`、`COMMIT_ID`。最终版本固定生成为：
 
 ```text
-release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORT}
+release-${PIPELINE_NUMBER}-${COMMIT_ID}
 ```
+
+Docker 插件不能截取 Commit 前 8 位，因此镜像 Tag 使用完整 Commit。元数据里仍记录 `commitIdShort`。
 
 在 CodeArts 构建任务参数中配置，禁止填写在仓库文件中：
 

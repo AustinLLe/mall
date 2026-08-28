@@ -145,7 +145,7 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `CI_DB_PASSWORD`
 文件：`.cloudbuild/publish-images.yml`  
 脚本：`scripts/ci-prepare-release.sh`、`scripts/ci-finalize-publish.sh`
 
-Tag 固定为 `release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORT}`，前后端推同一个新 Tag。不要用 `cloudbuild@docker20.10`、不要 `docker buildx`。`docker` 插件只做 `login/pull/build/push`，基础镜像走 SWR `ddn-k8s`。
+Tag 固定为 `release-${PIPELINE_NUMBER}-${COMMIT_ID}`（完整 Commit），前后端推同一个新 Tag。不要用 `cloudbuild@docker20.10`、不要 `docker buildx`。`docker` 插件只做 `login/pull/build/push`，基础镜像走 SWR `ddn-k8s`。
 
 CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` / `SWR_PASSWORD`（和 E2E 密码同一限制）。这两个参数 **不要勾选私密**，只放在构建任务里，禁止写入仓库。ECS 私钥给后面两张卡，那些用 shell，可以勾选私密。
 
@@ -164,7 +164,7 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` /
 | `SWR_USERNAME` | SWR 登录用户，**不要**勾选私密 |
 | `SWR_PASSWORD` | SWR 登录密码，**不要**勾选私密 |
 
-不要再建 `COMMIT_ID`（系统已有）。不要再填 `COMMIT_ID_SHORT=manual00`：脚本会用当前 Commit 前 8 位，Tag 形如 `release-流水线号-854bf999`。构建任务里若已有 `COMMIT_ID_SHORT`，删掉或把默认值留空。
+不要再建 `COMMIT_ID`（系统已有）。不要再填 `COMMIT_ID_SHORT`。Docker 插件不能截取字符串，Tag 为 `release-<流水线号>-<完整Commit>`，例如 `release-1-809eed02e247e7c703b9a59b668bcb565f7b6dab`。元数据里仍会记下前 8 位。
 
 5. 规格 `2U8G`。保存后从任务列表点 **执行**。
 6. 流水线在「端到端测试」后新增阶段「镜像制作」，拖入 Build，任务选 `NewSecondMall-publish-images`，依赖 E2E。勾选把构建产物作为流水线产物。
@@ -204,7 +204,7 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `SWR_USERNAME` /
 
 单独再查一次：mysql / backend / frontend 均为 `1/1`，Deployment 注解里的 Tag / Commit / 流水线号，以及 `/` 与 `/api/products` 返回 HTTP 200。
 
-新建任务 `NewSecondMall-health`，YAML 路径 `.cloudbuild/health.yml`。参数与部署任务相同（`PIPELINE_NUMBER`、`COMMIT_ID`、`COMMIT_ID_SHORT`、ECS SSH）。流水线放在部署后面，依赖部署阶段。
+新建任务 `NewSecondMall-health`，YAML 路径 `.cloudbuild/health.yml`。参数与部署任务相同（`PIPELINE_NUMBER`、ECS SSH）。流水线放在部署后面，依赖部署阶段。
 
 ## 流水线 YAML 占位
 

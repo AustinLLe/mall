@@ -18,7 +18,9 @@ ci_release_env() {
   # Always take the current commit prefix. Ignore CodeArts custom COMMIT_ID_SHORT=manual00.
   COMMIT_ID_SHORT="$(printf '%s' "$COMMIT_ID" | cut -c1-8)"
   export COMMIT_ID_SHORT
-  IMAGE_TAG="${IMAGE_TAG:-release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORT}}"
+  # Docker plugin cannot run $(cat) or substring; it only substitutes ${COMMIT_ID}.
+  # Keep image tags identical in bash and docker YAML: release-<pipeline>-<full-sha>.
+  IMAGE_TAG="${IMAGE_TAG:-release-${PIPELINE_NUMBER}-${COMMIT_ID}}"
   export IMAGE_TAG
   SOURCE_BRANCH="${SOURCE_BRANCH:-${codeBranch:-feature/lqy-first-stage}}"
   export SOURCE_BRANCH
