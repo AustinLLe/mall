@@ -2,7 +2,6 @@ package com.example.e2e;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -18,19 +17,21 @@ class OrderE2ETest extends BaseE2ETest {
         loginWithPreset(0, "demo", "demo123");
         openPage("pages/home/home");
 
-        List<WebElement> cards = wait.until(
-                ExpectedConditions.numberOfElementsToBeMoreThan(By.cssSelector(".goods-card"), 0));
-        String productTitle = wait.until(currentDriver -> currentDriver
-                .findElements(By.cssSelector(".goods-title"))
+        WebElement productCard = wait.until(currentDriver -> currentDriver
+                .findElements(By.cssSelector(".goods-card"))
                 .stream()
-                .map(element -> element.getText().trim())
-                .filter(title -> !title.isBlank())
+                .filter(WebElement::isDisplayed)
+                .filter(card -> !card.findElement(By.cssSelector(".goods-title"))
+                        .getText().trim().isBlank())
                 .findFirst()
                 .orElse(null));
-        clickUniElement(cards.get(0));
+        String productTitle = productCard.findElement(By.cssSelector(".goods-title"))
+                .getText().trim();
+        clickUniElement(productCard);
 
         waitForUrlContains("/pages/goods/detail");
-        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), productTitle));
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(
+                By.cssSelector(".hero-card .summary .title"), productTitle));
         clickUniElement(wait.until(ExpectedConditions.elementToBeClickable(
                 By.cssSelector(".bottom-action.cart"))));
 
