@@ -12,6 +12,7 @@
 
 - `shopping_front/`：前端工程。
 - `shopping_back/shopping_back/`：后端工程。
+- `services/`：按中期设计拆分的用户、商品、交易、互动与智能 4 个独立业务服务。
 - `shopping_back/shopping_back/doc/db.sql`：数据库初始化脚本。
 - `docs/`：需求、接口、测试、部署和用户文档。
 
@@ -45,6 +46,7 @@ docker compose --env-file deploy\.env -f deploy\docker-compose.yml ps
 - [部署文档](docs/部署文档.md)
 - [用户手册](docs/用户手册.md)
 - [代码与文档同步规范](docs/change-policy.md)
+- [微服务拆分设计、接口与表归属](docs/microservices-split.md)
 
 ## 当前改进方向
 
