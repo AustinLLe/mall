@@ -27,14 +27,43 @@ public class AuthClient {
     }
 
     /**
-     * 校验 token 并返回当前用户 id。
-     * 未登录 / token 失效抛 401；鉴权服务不可用抛 503。
+     * 解析 token，未登录或失效返回 null（供浏览类接口使用）。
      */
-    public long requireUser(String authorization) {
+    public AuthUser optionalUser(String authorization) {
+        String token = bearerToken(authorization);
+        if (token == null) {
+            return null;
+        }
+        try {
+            return fetchUser(token);
+        } catch (ResponseStatusException e) {
+            if (e.getStatusCode().value() == 401) {
+                return null;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 校验 token 并返回当前用户。未登录 / token 失效抛 401；鉴权服务不可用抛 503。
+     */
+    public AuthUser requireProfile(String authorization) {
         String token = bearerToken(authorization);
         if (token == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
         }
+        return fetchUser(token);
+    }
+
+    /**
+     * 校验 token 并返回当前用户 id。
+     * 未登录 / token 失效抛 401；鉴权服务不可用抛 503。
+     */
+    public long requireUser(String authorization) {
+        return requireProfile(authorization).userId();
+    }
+
+    private AuthUser fetchUser(String token) {
         try {
             ApiResult<AuthUser> result = client.get()
                     .uri("/api/auth/me")
@@ -44,11 +73,10 @@ public class AuthClient {
             if (result == null || result.getCode() != 0 || result.getData() == null) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login expired");
             }
-            return result.getData().userId();
+            return result.getData();
         } catch (ResponseStatusException e) {
             throw e;
         } catch (RestClientResponseException e) {
-            // 旧单体 401 → token 失效；其余状态码视为鉴权服务异常
             if (e.getStatusCode().value() == 401) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login expired");
             }
