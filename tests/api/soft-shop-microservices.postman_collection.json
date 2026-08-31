@@ -1,0 +1,211 @@
+{
+  "info": {
+    "_postman_id": "bb581a3c-0af1-4bd6-ae67-2f7e175af614",
+    "name": "Soft Shop Microservices Tests",
+    "description": "master/services 四业务微服务测试。默认直连 8081-8084；下游服务 AUTH_BASE_URL 需指向 user-service。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "user_url", "value": "http://127.0.0.1:8081" },
+    { "key": "catalog_url", "value": "http://127.0.0.1:8082" },
+    { "key": "trade_url", "value": "http://127.0.0.1:8083" },
+    { "key": "interaction_url", "value": "http://127.0.0.1:8084" },
+    { "key": "test_password", "value": "test123" },
+    { "key": "buyer_username", "value": "" },
+    { "key": "seller_username", "value": "" },
+    { "key": "buyer_token", "value": "" },
+    { "key": "seller_token", "value": "" },
+    { "key": "buyer_id", "value": "" },
+    { "key": "seller_id", "value": "" },
+    { "key": "address_id", "value": "" },
+    { "key": "product_id", "value": "" },
+    { "key": "cart_id", "value": "" },
+    { "key": "order_id", "value": "" },
+    { "key": "topic_id", "value": "" },
+    { "key": "post_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "00 Health and negative",
+      "item": [
+        {
+          "name": "MS-HEALTH-001 互动服务健康检查",
+          "request": { "method": "GET", "url": "{{interaction_url}}/api/interaction/health" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200)); const b=pm.response.json(); pm.test('服务正常',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data).to.eql('interaction-service');});"
+          ] } }]
+        },
+        {
+          "name": "MS-AUTH-NEG-001 未登录访问购物车",
+          "request": { "method": "GET", "url": "{{trade_url}}/api/cart" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('未登录被拒绝',()=>pm.expect(pm.response.code).to.be.oneOf([401,403]));"
+          ] } }]
+        }
+      ]
+    },
+    {
+      "name": "01 User Service",
+      "item": [
+        {
+          "name": "MS-AUTH-REG-001 注册买家",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "const s=Date.now();pm.collectionVariables.set('buyer_username','ms_buyer_'+s);pm.variables.set('buyer_phone','19'+String(s).slice(-9));"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('注册成功',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data.token).to.be.a('string').and.not.empty;});pm.collectionVariables.set('buyer_token',b.data.token);pm.collectionVariables.set('buyer_id',String(b.data.user.userId));"
+            ] } }
+          ],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{buyer_username}}\",\n  \"password\": \"{{test_password}}\",\n  \"phone\": \"{{buyer_phone}}\",\n  \"role\": \"buyer\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{user_url}}/api/auth/register" }
+        },
+        {
+          "name": "MS-AUTH-REG-002 注册卖家",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "const s=Date.now();pm.collectionVariables.set('seller_username','ms_seller_'+s);pm.variables.set('seller_phone','18'+String(s).slice(-9));"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('卖家注册成功',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data.user.role).to.eql('seller');});pm.collectionVariables.set('seller_token',b.data.token);pm.collectionVariables.set('seller_id',String(b.data.user.userId));"
+            ] } }
+          ],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{seller_username}}\",\n  \"password\": \"{{test_password}}\",\n  \"phone\": \"{{seller_phone}}\",\n  \"role\": \"seller\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{user_url}}/api/auth/register" }
+        },
+        {
+          "name": "MS-AUTH-LOGIN-001 买家登录",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{buyer_username}}\",\n  \"password\": \"{{test_password}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{user_url}}/api/auth/login" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.expect(b.code).to.eql(0);pm.collectionVariables.set('buyer_token',b.data.token);"
+          ] } }]
+        },
+        {
+          "name": "MS-AUTH-ME-001 当前用户",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }], "url": "{{user_url}}/api/auth/me" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('身份正确',()=>{pm.expect(b.code).to.eql(0);pm.expect(String(b.data.userId)).to.eql(pm.collectionVariables.get('buyer_id'));});"
+          ] } }]
+        },
+        {
+          "name": "MS-ADDRESS-ADD-001 新增地址",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"receiver\": \"测试买家\",\n  \"phone\": \"13800138000\",\n  \"province\": \"湖北省\",\n  \"city\": \"武汉市\",\n  \"district\": \"洪山区\",\n  \"detail\": \"接口测试地址1号\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{user_url}}/api/address" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('地址创建成功',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data).to.be.an('array').and.not.empty;});pm.collectionVariables.set('address_id',String(b.data[b.data.length-1].addressId));"
+          ] } }]
+        },
+        {
+          "name": "MS-ADDRESS-LIST-001 地址列表",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }], "url": "{{user_url}}/api/address" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('包含新地址',()=>pm.expect(b.data.some(a=>String(a.addressId)===pm.collectionVariables.get('address_id'))).to.be.true);"
+          ] } }]
+        }
+      ]
+    },
+    {
+      "name": "02 Catalog Service",
+      "item": [
+        {
+          "name": "MS-PRODUCT-PUBLISH-001 发布商品",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{seller_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"scene\": \"used\",\n  \"title\": \"微服务测试商品\",\n  \"image\": \"/static/goods/software-book.jpg\",\n  \"category\": \"数码\",\n  \"price\": 99.90,\n  \"condition\": \"九成新\",\n  \"description\": \"用于微服务接口联调\",\n  \"story\": \"自动化测试创建\",\n  \"floorPrice\": 80.00,\n  \"location\": \"武汉\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{catalog_url}}/api/products" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('发布成功',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data.id).to.be.a('string').and.not.empty;});pm.collectionVariables.set('product_id',b.data.id);"
+          ] } }]
+        },
+        {
+          "name": "MS-PRODUCT-LIST-001 商品列表",
+          "request": { "method": "GET", "url": "{{catalog_url}}/api/products" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('列表正确',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data).to.be.an('array');});"
+          ] } }]
+        },
+        {
+          "name": "MS-PRODUCT-DETAIL-001 商品详情",
+          "request": { "method": "GET", "url": "{{catalog_url}}/api/products/{{product_id}}" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('商品编号正确',()=>pm.expect(b.data.id).to.eql(pm.collectionVariables.get('product_id')));"
+          ] } }]
+        },
+        {
+          "name": "MS-PRODUCT-SNAPSHOT-001 内部商品快照",
+          "request": { "method": "GET", "url": "{{catalog_url}}/internal/products/{{product_id}}/snapshot" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('快照字段正确',()=>{pm.expect(b.productId).to.exist;pm.expect(b.price).to.exist;pm.expect(b.status).to.eql('ON_SALE');});"
+          ] } }]
+        }
+      ]
+    },
+    {
+      "name": "03 Trade Service",
+      "item": [
+        {
+          "name": "MS-CART-ADD-001 加入购物车",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"goodsId\": {{product_id}},\n  \"quantity\": 1\n}", "options": { "raw": { "language": "json" } } }, "url": "{{trade_url}}/api/cart" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('加购成功',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data).to.be.an('array').and.not.empty;});const i=b.data.find(x=>String(x.goodsId)===pm.collectionVariables.get('product_id'));if(i)pm.collectionVariables.set('cart_id',String(i.cartId));"
+          ] } }]
+        },
+        {
+          "name": "MS-CART-LIST-001 购物车列表",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }], "url": "{{trade_url}}/api/cart" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('包含商品',()=>pm.expect(b.data.some(x=>String(x.goodsId)===pm.collectionVariables.get('product_id'))).to.be.true);"
+          ] } }]
+        },
+        {
+          "name": "MS-ORDER-CREATE-001 创建订单",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"items\": [ { \"goodsId\": \"{{product_id}}\", \"quantity\": 1 } ]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{trade_url}}/api/orders" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('下单成功',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data).to.be.an('array').and.not.empty;});const o=b.data.find(x=>String(x.goodsId)===pm.collectionVariables.get('product_id'));if(o)pm.collectionVariables.set('order_id',String(o.id));"
+          ] } }]
+        },
+        {
+          "name": "MS-ORDER-LIST-001 订单列表",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }], "url": "{{trade_url}}/api/orders" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('包含订单',()=>pm.expect(b.data.some(x=>String(x.id)===pm.collectionVariables.get('order_id'))).to.be.true);"
+          ] } }]
+        }
+      ]
+    },
+    {
+      "name": "04 Interaction Service",
+      "item": [
+        {
+          "name": "MS-TOPIC-CREATE-001 创建话题",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"微服务测试话题\",\n  \"desc\": \"用于接口自动化测试\",\n  \"type\": \"交流\",\n  \"cover\": \"\",\n  \"tags\": [\"测试\"]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{interaction_url}}/api/topics" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('话题创建成功',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data.id).to.be.a('string').and.not.empty;});pm.collectionVariables.set('topic_id',b.data.id);"
+          ] } }]
+        },
+        {
+          "name": "MS-TOPIC-LIST-001 话题列表",
+          "request": { "method": "GET", "url": "{{interaction_url}}/api/topics" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('列表正确',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data).to.be.an('array');});"
+          ] } }]
+        },
+        {
+          "name": "MS-POST-CREATE-001 创建帖子",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"content\": \"微服务接口测试帖子\",\n  \"images\": [],\n  \"productId\": \"{{product_id}}\",\n  \"storeId\": null\n}", "options": { "raw": { "language": "json" } } }, "url": "{{interaction_url}}/api/topics/{{topic_id}}/posts" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));const b=pm.response.json();pm.test('帖子创建成功',()=>{pm.expect(b.code).to.eql(0);pm.expect(b.data).to.be.an('array').and.not.empty;});pm.collectionVariables.set('post_id',b.data[b.data.length-1].id);"
+          ] } }]
+        },
+        {
+          "name": "MS-COMMENT-CREATE-001 评论帖子",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"content\": \"微服务接口测试评论\" }", "options": { "raw": { "language": "json" } } }, "url": "{{interaction_url}}/api/topic-posts/{{post_id}}/comments" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));pm.test('评论成功',()=>pm.expect(pm.response.json().code).to.eql(0));"
+          ] } }]
+        },
+        {
+          "name": "MS-POST-LIKE-001 点赞帖子",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{buyer_token}}" }], "url": "{{interaction_url}}/api/topic-posts/{{post_id}}/like" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('HTTP 200',()=>pm.response.to.have.status(200));pm.test('点赞成功',()=>pm.expect(pm.response.json().code).to.eql(0));"
+          ] } }]
+        }
+      ]
+    }
+  ]
+}
