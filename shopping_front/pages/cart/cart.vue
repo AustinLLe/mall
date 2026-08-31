@@ -109,11 +109,13 @@
 	import { getCartItems, updateCartItem, removeCartItem, groupCartByShop } from '@/utils/cart.js'
 	import { isImageUrl, resolveImageUrl } from '@/utils/media.js'
 	import { fetchProduct } from '@/services/shop.js'
+	import { getToken, pickErrorMessage } from '@/utils/auth.js'
 
 	export default {
 		data() {
 			return {
-				items: []
+				items: [],
+				loginHinted: false
 			}
 		},
 		computed: {
@@ -140,8 +142,17 @@
 			resolvedCover(item) {
 				return item.cover
 			},
-			loadData() {
-				this.items = getCartItems()
+			async loadData() {
+				try {
+					this.items = await getCartItems()
+					if (!getToken() && !this.loginHinted) {
+						this.loginHinted = true
+						uni.showToast({ title: '登录后查看购物车', icon: 'none' })
+					}
+				} catch (e) {
+					this.items = []
+					uni.showToast({ title: pickErrorMessage(e) || '购物车加载失败', icon: 'none' })
+				}
 			},
 			goBrowse() {
 				uni.switchTab({ url: '/pages/browse/browse' })
@@ -153,25 +164,34 @@
 				}
 				uni.navigateTo({ url })
 			},
-			toggleChecked(id) {
+			async toggleChecked(id) {
 				const current = this.items.find((item) => item.id === id)
 				if (!current) return
-				updateCartItem(id, { checked: !current.checked })
-				this.loadData()
+				try {
+					this.items = await updateCartItem(id, { checked: !current.checked })
+				} catch (e) {
+					uni.showToast({ title: pickErrorMessage(e) || '更新失败', icon: 'none' })
+				}
 			},
-			changeQty(item, delta) {
+			async changeQty(item, delta) {
 				const nextQty = item.qty + delta
 				if (nextQty < 1) {
 					this.remove(item.id)
 					return
 				}
-				updateCartItem(item.id, { qty: nextQty })
-				this.loadData()
+				try {
+					this.items = await updateCartItem(item.id, { qty: nextQty })
+				} catch (e) {
+					uni.showToast({ title: pickErrorMessage(e) || '更新失败', icon: 'none' })
+				}
 			},
-			remove(id) {
-				removeCartItem(id)
-				this.loadData()
-				uni.showToast({ title: '已删除商品', icon: 'none' })
+			async remove(id) {
+				try {
+					this.items = await removeCartItem(id)
+					uni.showToast({ title: '已删除商品', icon: 'none' })
+				} catch (e) {
+					uni.showToast({ title: pickErrorMessage(e) || '删除失败', icon: 'none' })
+				}
 			},
 			async findSimilar(item) {
 				if (!item) return
@@ -182,7 +202,7 @@
 						const detail = body && body.code === 0 ? body.data : null
 						if (detail) {
 							category = String(detail.category || '').trim()
-							if (category) updateCartItem(item.id, { category, scene: detail.scene || item.scene })
+							if (detail.scene) item.scene = detail.scene
 						}
 					} catch (e) {
 						console.warn('读取商品分类失败', e)

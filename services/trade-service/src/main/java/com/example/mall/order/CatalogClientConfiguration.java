@@ -26,4 +26,12 @@ public class CatalogClientConfiguration {
         requestFactory.setReadTimeout(1000);
         return RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
     }
+
+    @Bean
+    RestClient authRestClient(@Value("${app.auth.base-url}") String baseUrl) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(500);
+        requestFactory.setReadTimeout(2000);
+        return RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
+    }
 }
