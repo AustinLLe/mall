@@ -20,13 +20,6 @@
     <name>shopping-back</name>
     <description>松果集市后端 - 微服务父模块</description>
 
-    <modules>
-        <module>common</module>
-        <module>user-service</module>
-        <module>catalog-service</module>
-        <module>trade-service</module>
-        <module>interaction-service</module>
-    </modules>
 
     <properties>
         <java.version>17</java.version>
