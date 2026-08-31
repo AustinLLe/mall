@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,7 +29,9 @@ class OrderServiceTest {
     void resetClients() {
         catalog.productAvailable = true;
         catalog.markSoldAvailable = true;
+        catalog.sellerId = 9;
         users.available = true;
+        users.userId = 7;
     }
 
     @Test
@@ -70,6 +73,72 @@ class OrderServiceTest {
                 .isInstanceOf(ResponseStatusException.class);
     }
 
+    @Test
+    void frontendCreateUsesTokenAndSnapshotWithoutJoin() {
+        List<OrderService.StorefrontOrderView> orders = service.createFromItems(
+                "Bearer test-token", List.of(new OrderService.OrderItem("42", 2)));
+
+        OrderService.StorefrontOrderView created = orders.stream()
+                .filter(order -> "42".equals(order.goodsId()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(created.title()).isEqualTo("接口返回的商品");
+        assertThat(created.shop()).isEqualTo("接口店铺");
+        assertThat(created.cover()).isEqualTo("/cover.png");
+        assertThat(created.status()).isEqualTo("已完成");
+        assertThat(created.reviewable()).isTrue();
+        assertThat(created.amount()).isEqualByComparingTo("39.80");
+        assertThat(created.goodsId()).isEqualTo("42");
+    }
+
+    @Test
+    void frontendCreateRejectsBuyingOwnProduct() {
+        catalog.sellerId = 7;
+        assertThatThrownBy(() -> service.createFromItems(
+                "Bearer test-token", List.of(new OrderService.OrderItem("42", 1))))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode())
+                        .isEqualTo(HttpStatus.BAD_REQUEST));
+    }
+
+    @Test
+    void cancelAndReviewUseStoredSnapshot() {
+        service.createFromItems("Bearer test-token", List.of(new OrderService.OrderItem("88", 1)));
+        OrderService.StorefrontOrderView listed = service.listStorefront("Bearer test-token", null).stream()
+                .filter(order -> "88".equals(order.goodsId()))
+                .findFirst()
+                .orElseThrow();
+
+        OrderService.StorefrontOrderView reviewed = service.review(
+                "Bearer test-token", listed.id(), new OrderService.ReviewRequest(5, 4, "很好"));
+        assertThat(reviewed.reviewed()).isTrue();
+        assertThat(reviewed.status()).isEqualTo("已评价");
+        assertThat(reviewed.title()).isEqualTo("接口返回的商品");
+
+        assertThatThrownBy(() -> service.review(
+                "Bearer test-token", listed.id(), new OrderService.ReviewRequest(5, 4, "重复")))
+                .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void cancelOwnOrder() {
+        service.createFromItems("Bearer test-token", List.of(new OrderService.OrderItem("91", 1)));
+        String id = service.listStorefront("Bearer test-token", null).stream()
+                .filter(order -> "91".equals(order.goodsId()))
+                .findFirst()
+                .orElseThrow()
+                .id();
+        assertThat(service.cancel("Bearer test-token", id).status()).isEqualTo("已取消");
+    }
+
+    @Test
+    void missingTokenIsUnauthorized() {
+        assertThatThrownBy(() -> service.listStorefront(null, null))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode())
+                        .isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
     @TestConfiguration
     static class StubConfiguration {
         @Bean @Primary StubCatalogClient stubCatalogClient() { return new StubCatalogClient(); }
@@ -79,9 +148,11 @@ class OrderServiceTest {
     static class StubCatalogClient implements CatalogClient {
         boolean productAvailable = true;
         boolean markSoldAvailable = true;
+        long sellerId = 9;
         @Override public ProductSnapshot getProduct(long productId) {
             if (!productAvailable) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "catalog unavailable");
-            return new ProductSnapshot(productId, 9, "接口返回的商品", new BigDecimal("19.90"), "ON_SALE");
+            return new ProductSnapshot(productId, sellerId, "接口返回的商品", new BigDecimal("19.90"), "ON_SALE",
+                    "接口店铺", "/cover.png", "used");
         }
         @Override public void markSold(long productId, String orderNumber) {
             if (!markSoldAvailable) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "catalog unavailable");
@@ -90,8 +161,19 @@ class OrderServiceTest {
 
     static class StubUserClient implements UserClient {
         boolean available = true;
-        @Override public void requireActiveUserAndAddress(long userId, long addressId) {
+        long userId = 7;
+        @Override public CurrentUser requireLogin(String authorization) {
             if (!available) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "user unavailable");
+            if (authorization == null || authorization.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
+            }
+            return new CurrentUser(userId, "normal");
+        }
+        @Override public void requireActiveUser(long ignoredUserId) {
+            if (!available) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "user unavailable");
+        }
+        @Override public void requireActiveUserAndAddress(long userId, long addressId) {
+            requireActiveUser(userId);
         }
     }
 }
