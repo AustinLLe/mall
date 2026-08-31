@@ -1,0 +1,338 @@
+{
+  "info": {
+    "_postman_id": "bb581a3c-0af1-4bd6-ae67-2f7e175af614",
+    "name": "Soft Shop Microservices Tests",
+    "description": "master 分支根目录 services/ 四业务微服务的接口与跨服务测试。订单流程默认跳过，待设置有效 address_id 后启用 run_trade_flow。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "user_url", "value": "http://127.0.0.1:8081", "type": "string" },
+    { "key": "catalog_url", "value": "http://127.0.0.1:8082", "type": "string" },
+    { "key": "trade_url", "value": "http://127.0.0.1:8083", "type": "string" },
+    { "key": "interaction_url", "value": "http://127.0.0.1:8084", "type": "string" },
+    { "key": "buyer_id", "value": "", "type": "string" },
+    { "key": "seller_id", "value": "", "type": "string" },
+    { "key": "address_id", "value": "1", "type": "string" },
+    { "key": "product_id", "value": "", "type": "string" },
+    { "key": "order_id", "value": "", "type": "string" },
+    { "key": "topic_id", "value": "", "type": "string" },
+    { "key": "client_request_id", "value": "", "type": "string" },
+    { "key": "run_trade_flow", "value": "false", "type": "string" },
+    { "key": "run_destructive_internal", "value": "false", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "01 User Service",
+      "item": [
+        {
+          "name": "MS-USER-001 创建合法买家",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": [
+                "const stamp = Date.now();",
+                "pm.variables.set('buyer_username', 'ms_buyer_' + stamp);",
+                "pm.variables.set('buyer_phone', '18' + String(stamp).slice(-9));"
+              ] }
+            },
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('MS-USER-001 HTTP 201', () => pm.response.to.have.status(201));",
+                "const body = pm.response.json();",
+                "pm.test('返回有效买家', () => {",
+                "  pm.expect(body.userId).to.be.a('number').and.above(0);",
+                "  pm.expect(body.role).to.eql('buyer');",
+                "  pm.expect(body.status).to.eql('normal');",
+                "});",
+                "pm.collectionVariables.set('buyer_id', String(body.userId));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{buyer_username}}\",\n  \"phone\": \"{{buyer_phone}}\",\n  \"role\": \"buyer\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{user_url}}/api/users"
+          }
+        },
+        {
+          "name": "MS-USER-002 查询已创建买家",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-USER-002 HTTP 200', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.test('用户编号及角色正确', () => {",
+            "  pm.expect(String(body.userId)).to.eql(pm.collectionVariables.get('buyer_id'));",
+            "  pm.expect(body.role).to.eql('buyer');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{user_url}}/api/users/{{buyer_id}}" }
+        },
+        {
+          "name": "MS-USER-003 内部接口查询买家",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-USER-003 HTTP 200', () => pm.response.to.have.status(200));",
+            "pm.test('内部接口返回相同用户', () => pm.expect(String(pm.response.json().userId)).to.eql(pm.collectionVariables.get('buyer_id')));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{user_url}}/internal/users/{{buyer_id}}" }
+        },
+        {
+          "name": "MS-USER-004 创建合法卖家",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "const stamp = Date.now();",
+              "pm.variables.set('seller_username', 'ms_seller_' + stamp);",
+              "pm.variables.set('seller_phone', '17' + String(stamp).slice(-9));"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('MS-USER-004 HTTP 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('卖家角色正确', () => pm.expect(body.role).to.eql('seller'));",
+              "pm.collectionVariables.set('seller_id', String(body.userId));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{seller_username}}\",\n  \"phone\": \"{{seller_phone}}\",\n  \"role\": \"seller\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{user_url}}/api/users"
+          }
+        },
+        {
+          "name": "MS-USER-NEG-001 非法角色",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-USER-NEG-001 HTTP 400', () => pm.response.to.have.status(400));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"invalid_role_user\",\n  \"phone\": \"13800138000\",\n  \"role\": \"unknown\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{user_url}}/api/users"
+          }
+        },
+        {
+          "name": "MS-USER-NEG-002 查询不存在用户",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-USER-NEG-002 HTTP 404', () => pm.response.to.have.status(404));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{user_url}}/api/users/9223372036854770000" }
+        }
+      ]
+    },
+    {
+      "name": "02 Catalog Service",
+      "item": [
+        {
+          "name": "MS-CATALOG-001 创建合法商品",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.variables.set('product_name', 'API测试商品-' + Date.now());"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('MS-CATALOG-001 HTTP 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('返回在售商品', () => {",
+              "  pm.expect(body.productId).to.be.a('number').and.above(0);",
+              "  pm.expect(body.status).to.eql('ON_SALE');",
+              "  pm.expect(Number(body.price)).to.eql(99.9);",
+              "});",
+              "pm.collectionVariables.set('product_id', String(body.productId));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"sellerId\": {{seller_id}},\n  \"name\": \"{{product_name}}\",\n  \"price\": 99.90\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{catalog_url}}/api/products"
+          }
+        },
+        {
+          "name": "MS-CATALOG-002 查询商品列表",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-CATALOG-002 HTTP 200', () => pm.response.to.have.status(200));",
+            "pm.test('返回数组且包含测试商品', () => {",
+            "  const body = pm.response.json();",
+            "  pm.expect(body).to.be.an('array');",
+            "  pm.expect(body.some(p => String(p.productId) === pm.collectionVariables.get('product_id'))).to.be.true;",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{catalog_url}}/api/products" }
+        },
+        {
+          "name": "MS-CATALOG-003 查询商品详情",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-CATALOG-003 HTTP 200', () => pm.response.to.have.status(200));",
+            "pm.test('商品编号正确', () => pm.expect(String(pm.response.json().productId)).to.eql(pm.collectionVariables.get('product_id')));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{catalog_url}}/api/products/{{product_id}}" }
+        },
+        {
+          "name": "MS-CATALOG-004 内部商品快照",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-CATALOG-004 HTTP 200', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.test('快照包含交易字段', () => {",
+            "  pm.expect(body).to.have.all.keys('productId', 'sellerId', 'name', 'price', 'status');",
+            "  pm.expect(body.status).to.eql('ON_SALE');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{catalog_url}}/internal/products/{{product_id}}/snapshot" }
+        },
+        {
+          "name": "MS-CATALOG-NEG-001 非法商品价格",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-CATALOG-NEG-001 HTTP 400', () => pm.response.to.have.status(400));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"sellerId\": 1,\n  \"name\": \"非法价格商品\",\n  \"price\": 0\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{catalog_url}}/api/products"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Interaction Service",
+      "item": [
+        {
+          "name": "MS-INTERACTION-001 创建话题",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.variables.set('topic_title', '微服务接口测试话题-' + Date.now());"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('MS-INTERACTION-001 HTTP 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('返回有效话题', () => pm.expect(body.topicId).to.be.a('number').and.above(0));",
+              "pm.collectionVariables.set('topic_id', String(body.topicId));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"creatorId\": {{buyer_id}},\n  \"title\": \"{{topic_title}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{interaction_url}}/api/topics"
+          }
+        },
+        {
+          "name": "MS-INTERACTION-002 查询话题列表",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-INTERACTION-002 HTTP 200', () => pm.response.to.have.status(200));",
+            "pm.test('返回数组且包含测试话题', () => {",
+            "  const body = pm.response.json();",
+            "  pm.expect(body).to.be.an('array');",
+            "  pm.expect(body.some(t => String(t.topicId) === pm.collectionVariables.get('topic_id'))).to.be.true;",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{interaction_url}}/api/topics" }
+        },
+        {
+          "name": "MS-INTERACTION-003 查询话题详情",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-INTERACTION-003 HTTP 200', () => pm.response.to.have.status(200));",
+            "pm.test('话题编号正确', () => pm.expect(String(pm.response.json().topicId)).to.eql(pm.collectionVariables.get('topic_id')));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{interaction_url}}/api/topics/{{topic_id}}" }
+        },
+        {
+          "name": "MS-INTERACTION-NEG-001 空话题标题",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('MS-INTERACTION-NEG-001 HTTP 400', () => pm.response.to.have.status(400));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"creatorId\": 1,\n  \"title\": \"\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{interaction_url}}/api/topics"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Trade Service（需有效地址）",
+      "description": "默认由 run_trade_flow=false 跳过。设置有效 address_id 并改为 true 后运行。",
+      "item": [
+        {
+          "name": "MS-TRADE-001 创建订单",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "if (pm.collectionVariables.get('run_trade_flow') !== 'true') { pm.execution.skipRequest(); }",
+              "const requestId = 'api-order-' + Date.now();",
+              "pm.collectionVariables.set('client_request_id', requestId);"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('MS-TRADE-001 HTTP 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('订单已确认并含商品快照', () => {",
+              "  pm.expect(body.orderId).to.be.a('number').and.above(0);",
+              "  pm.expect(body.status).to.eql('CONFIRMED');",
+              "  pm.expect(body.productName).to.be.a('string').and.not.empty;",
+              "  pm.expect(Number(body.unitPrice)).to.be.above(0);",
+              "});",
+              "pm.collectionVariables.set('order_id', String(body.orderId));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"clientRequestId\": \"{{client_request_id}}\",\n  \"buyerId\": {{buyer_id}},\n  \"addressId\": {{address_id}},\n  \"productId\": {{product_id}},\n  \"quantity\": 1\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{trade_url}}/api/orders"
+          }
+        },
+        {
+          "name": "MS-TRADE-002 查询已创建订单",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "if (pm.collectionVariables.get('run_trade_flow') !== 'true') { pm.execution.skipRequest(); }"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('MS-TRADE-002 HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('订单编号正确', () => pm.expect(String(pm.response.json().orderId)).to.eql(pm.collectionVariables.get('order_id')));"
+            ] } }
+          ],
+          "request": { "method": "GET", "header": [], "url": "{{trade_url}}/api/orders/{{order_id}}" }
+        },
+        {
+          "name": "MS-TRADE-003 相同业务号幂等重试",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "if (pm.collectionVariables.get('run_trade_flow') !== 'true') { pm.execution.skipRequest(); }"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('MS-TRADE-003 HTTP 201', () => pm.response.to.have.status(201));",
+              "pm.test('重复请求返回同一订单', () => pm.expect(String(pm.response.json().orderId)).to.eql(pm.collectionVariables.get('order_id')));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"clientRequestId\": \"{{client_request_id}}\",\n  \"buyerId\": {{buyer_id}},\n  \"addressId\": {{address_id}},\n  \"productId\": {{product_id}},\n  \"quantity\": 1\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{trade_url}}/api/orders"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Destructive Internal（默认跳过）",
+      "item": [
+        {
+          "name": "MS-CATALOG-005 手工标记商品已售",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "if (pm.collectionVariables.get('run_destructive_internal') !== 'true') { pm.execution.skipRequest(); }"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('MS-CATALOG-005 HTTP 204', () => pm.response.to.have.status(204));"
+            ] } }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "X-Order-Number", "value": "manual-{{$timestamp}}" }],
+            "url": "{{catalog_url}}/internal/products/{{product_id}}/sold"
+          }
+        }
+      ]
+    }
+  ]
+}
