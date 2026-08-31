@@ -458,24 +458,26 @@
 					uni.showToast({ title: '请先登录买家账号', icon: 'none' })
 				}
 			},
-			addToCart() {
-				addCartItem({
-					id: this.detail.id,
-					title: this.detail.title,
-					price: this.detail.price,
-					cover: this.detail.cover,
-					tag: this.detail.tag,
-					credit: this.detail.credit,
-					shopName: this.detail.shopName,
-					scene: this.detail.scene,
-					category: this.detail.category,
-					qty: 1
-				})
-				uni.showToast({ title: '已加入购物车', icon: 'success' })
+			async addToCart() {
+				try {
+					await addCartItem({ id: this.detail.id, qty: 1 })
+					uni.showToast({ title: '已加入购物车', icon: 'success' })
+					return true
+				} catch (e) {
+					if (e && e.statusCode === 401) {
+						uni.showToast({ title: '请先登录', icon: 'none' })
+						uni.navigateTo({ url: '/pages/auth/login' })
+					} else {
+						uni.showToast({ title: pickErrorMessage(e) || '加入购物车失败', icon: 'none' })
+					}
+					return false
+				}
 			},
-			buyNow() {
-				this.addToCart()
-				uni.navigateTo({ url: '/pages/order/confirm' })
+			async buyNow() {
+				const added = await this.addToCart()
+				if (added) {
+					uni.navigateTo({ url: '/pages/order/confirm' })
+				}
 			},
 			goHome() {
 				uni.switchTab({ url: '/pages/home/home' })

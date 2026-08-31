@@ -18,8 +18,13 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 CREATE TABLE IF NOT EXISTS cart_item (
-    cart_id BIGINT NOT NULL AUTO_INCREMENT, user_id BIGINT NOT NULL, goods_id BIGINT NOT NULL,
-    quantity INT NOT NULL DEFAULT 1, selected BOOLEAN NOT NULL DEFAULT TRUE, PRIMARY KEY (cart_id)
+    cart_id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    goods_id BIGINT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    selected BOOLEAN NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (cart_id),
+    UNIQUE (user_id, goods_id)
 );
 
 CREATE TABLE IF NOT EXISTS product_review (

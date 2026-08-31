@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
@@ -19,7 +18,6 @@ import static org.mockito.Mockito.when;
 import com.example.shopping_back.auth.dto.AuthUserView;
 import com.example.shopping_back.shop.ShopDtos.AuditRequest;
 import com.example.shopping_back.shop.ShopDtos.AuditResult;
-import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.TopicPostView;
@@ -28,7 +26,6 @@ import com.example.shopping_back.shop.mapper.ShopOrderMapper;
 import com.example.shopping_back.shop.mapper.ShopProductMapper;
 import com.example.shopping_back.shop.mapper.ShopStoreMapper;
 import com.example.shopping_back.shop.mapper.ShopTopicMapper;
-import com.example.shopping_back.shop.model.OrderRecord;
 import com.example.shopping_back.shop.model.ProductRecord;
 import com.example.shopping_back.shop.model.StoreRecord;
 import com.example.shopping_back.shop.model.TopicPostRecord;
@@ -437,194 +434,6 @@ class ShopServiceTest {
         assertEquals(1, result.size());
     }
 
-    // ==================== 订单模块测试（TC-ORD-01 ~ 06） ====================
-
-    @Test
-    // TC-ORD-01 创建订单成功
-    void createOrderSuccess() {
-        validProduct.setSellerId(10);
-        when(productMapper.selectById(101)).thenReturn(validProduct);
-        when(orderMapper.insertOrder(100, 10, 101, "completed", BigDecimal.valueOf(798))).thenReturn(1);
-
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(7);
-        order.setBuyerId(100);
-        order.setSellerId(10);
-        order.setGoodsId(101);
-        order.setStatus("completed");
-        order.setAmount(BigDecimal.valueOf(798));
-        order.setGoodsName("测试商品");
-        order.setGoodsImage("/images/test.jpg");
-        order.setScene("new");
-        order.setSellerName("卖家A");
-        order.setCreatedAt(LocalDateTime.now());
-        when(orderMapper.selectBuyerOrdersFiltered(eq(100), isNull())).thenReturn(List.of(order));
-
-        List<ShopDtos.OrderView> result = shopService.createOrders(
-                new ShopDtos.CreateOrderRequest(List.of(new ShopDtos.CreateOrderItem("101", 2))),
-                buyerUser()
-        );
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("测试商品", result.get(0).title());
-        assertEquals(BigDecimal.valueOf(798), result.get(0).amount());
-    }
-
-    @Test
-    // TC-ORD-02 查看订单列表-正常场景（已登录用户）
-    void ordersReturnsListForLoggedInUser() {
-
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(10);
-        order.setBuyerId(100);
-        order.setSellerId(50);
-        order.setGoodsId(101);
-        order.setStatus("completed");
-        order.setAmount(BigDecimal.valueOf(699));
-        order.setGoodsName("测试耳机");
-        order.setGoodsImage("/images/test.jpg");
-        order.setScene("new");
-        order.setSellerName("测试卖家");
-
-        when(orderMapper.selectBuyerOrdersFiltered(eq(100), isNull())).thenReturn(List.of(order));
-        List<OrderView> result = shopService.orders(buyerUser());
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("测试耳机", result.get(0).title());
-        assertEquals(BigDecimal.valueOf(699), result.get(0).amount());
-        assertEquals("已完成", result.get(0).status());  // "completed" 映射为 "已完成"
-    }
-
-    @Test
-    // TC-ORD-03 不能购买自己发布的商品
-    void createOrderRejectsSelfPurchase() {
-        validProduct.setSellerId(100);
-        when(productMapper.selectById(101)).thenReturn(validProduct);
-
-        ResponseStatusException error = assertThrows(
-                ResponseStatusException.class,
-                () -> shopService.createOrders(
-                        new ShopDtos.CreateOrderRequest(List.of(new ShopDtos.CreateOrderItem("101", 1))),
-                        buyerUser()
-                )
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
-    }
-
-    @Test
-    // TC-ORD-04 商品不存在时拒绝下单
-    void createOrderRejectsUnknownProduct() {
-        when(productMapper.selectById(404)).thenReturn(null);
-
-        ResponseStatusException error = assertThrows(
-                ResponseStatusException.class,
-                () -> shopService.createOrders(
-                        new ShopDtos.CreateOrderRequest(List.of(new ShopDtos.CreateOrderItem("404", 1))),
-                        buyerUser()
-                )
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
-    }
-
-    @Test
-    // TC-ORD-05 未登录用户不能查看订单
-    void getOrdersRequiresLogin() {
-        ResponseStatusException error = assertThrows(
-                ResponseStatusException.class,
-                () -> shopService.orders(null)
-        );
-
-        assertEquals(HttpStatus.UNAUTHORIZED, error.getStatusCode());
-    }
-
-    @Test
-    // TC-ORD-06 正常评价订单
-    void reviewOrderSuccess() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(7);
-        order.setBuyerId(100);
-        order.setSellerId(10);
-        order.setGoodsId(101);
-        order.setStatus("completed");
-        order.setAmount(BigDecimal.valueOf(399));
-        order.setGoodsName("测试商品");
-        order.setGoodsImage("/images/test.jpg");
-        order.setScene("new");
-        order.setSellerName("卖家A");
-
-        OrderRecord reviewed = new OrderRecord();
-        reviewed.setOrderId(7);
-        reviewed.setBuyerId(100);
-        reviewed.setSellerId(10);
-        reviewed.setGoodsId(101);
-        reviewed.setStatus("completed");
-        reviewed.setAmount(BigDecimal.valueOf(399));
-        reviewed.setGoodsName("测试商品");
-        reviewed.setGoodsImage("/images/test.jpg");
-        reviewed.setScene("new");
-        reviewed.setSellerName("卖家A");
-        reviewed.setProductScore(5);
-        reviewed.setSellerScore(5);
-        reviewed.setReviewContent("质量很好");
-        reviewed.setReviewedAt(LocalDateTime.now());
-
-        when(orderMapper.selectOrder(7)).thenReturn(order, reviewed);
-        when(orderMapper.reviewCountByOrder(7)).thenReturn(0);
-        when(orderMapper.insertReview(7, 101, 100, 10, 5, 5, "质量很好")).thenReturn(1);
-
-        ShopDtos.OrderView result = shopService.reviewOrder(
-                "7",
-                new ShopDtos.ReviewRequest(5, 5, "质量很好"),
-                buyerUser()
-        );
-
-        assertNotNull(result);
-        assertEquals("测试商品", result.title());
-        assertEquals("质量很好", result.reviewContent());
-    }
-
-    @Test
-    // TC-ORD-07 未完成订单不能评价
-    void reviewOrderRejectsUncompletedOrder() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(7);
-        order.setBuyerId(100);
-        order.setSellerId(10);
-        order.setGoodsId(101);
-        order.setStatus("paid");
-        when(orderMapper.selectOrder(7)).thenReturn(order);
-
-        ResponseStatusException error = assertThrows(
-                ResponseStatusException.class,
-                () -> shopService.reviewOrder("7", new ShopDtos.ReviewRequest(5, 5, "质量很好"), buyerUser())
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
-    }
-
-    @Test
-    // TC-ORD-08 已评价订单不能重复评价
-    void reviewOrderRejectsDuplicateReview() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(7);
-        order.setBuyerId(100);
-        order.setSellerId(10);
-        order.setGoodsId(101);
-        order.setStatus("completed");
-        when(orderMapper.selectOrder(7)).thenReturn(order);
-        when(orderMapper.reviewCountByOrder(7)).thenReturn(1);
-
-        ResponseStatusException error = assertThrows(
-                ResponseStatusException.class,
-                () -> shopService.reviewOrder("7", new ShopDtos.ReviewRequest(5, 5, "质量很好"), buyerUser())
-        );
-
-        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
-    }
-
     private TopicPostRecord topicPostRecord(Integer postId, Integer topicId, String content) {
         TopicPostRecord record = new TopicPostRecord();
         record.setPostId(postId);
@@ -878,29 +687,6 @@ class ShopServiceTest {
         assertThrows(ResponseStatusException.class, () -> shopService.unfollowStore("1", null));
     }
 
-    @Test
-    // 场景：创建订单时 quantity 为 null -> 默认数量应为 1
-    void createOrders_quantityNullDefaultsToOne() {
-        // 准备商品
-        validProduct.setSellerId(10);
-        when(productMapper.selectById(101)).thenReturn(validProduct);
-        
-        // 订单项：quantity 为 null
-        ShopDtos.CreateOrderItem item = new ShopDtos.CreateOrderItem("101", null);
-        ShopDtos.CreateOrderRequest request = new ShopDtos.CreateOrderRequest(List.of(item));
-        
-        // Mock 插入行为
-        when(orderMapper.insertOrder(anyInt(), anyInt(), anyInt(), anyString(), any(BigDecimal.class)))
-            .thenReturn(1);
-        
-        // 执行
-        shopService.createOrders(request, buyerUser());
-        
-        // 验证：insertOrder 被调用时，数量为 1（即价格 * 1）
-        verify(orderMapper, times(1))
-            .insertOrder(anyInt(), anyInt(), anyInt(), anyString(), eq(BigDecimal.valueOf(399)));
-    }
-    
     // ==================== 编辑商品测试（TC-PROD-11 / BUG-UNIT-003） ====================
 
     @Test
@@ -949,115 +735,7 @@ class ShopServiceTest {
         verify(productMapper, times(1)).update(any(ProductRecord.class));
     }
 
-        // ==================== 按状态筛选订单测试（TC-ORD-03 / BUG-UNIT-005） ====================
 
-    @Test
-    // TC-ORD-03 按状态筛选订单
-    void ordersWithStatusFilter() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(10);
-        order.setBuyerId(100);
-        order.setSellerId(50);
-        order.setGoodsId(101);
-        order.setStatus("pending_ship");
-        order.setAmount(BigDecimal.valueOf(699));
-        order.setGoodsName("测试耳机");
-        order.setGoodsImage("/images/test.jpg");
-        order.setScene("new");
-        order.setSellerName("测试卖家");
-
-        when(orderMapper.selectBuyerOrdersFiltered(100, "pending_ship")).thenReturn(List.of(order));
-
-        List<OrderView> result = shopService.orders(buyerUser(), "待发货");
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("待收货", result.get(0).status());  // 订单状态映射后为"待收货"
-    }
-
-    @Test
-    // TC-ORD-03 按无效状态筛选 -> 回退到所有订单（null 表示不筛选）
-    void ordersWithInvalidStatusFallback() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(11);
-        order.setBuyerId(100);
-        order.setSellerId(50);
-        order.setGoodsId(101);
-        order.setStatus("completed");
-        order.setAmount(BigDecimal.valueOf(399));
-        order.setGoodsName("测试商品");
-        order.setGoodsImage("/images/test.jpg");
-        order.setScene("used");
-        order.setSellerName("测试卖家");
-
-        when(orderMapper.selectBuyerOrdersFiltered(100, null)).thenReturn(List.of(order));
-
-        List<OrderView> result = shopService.orders(buyerUser(), "invalid_status");
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        verify(orderMapper, times(1)).selectBuyerOrdersFiltered(100, null);
-    }
-
-    // ==================== 取消订单测试（TC-ORD-04 / BUG-UNIT-006） ====================
-
-    @Test
-    // TC-ORD-04 取消订单成功
-    void cancelOrderSuccess() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(10);
-        order.setBuyerId(100);
-        order.setSellerId(50);
-        order.setGoodsId(101);
-        order.setStatus("pending_pay");
-
-        when(orderMapper.selectOrder(10)).thenReturn(order);
-        when(orderMapper.updateOrderStatus(10, "cancelled")).thenReturn(1);
-
-        OrderView result = shopService.cancelOrder("10", buyerUser());
-        assertNotNull(result);
-        verify(orderMapper, times(1)).updateOrderStatus(10, "cancelled");
-    }
-
-    @Test
-    // TC-ORD-04 未登录取消订单 -> 401
-    void cancelOrderRejectsUnauthenticated() {
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> shopService.cancelOrder("10", null)
-        );
-        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
-    }
-
-    @Test
-    // TC-ORD-04 取消不存在订单 -> 404
-    void cancelOrderRejectsNotFound() {
-        when(orderMapper.selectOrder(999)).thenReturn(null);
-
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> shopService.cancelOrder("999", buyerUser())
-        );
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-    }
-
-    @Test
-    // TC-ORD-04 取消非本人订单 -> 404（实际返回 404，因为 order.getBuyerId() != user.getUserId()）
-    void cancelOrderRejectsNotOwner() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(10);
-        order.setBuyerId(200);
-        order.setSellerId(50);
-        order.setGoodsId(101);
-        order.setStatus("pending_pay");
-
-        when(orderMapper.selectOrder(10)).thenReturn(order);
-
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> shopService.cancelOrder("10", buyerUser())
-        );
-        // 代码中 order == null || !user.getUserId().equals(order.getBuyerId()) 返回 404
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-    }
 
         // ==================== 补充覆盖率测试（shop 模块） ====================
 
@@ -1237,54 +915,6 @@ class ShopServiceTest {
         List<TopicPostView> result = shopService.toggleTopicPostLike("1", buyer);
         assertNotNull(result);
         verify(topicMapper, times(1)).deleteLike(1, 100);
-    }
-
-    @Test
-    // cancelOrder() 订单已取消抛 CONFLICT
-    void cancelOrder_alreadyCancelled() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(10);
-        order.setBuyerId(100);
-        order.setStatus("cancelled");
-        when(orderMapper.selectOrder(10)).thenReturn(order);
-        assertThrows(ResponseStatusException.class, () -> shopService.cancelOrder("10", buyerUser()));
-    }
-
-    @Test
-    // reviewOrder() 订单不属于当前用户抛 404
-    void reviewOrder_throwsWhenNotBuyer() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(10);
-        order.setBuyerId(200); // 不是当前用户
-        order.setStatus("completed");
-        when(orderMapper.selectOrder(10)).thenReturn(order);
-        ShopDtos.ReviewRequest request = new ShopDtos.ReviewRequest(5, 5, "好评");
-        assertThrows(ResponseStatusException.class, () -> shopService.reviewOrder("10", request, buyerUser()));
-    }
-
-    @Test
-    // reviewOrder() 订单未完成抛 400
-    void reviewOrder_throwsWhenNotCompleted() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(10);
-        order.setBuyerId(100);
-        order.setStatus("pending");
-        when(orderMapper.selectOrder(10)).thenReturn(order);
-        ShopDtos.ReviewRequest request = new ShopDtos.ReviewRequest(5, 5, "好评");
-        assertThrows(ResponseStatusException.class, () -> shopService.reviewOrder("10", request, buyerUser()));
-    }
-
-    @Test
-    // reviewOrder() 已评价抛 CONFLICT
-    void reviewOrder_throwsWhenAlreadyReviewed() {
-        OrderRecord order = new OrderRecord();
-        order.setOrderId(10);
-        order.setBuyerId(100);
-        order.setStatus("completed");
-        when(orderMapper.selectOrder(10)).thenReturn(order);
-        when(orderMapper.reviewCountByOrder(10)).thenReturn(1);
-        ShopDtos.ReviewRequest request = new ShopDtos.ReviewRequest(5, 5, "好评");
-        assertThrows(ResponseStatusException.class, () -> shopService.reviewOrder("10", request, buyerUser()));
     }
 
     @Test

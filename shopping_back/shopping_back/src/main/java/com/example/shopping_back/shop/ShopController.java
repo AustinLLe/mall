@@ -9,12 +9,9 @@ import com.example.shopping_back.shop.ShopDtos.AiAssistRequest;
 import com.example.shopping_back.shop.ShopDtos.AiAssistResponse;
 import com.example.shopping_back.shop.ShopDtos.AuditRequest;
 import com.example.shopping_back.shop.ShopDtos.AuditResult;
-import com.example.shopping_back.shop.ShopDtos.CreateOrderRequest;
-import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
 import com.example.shopping_back.shop.ShopDtos.UpdateProductRequest;
-import com.example.shopping_back.shop.ShopDtos.ReviewRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
 import com.example.shopping_back.shop.ShopDtos.StoreUpdateRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
@@ -183,35 +180,6 @@ public class ShopController {
             @Valid @RequestBody TopicActionRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         return ApiResult.ok(shopService.toggleTopicPostAction(id, request.actionType(), currentUserOrNull(authorization)));
-    }
-
-    @GetMapping("/orders")
-    public ApiResult<List<OrderView>> orders(
-            @RequestParam(required = false) String status,
-            @RequestHeader(value = "Authorization", required = false) String authorization) {
-        return ApiResult.ok(shopService.orders(currentUserOrNull(authorization), status));
-    }
-
-    @PostMapping("/orders/{id}/cancel")
-    public ApiResult<OrderView> cancelOrder(
-            @PathVariable String id,
-            @RequestHeader(value = "Authorization", required = false) String authorization) {
-        return ApiResult.ok(shopService.cancelOrder(id, currentUserOrNull(authorization)));
-    }
-
-    @PostMapping("/orders")
-    public ApiResult<List<OrderView>> createOrders(
-            @RequestBody CreateOrderRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authorization) {
-        return ApiResult.ok(shopService.createOrders(request, currentUserOrNull(authorization)));
-    }
-
-    @PostMapping("/orders/{id}/review")
-    public ApiResult<OrderView> reviewOrder(
-            @PathVariable String id,
-            @Valid @RequestBody ReviewRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authorization) {
-        return ApiResult.ok(shopService.reviewOrder(id, request, currentUserOrNull(authorization)));
     }
 
     @PostMapping("/products")

@@ -10,10 +10,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Component
 public class HttpUserClient implements UserClient {
-    private final RestClient client;
+    private final RestClient authClient;
+    private final RestClient userClient;
 
-    public HttpUserClient(RestClient userRestClient) {
-        this.client = userRestClient;
+    public HttpUserClient(RestClient authRestClient, RestClient userRestClient) {
+        this.authClient = authRestClient;
+        this.userClient = userRestClient;
     }
 
     @Override
@@ -22,7 +24,7 @@ public class HttpUserClient implements UserClient {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
         }
         try {
-            JsonNode body = client.get().uri("/api/auth/me")
+            JsonNode body = authClient.get().uri("/api/auth/me")
                     .header("Authorization", authorization)
                     .retrieve()
                     .body(JsonNode.class);
@@ -42,16 +44,16 @@ public class HttpUserClient implements UserClient {
             if (status == 401 || status == 403) {
                 throw new ResponseStatusException(HttpStatus.valueOf(status), "请先登录");
             }
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "用户服务暂时不可用", exception);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "登录服务暂时不可用", exception);
         } catch (ResourceAccessException exception) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "用户服务暂时不可用", exception);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "登录服务暂时不可用", exception);
         }
     }
 
     @Override
     public void requireActiveUser(long userId) {
         try {
-            UserSnapshot user = client.get().uri("/internal/users/{id}", userId).retrieve().body(UserSnapshot.class);
+            UserSnapshot user = userClient.get().uri("/internal/users/{id}", userId).retrieve().body(UserSnapshot.class);
             if (user == null || !"normal".equalsIgnoreCase(user.status())) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "user is not active");
             }
@@ -71,7 +73,7 @@ public class HttpUserClient implements UserClient {
     public void requireActiveUserAndAddress(long userId, long addressId) {
         requireActiveUser(userId);
         try {
-            client.get().uri("/internal/users/{userId}/addresses/{addressId}", userId, addressId)
+            userClient.get().uri("/internal/users/{userId}/addresses/{addressId}", userId, addressId)
                     .retrieve().toBodilessEntity();
         } catch (RestClientResponseException exception) {
             if (exception.getStatusCode().value() == 404) {

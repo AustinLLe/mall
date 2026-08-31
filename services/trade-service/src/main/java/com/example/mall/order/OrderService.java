@@ -143,6 +143,29 @@ public class OrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "order not found"));
     }
 
+    public OrderParticipants participants(long orderId) {
+        OrderView order = find(orderId);
+        return new OrderParticipants(order.orderId(), order.buyerId(), order.sellerId());
+    }
+
+    public SellerSummary sellerSummary(long sellerId) {
+        SellerSummaryRow row = jdbc.sql("""
+                SELECT COUNT(*) AS orderCount,
+                    COALESCE(SUM(CASE WHEN status IN ('PENDING_PRODUCT_MARK', 'COMPENSATION_REQUIRED') THEN 1 ELSE 0 END), 0) AS pendingShipCount,
+                    COALESCE(SUM(CASE WHEN status = 'CONFIRMED' THEN 1 ELSE 0 END), 0) AS confirmedCount,
+                    COALESCE(SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS cancelledCount,
+                    COALESCE(SUM(CASE WHEN status = 'CONFIRMED' THEN amount ELSE 0 END), 0) AS totalAmount
+                FROM orders
+                WHERE seller_id=:sellerId
+                """)
+                .param("sellerId", sellerId)
+                .query(SellerSummaryRow.class)
+                .optional()
+                .orElse(new SellerSummaryRow(0, 0, 0, 0, BigDecimal.ZERO));
+        return new SellerSummary(sellerId, row.orderCount(), row.pendingShipCount(), row.confirmedCount(),
+                row.cancelledCount(), row.totalAmount() == null ? BigDecimal.ZERO : row.totalAmount());
+    }
+
     private Optional<OrderView> findByRequestId(String requestId) {
         return jdbc.sql(ORDER_COLUMNS + " WHERE client_request_id=:requestId")
                 .param("requestId", requestId).query(OrderView.class).optional();
@@ -283,4 +306,13 @@ public class OrderService {
     public record StorefrontOrderView(String id, String shop, String status, String title, String cover, String type,
                                       String service, BigDecimal amount, String goodsId, boolean reviewable,
                                       boolean reviewed, Integer productScore, Integer sellerScore, String reviewContent) {}
+    public record OrderParticipants(long orderId, long buyerId, long sellerId) {
+        public boolean includes(long userId) {
+            return userId == buyerId || userId == sellerId;
+        }
+    }
+    public record SellerSummary(long sellerId, long orderCount, long pendingShipCount, long confirmedCount,
+                               long cancelledCount, BigDecimal totalAmount) {}
+    private record SellerSummaryRow(long orderCount, long pendingShipCount, long confirmedCount, long cancelledCount,
+                                   BigDecimal totalAmount) {}
 }

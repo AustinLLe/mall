@@ -71,4 +71,36 @@ class ProductServiceTest {
         relations.clear("history", 501);
         assertThat(relations.list("history", 501)).isEmpty();
     }
+
+    @Test
+    void listFiltersBySceneAndKeywordAndExposesStorefrontFields() {
+        service.create(new ProductService.CreateProduct(61, "二手键盘", new BigDecimal("80.00")));
+        ProductService.ProductView created = service.publish(
+                new ProductService.PublishRequest("used", "九成新显示器", "/cover.png", "数码",
+                        new BigDecimal("620.00"), "九成新", "屏幕完好", "毕业出闲置", new BigDecimal("500.00"), "武汉"),
+                new CatalogUser(71, "seller", "seller71"));
+
+        assertThat(service.list("used", "显示器")).extracting(ProductService.ProductView::productId)
+                .contains(created.productId());
+        assertThat(service.list("new", null)).extracting(ProductService.ProductView::productId)
+                .doesNotContain(created.productId());
+
+        ProductService.StorefrontProduct view = service.toStorefront(created);
+        assertThat(view.id()).isEqualTo(String.valueOf(created.productId()));
+        assertThat(view.title()).isEqualTo("九成新显示器");
+        assertThat(view.cover()).isEqualTo("/cover.png");
+        assertThat(view.shopName()).isNotBlank();
+        assertThat(view.status()).isEqualTo("approved");
+        assertThat(view.scene()).isEqualTo("used");
+    }
+
+    @Test
+    void buyerCannotPublish() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.publish(
+                new ProductService.PublishRequest("used", "标题", "/a.png", "数码",
+                        new BigDecimal("10.00"), "全新", "描述", "故事", null, "武汉"),
+                new CatalogUser(81, "buyer", "buyer81")))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("403 FORBIDDEN");
+    }
 }
