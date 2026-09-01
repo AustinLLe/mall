@@ -12,7 +12,8 @@ set -e
 args="$*"
 if [[ "$args" == *"get deployment mysql -o jsonpath="* ]] || \
    [[ "$args" == *"get deployment backend -o jsonpath="* ]] || \
-   [[ "$args" == *"get deployment frontend -o jsonpath="* ]]; then
+   [[ "$args" == *"get deployment frontend -o jsonpath="* ]] || \
+   [[ "$args" == *"get deployment trade-service -o jsonpath="* ]]; then
   if [[ "$args" == *readyReplicas* ]]; then
     printf '1'
     exit 0
@@ -25,22 +26,20 @@ if [[ "$args" == *"get deployment mysql -o jsonpath="* ]] || \
     printf 'release-27-abc12345'
     exit 0
   fi
-  if [[ "$args" == *backend*image* ]] || [[ "$args" == *"containers[0].image"* ]]; then
-    if [[ "$args" == *frontend* ]]; then
+  if [[ "$args" == *"containers[0].image"* ]]; then
+    if [[ "$args" == *"get deployment frontend"* ]]; then
       printf 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend:release-27-abc12345'
+    elif [[ "$args" == *"get deployment trade-service"* ]]; then
+      printf 'swr.cn-north-4.myhuaweicloud.com/songguo/trade-service:release-27-abc12345'
     else
       printf 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-backend:release-27-abc12345'
     fi
     exit 0
   fi
 fi
-if [[ "$args" == *"get deployment backend -o jsonpath="* ]]; then
-  printf 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-backend:release-27-abc12345'
-  exit 0
-fi
-if [[ "$args" == *"get deployment frontend -o jsonpath="* ]]; then
-  printf 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend:release-27-abc12345'
-  exit 0
+if [[ "$args" == *"exec "* ]]; then
+  echo "  HTTP/1.1 401 " >&2
+  exit 1
 fi
 exit 0
 EOF

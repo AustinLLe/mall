@@ -6,6 +6,7 @@
 #   $tag = "xiaoming-20260827"
 #   .\ops\push-swr.ps1 $tag backend
 #   .\ops\push-swr.ps1 $tag frontend
+#   .\ops\push-swr.ps1 $tag trade-service
 #   .\ops\push-swr.ps1 $tag backend -Apply
 # Add a microservice later: one more entry in $Catalog.
 
@@ -30,12 +31,14 @@ Get-Content -LiteralPath $CatalogPath | ForEach-Object {
     $line = $_.Trim()
     if ($line -and -not $line.StartsWith("#")) {
         $parts = $line.Split("|")
-        if ($parts.Count -ne 5) { throw "Invalid service catalog entry: $line" }
+        if ($parts.Count -ne 5 -and $parts.Count -ne 7) { throw "Invalid service catalog entry: $line" }
         $Catalog[$parts[0]] = @{
             Dockerfile = $parts[1]
             Image = $parts[2]
             Deployment = $parts[3]
             Container = $parts[4]
+            ModuleDir = $(if ($parts.Count -ge 7) { $parts[5] } else { "" })
+            JarName = $(if ($parts.Count -ge 7) { $parts[6] } else { "" })
         }
     }
 }
@@ -94,11 +97,16 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 Write-Host "Building and pushing $image"
-docker buildx build --provenance=false --sbom=false --platform linux/amd64 `
-    -f $item.Dockerfile `
-    -t $image `
-    --load `
-    .
+$buildArgs = @(
+    "buildx", "build", "--provenance=false", "--sbom=false", "--platform", "linux/amd64",
+    "-f", $item.Dockerfile, "-t", $image
+)
+if ($item.ModuleDir -and $item.JarName) {
+    $buildArgs += "--build-arg", "MODULE_DIR=$($item.ModuleDir)"
+    $buildArgs += "--build-arg", "JAR_NAME=$($item.JarName)"
+}
+$buildArgs += "--load", "."
+& docker @buildArgs
 if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)" }
 
 docker push $image

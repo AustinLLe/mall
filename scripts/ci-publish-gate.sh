@@ -10,4 +10,5 @@ meta="ci-artifacts/release/release-metadata.json"
 grep -q "newTag: ${IMAGE_TAG}" ci-artifacts/release/k8s/kustomization.yaml
 grep -q "shop-backend:${IMAGE_TAG}" "$meta"
 grep -q "shop-frontend:${IMAGE_TAG}" "$meta"
+grep -q "trade-service:${IMAGE_TAG}" "$meta"
 echo "publish-gate ok: ${IMAGE_TAG}"
