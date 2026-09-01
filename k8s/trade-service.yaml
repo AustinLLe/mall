@@ -39,7 +39,7 @@ spec:
         - name: swr-secret
       containers:
         - name: trade-service
-          image: swr.cn-north-4.myhuaweicloud.com/songguo/trade-service:release-trade-service-20260901
+          image: swr.cn-north-4.myhuaweicloud.com/songguo/trade-service:release-trade-service-20260901-2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8083

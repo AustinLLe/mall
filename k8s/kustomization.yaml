@@ -23,4 +23,4 @@ images:
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend
     newTag: mytest-20260827
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/trade-service
-    newTag: release-trade-service-20260901
+    newTag: release-trade-service-20260901-2
