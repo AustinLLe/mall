@@ -72,27 +72,81 @@ class ProductServiceTest {
         assertThat(relations.list("history", 501)).isEmpty();
     }
 
+//     @Test
+//     void listFiltersBySceneAndKeywordAndExposesStorefrontFields() {
+//         service.create(new ProductService.CreateProduct(61, "二手键盘", new BigDecimal("80.00")));
+//         ProductService.ProductView created = service.publish(
+//                 new ProductService.PublishRequest("used", "九成新显示器", "/cover.png", "数码",
+//                         new BigDecimal("620.00"), "九成新", "屏幕完好", "毕业出闲置", new BigDecimal("500.00"), "武汉"),
+//                 new CatalogUser(71, "seller", "seller71"));
+
+//         assertThat(service.list("used", "显示器")).extracting(ProductService.ProductView::productId)
+//                 .doesNotContain(created.productId());
+//         assertThat(service.pending()).extracting(ProductService.ProductView::productId)
+//                 .contains(created.productId());
+//         assertThat(service.audit(created.productId(), "approve", "测试通过").status()).isEqualTo("approved");
+//         assertThat(service.list("used", "显示器")).extracting(ProductService.ProductView::productId)
+//                 .contains(created.productId());
+//         assertThat(service.list("new", null)).extracting(ProductService.ProductView::productId)
+//                 .doesNotContain(created.productId());
+
+//         ProductService.StorefrontProduct view = service.toStorefront(created);
+//         assertThat(view.id()).isEqualTo(String.valueOf(created.productId()));
+//         assertThat(view.title()).isEqualTo("九成新显示器");
+//         assertThat(view.cover()).isEqualTo("/cover.png");
+//         assertThat(view.shopName()).isNotBlank();
+//         assertThat(view.status()).isEqualTo("approved");
+//         assertThat(view.scene()).isEqualTo("used");
+//     }
     @Test
-    void listFiltersBySceneAndKeywordAndExposesStorefrontFields() {
-        service.create(new ProductService.CreateProduct(61, "二手键盘", new BigDecimal("80.00")));
-        ProductService.ProductView created = service.publish(
-                new ProductService.PublishRequest("used", "九成新显示器", "/cover.png", "数码",
-                        new BigDecimal("620.00"), "九成新", "屏幕完好", "毕业出闲置", new BigDecimal("500.00"), "武汉"),
-                new CatalogUser(71, "seller", "seller71"));
+        void listFiltersBySceneAndKeywordAndExposesStorefrontFields() {
+                service.create(new ProductService.CreateProduct(
+                        61, "二手键盘", new BigDecimal("80.00")));
 
-        assertThat(service.list("used", "显示器")).extracting(ProductService.ProductView::productId)
-                .contains(created.productId());
-        assertThat(service.list("new", null)).extracting(ProductService.ProductView::productId)
-                .doesNotContain(created.productId());
+                ProductService.ProductView created = service.publish(
+                        new ProductService.PublishRequest(
+                                "used",
+                                "九成新显示器",
+                                "/cover.png",
+                                "数码",
+                                new BigDecimal("620.00"),
+                                "九成新",
+                                "屏幕完好",
+                                "毕业出闲置",
+                                new BigDecimal("500.00"),
+                                "武汉"),
+                        new CatalogUser(71, "seller", "seller71"));
 
-        ProductService.StorefrontProduct view = service.toStorefront(created);
-        assertThat(view.id()).isEqualTo(String.valueOf(created.productId()));
-        assertThat(view.title()).isEqualTo("九成新显示器");
-        assertThat(view.cover()).isEqualTo("/cover.png");
-        assertThat(view.shopName()).isNotBlank();
-        assertThat(view.status()).isEqualTo("approved");
-        assertThat(view.scene()).isEqualTo("used");
-    }
+                assertThat(service.list("used", "显示器"))
+                        .extracting(ProductService.ProductView::productId)
+                        .doesNotContain(created.productId());
+
+                assertThat(service.pending())
+                        .extracting(ProductService.ProductView::productId)
+                        .contains(created.productId());
+
+                assertThat(service.audit(created.productId(), "approve", "测试通过").status())
+                        .isEqualTo("approved");
+
+                ProductService.ProductView approved = service.find(created.productId());
+
+                assertThat(service.list("used", "显示器"))
+                        .extracting(ProductService.ProductView::productId)
+                        .contains(created.productId());
+
+                assertThat(service.list("new", null))
+                        .extracting(ProductService.ProductView::productId)
+                        .doesNotContain(created.productId());
+
+                ProductService.StorefrontProduct view = service.toStorefront(approved);
+
+                assertThat(view.id()).isEqualTo(String.valueOf(created.productId()));
+                assertThat(view.title()).isEqualTo("九成新显示器");
+                assertThat(view.cover()).isEqualTo("/cover.png");
+                assertThat(view.shopName()).isNotBlank();
+                assertThat(view.status()).isEqualTo("approved");
+                assertThat(view.scene()).isEqualTo("used");
+        }
 
     @Test
     void buyerCannotPublish() {
@@ -102,6 +156,21 @@ class ProductServiceTest {
                 new CatalogUser(81, "buyer", "buyer81")))
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
+    }
+
+    @Test
+    void auditRejectsInvalidActionAndCannotRepeat() {
+        ProductService.ProductView created = service.publish(
+                new ProductService.PublishRequest("new", "审核商品", "/cover.png", "数码",
+                        new BigDecimal("99.00"), null, "描述", null, null, "武汉"),
+                new CatalogUser(72, "seller", "seller72"));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.audit(created.productId(), "invalid", ""))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("400 BAD_REQUEST");
+        assertThat(service.audit(created.productId(), "reject", "描述不完整").status()).isEqualTo("rejected");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.audit(created.productId(), "approve", ""))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("409 CONFLICT");
     }
 
     @Test

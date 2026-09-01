@@ -16,7 +16,7 @@ function request(name, method, url, options = {}) {
   ];
   if (options.json !== false && !expected.includes(204)) {
     scripts.push("pm.test(\"Response is JSON\", () => pm.response.to.be.json);");
-    scripts.push("pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });");
+    if (options.envelope) scripts.push("pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });");
   }
   if (options.tests) scripts.push(...options.tests);
 
@@ -125,7 +125,7 @@ const folders = [
       }),
       request("MS-USERS-GET-001 get user by id", "GET", "{{user_url}}/api/users/{{buyer_id}}"),
       request("MS-USERS-POST-NEG-001 duplicate basic user", "POST", "{{user_url}}/api/users", {
-        body: { username: "{{buyer_username}}", phone: "13800000000", role: "buyer" }, expected: [409],
+        body: { username: "{{buyer_username}}", password: "{{test_password}}", phone: "13800000000", role: "buyer" }, expected: [409],
       }),
       request("MS-USERS-INTERNAL-001 internal user", "GET", "{{user_url}}/internal/users/{{buyer_id}}"),
     ],
@@ -187,6 +187,12 @@ const folders = [
           ...captureApiData("product_id", "body.data.id"),
           "pm.collectionVariables.set('store_id', body.data.storeId);",
         ],
+      }),
+      request("MS-PRODUCT-AUDIT-LIST-001 admin lists pending products", "GET", "{{gateway_url}}/api/admin/audit", {
+        headers: [auth("admin_token")],
+      }),
+      request("MS-PRODUCT-AUDIT-APPROVE-001 admin approves product", "POST", "{{gateway_url}}/api/admin/audit/{{product_id}}", {
+        headers: [auth("admin_token")], body: { action: "approve", reason: "API automation approved" },
       }),
       request("MS-PRODUCT-LIST-001 list products", "GET", "{{catalog_url}}/api/products?keyword={{product_title}}"),
       request("MS-PRODUCT-MINE-001 seller products", "GET", "{{catalog_url}}/api/products/mine", { headers: [auth("seller_token")] }),

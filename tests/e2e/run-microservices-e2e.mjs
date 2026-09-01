@@ -138,6 +138,44 @@ function runUiTests() {
   ], { allowFailure: true });
 }
 
+async function seedUiFixture() {
+  const gateway = `http://127.0.0.1:${hostPort}`;
+  const login = await fetch(`${gateway}/api/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "seller", password: "seller123" }),
+  });
+  if (!login.ok) throw new Error(`UI fixture seller login failed: HTTP ${login.status}`);
+  const loginBody = await login.json();
+  const token = loginBody?.data?.token;
+  if (!token) throw new Error("UI fixture seller login returned no token");
+  const suffix = Date.now().toString(36);
+  const publish = await fetch(`${gateway}/api/products`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      scene: "used", title: `自动化测试商品-${suffix}`,
+      image: "https://example.test/e2e-product.png", category: "数码", price: 99.90,
+      condition: "九成新", description: "Selenium 自动化固定商品", story: "automation",
+      floorPrice: 80, location: "武汉",
+    }),
+  });
+  if (!publish.ok) throw new Error(`UI fixture product publish failed: HTTP ${publish.status} ${await publish.text()}`);
+  const productId = (await publish.json())?.data?.id;
+  const adminLogin = await fetch(`${gateway}/api/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "admin", password: "admin123" }),
+  });
+  if (!adminLogin.ok) throw new Error(`UI fixture admin login failed: HTTP ${adminLogin.status}`);
+  const adminToken = (await adminLogin.json())?.data?.token;
+  const approve = await fetch(`${gateway}/api/admin/audit/${productId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({ action: "approve", reason: "Selenium fixture" }),
+  });
+  if (!approve.ok) throw new Error(`UI fixture product approval failed: HTTP ${approve.status} ${await approve.text()}`);
+  console.log(`[fixture] UI product created: 自动化测试商品-${suffix}`);
+}
+
 let exitCode = 1;
 let result = "environment failure";
 try {
@@ -152,6 +190,7 @@ try {
     result = `API tests failed with exit code ${api.status ?? 1}; UI tests were skipped`;
     exitCode = api.status ?? 1;
   } else {
+    await seedUiFixture();
     const ui = runUiTests();
     exitCode = ui.status ?? 1;
     result = exitCode === 0 ? "passed" : `UI tests failed with exit code ${exitCode}`;

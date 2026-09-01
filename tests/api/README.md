@@ -1,20 +1,19 @@
-# API tests
+# API 自动化测试
 
-The CI-ready Postman Collection v2.1 file is:
+可直接接入 CI 的 Postman Collection v2.1 文件为：
 
 `soft-shop-api.postman_collection.json`
 
-Generated Newman reports belong in `reports/` and should not be committed.
+Newman 报告生成在 `reports/`，不提交到 Git。
 
-Run the complete API suite against the Docker Compose environment:
+运行旧单体 API：
 
 ```powershell
 npm ci
 npm run test:api
 ```
 
-The runner resets API-only fixtures, executes Newman, returns a non-zero exit
-code on failure, and writes JUnit XML plus HTML reports into `reports/`.
+运行器会重置测试夹具、执行 Newman，并在失败时返回非零退出码，同时生成 JUnit XML、HTML 和 JSON 报告。
 
 The collection includes UC-linked coverage for UC03 and UC05 through UC15.
 After replacing or regenerating the base Postman collection, rebuild those cases with:
@@ -26,20 +25,20 @@ node tests/api/extend-uc-coverage.mjs
 Use another deployed endpoint with `API_BASE_URL`, or pass
 `--base-url=https://example.test` after `--` in the npm command.
 
-## Four-microservice regression
+## 四微服务完整回归
 
-Run only the complete direct-service API regression against an already running environment:
+针对已启动环境运行：
 
 ```powershell
 npm run test:api:microservices
 ```
 
-Run it with an isolated Compose environment:
+自动创建并销毁独立 Compose 环境：
 
 ```powershell
 npm run test:api:microservices:compose
 ```
 
-The generated collection covers user, catalog, trade and interaction APIs, cross-service
-order/content flows, and the public gateway routing contract. Reports are written to
-`reports/microservices/` in JUnit, HTML and JSON formats, with `failure-summary.md` for CI triage.
+当前集合包含 82 个请求、163 个断言，覆盖 user、catalog、trade、interaction、网关路由、
+商品审核、跨服务下单和关联内容。2026-09-01 最近一次完整执行为 82/82 请求通过、
+163/163 断言通过。报告位于 `reports/microservices/`，失败摘要为 `failure-summary.md`。

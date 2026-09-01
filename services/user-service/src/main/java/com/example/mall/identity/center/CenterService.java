@@ -243,6 +243,7 @@ public class CenterService {
         mapper.createFollowTopicTable();
         mapper.createStoreTable();
         mapper.createOrdersTable();
+        mapper.createGoodsCompatibilityTable();
         mapper.createCreditRecordTable();
     }
 

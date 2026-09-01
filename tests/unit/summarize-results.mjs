@@ -73,7 +73,7 @@ if (commonSerializationFailure) lines.push(
 );
 fs.writeFileSync(path.join(resultDirectory, "summary.md"), `${lines.join("\n")}\n`);
 fs.writeFileSync(path.join(resultDirectory, "summary.json"), `${JSON.stringify(summaries, null, 2)}\n`);
-console.log(lines.slice(0, 9).join("\n"));
+console.log(lines.slice(0, 6 + summaries.length).join("\n"));
 
 let failed = summaries.some((item) => item.failures > 0 || item.errors > 0 || item.tests === 0);
 if (enforce) {

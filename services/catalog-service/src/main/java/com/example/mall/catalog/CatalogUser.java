@@ -17,4 +17,5 @@ public record CatalogUser(long userId, String role, String username, int credit)
     }
 
     public boolean isSeller() { return "seller".equalsIgnoreCase(role); }
+    public boolean isAdmin() { return "admin".equalsIgnoreCase(role); }
 }

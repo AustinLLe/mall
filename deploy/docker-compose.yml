@@ -36,6 +36,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       APP_CORS_PATTERNS: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is required}
       APP_UPLOAD_DIR: /app/uploads
+      AUTH_BASE_URL: http://user-service:8081
       AI_BARGAIN_API_KEY: ${AI_BARGAIN_API_KEY:-}
       DASH_SCOPE_API_KEY: ${DASH_SCOPE_API_KEY:-}
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75.0

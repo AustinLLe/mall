@@ -53,6 +53,11 @@ public interface CenterMapper {
             "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     void createOrdersTable();
 
+    @Update("CREATE TABLE IF NOT EXISTS goods (" +
+            "goods_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, seller_id INT NOT NULL, " +
+            "goods_name VARCHAR(255) NOT NULL, status VARCHAR(30) NOT NULL DEFAULT 'pending')")
+    void createGoodsCompatibilityTable();
+
     @Update("CREATE TABLE IF NOT EXISTS credit_record (" +
             "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, change_value INT NOT NULL, " +
             "reason VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")

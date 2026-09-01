@@ -43,7 +43,8 @@ public class UserService {
 
     public AddressView findAddress(long userId, long addressId) {
         return jdbc.sql("""
-                SELECT address_id, user_id, receiver_name, receiver_phone, detail_address, is_default
+                SELECT address_id, user_id, receiver AS receiver_name, phone AS receiver_phone,
+                       CONCAT_WS(' ', province, city, district, detail) AS detail_address, is_default
                 FROM user_address WHERE user_id=:userId AND address_id=:addressId
                 """).param("userId", userId).param("addressId", addressId).query(AddressView.class).optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "address not found"));

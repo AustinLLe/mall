@@ -33,7 +33,9 @@ public class OrderService {
             users.requireActiveUser(request.buyerId());
         }
         CatalogClient.ProductSnapshot product = catalog.getProduct(request.productId());
-        if (!"ON_SALE".equals(product.status())) {
+        if (!("ON_SALE".equalsIgnoreCase(product.status())
+                || "approved".equalsIgnoreCase(product.status())
+                || "0".equals(product.status()))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "product is not on sale");
         }
         if (product.sellerId() == request.buyerId()) {

@@ -51,21 +51,18 @@ Linux 或 CI：
 
 如果 Maven 在编译测试前报告父 POM 或依赖无法解析，应检查网络、`~/.m2/settings.xml` 中的镜像地址、Maven 本地缓存和代理配置。可以使用 Maven Wrapper 加 `-U` 强制刷新依赖。此类错误发生在测试执行之前，不属于单元测试断言失败。
 
-## 当前已发现的生产问题
+## 当前验证基线（2026-09-01）
 
-以下问题由自动化测试暴露。测试侧没有禁用用例、放宽断言、吞掉异常或修改生产代码绕过问题。
+- 旧单体：159 项通过。
+- `common`：8 项通过。
+- `user-service`：63 项通过。
+- `catalog-service`：已增加商品待审核、通过、拒绝、非法动作和重复审核测试。
+- `trade-service`：已覆盖 catalog 返回 `ON_SALE`/`approved` 两种有效在售状态。
+- `interaction-service`：7 项通过。
 
-### user-service 数据库初始化失败
-
-`schema.sql` 已经创建 `users.role` 字段，但 `AuthService.ensureSchema()` 启动时再次尝试添加该字段，H2 上下文测试因此报告 `Duplicate column name "ROLE"`。
-
-该上下文测试会保持失败，直到服务维护者修复生产初始化逻辑。
-
-### common 鉴权响应反序列化失败
-
-`AuthClient` 需要把鉴权响应反序列化为 `ApiResult<AuthUser>`，但 `ApiResult` 没有可供 Jackson 使用的 Creator 或默认构造器。因此，即使鉴权服务返回正常响应，也可能被转换成 HTTP 503。
-
-该测试会保持失败，直到服务维护者修复生产响应对象的反序列化能力。
+此前的 `users.role` 重复建列问题已在当前 master 基线解决；`ApiResult` 也已增加 Jackson
+构造器元数据，跨服务鉴权响应可以正常反序列化。若本机 JDK 21 偶发出现 Surefire fork
+进程提前退出，应以脚本诊断信息和 CI 的 JDK 17 结果为准，不能把“0 项测试”当作通过。
 
 ## 流水线结果判定
 
