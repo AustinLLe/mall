@@ -38,4 +38,7 @@ public interface UserMapper {
 
     @Update("UPDATE users SET avatar_url = #{avatarUrl} WHERE user_id = #{userId}")
     int updateAvatarUrl(@Param("userId") Integer userId, @Param("avatarUrl") String avatarUrl);
+
+    @Select("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = #{columnName}")
+    int countUserColumn(@Param("columnName") String columnName);
 }

@@ -227,4 +227,7 @@ public interface CenterMapper {
     @Select("SELECT id, topic_title AS title, '关注话题' AS `desc`, 'topicFollow' AS type, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS createdAt, topic_id AS targetId " +
             "FROM follow_topic WHERE user_id = #{userId} ORDER BY id DESC LIMIT 20")
     List<InteractionItem> topicFollows(@Param("userId") Integer userId);
+
+    @Select("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = #{tableName} AND COLUMN_NAME = #{columnName}")
+    int countColumn(@Param("tableName") String tableName, @Param("columnName") String columnName);
 }
