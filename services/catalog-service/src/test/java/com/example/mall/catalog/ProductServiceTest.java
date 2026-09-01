@@ -103,4 +103,43 @@ class ProductServiceTest {
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
     }
+
+    @Test
+    void missingProductAndStoreReturnNotFound() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.find(999999))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("404 NOT_FOUND");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> stores.find(999999))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("404 NOT_FOUND");
+    }
+
+    @Test
+    void unsupportedRelationTypeIsRejectedForEveryOperation() {
+        ProductService.ProductView created = service.create(
+                new ProductService.CreateProduct(91, "类型测试", new BigDecimal("12.00")));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> relations.list("unknown", 1))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("400 BAD_REQUEST");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> relations.add("unknown", 1, created.productId()))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("400 BAD_REQUEST");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> relations.clear(null, 1))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("400 BAD_REQUEST");
+    }
+
+    @Test
+    void historyKeepsRepeatedVisitsWhileFavoriteStaysUnique() {
+        ProductService.ProductView created = service.create(
+                new ProductService.CreateProduct(92, "访问历史", new BigDecimal("33.00")));
+        relations.add("history", 900, created.productId());
+        relations.add("history", 900, created.productId());
+        relations.add("favorite", 900, created.productId());
+        relations.add("favorite", 900, created.productId());
+        assertThat(relations.list("history", 900)).hasSize(2);
+        assertThat(relations.list("favorite", 900)).hasSize(1);
+        relations.clear("favorite", 900);
+        assertThat(relations.list("favorite", 900)).isEmpty();
+    }
 }
