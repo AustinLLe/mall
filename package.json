@@ -6,7 +6,8 @@
     "test:api:microservices:compose": "node tests/api/run-microservices-newman.mjs --start-compose",
     "test:api:all": "npm run test:api:monolith && npm run test:api:microservices",
     "build:api:microservices": "node tests/api/build-microservices-collection.mjs",
-    "test:e2e": "node tests/e2e/run-e2e.mjs"
+    "test:e2e": "node tests/e2e/run-e2e.mjs",
+    "test:e2e:microservices": "node tests/e2e/run-microservices-e2e.mjs"
   },
   "dependencies": {
     "iconv-lite": "^0.7.2"

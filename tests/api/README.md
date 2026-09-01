@@ -25,3 +25,21 @@ node tests/api/extend-uc-coverage.mjs
 
 Use another deployed endpoint with `API_BASE_URL`, or pass
 `--base-url=https://example.test` after `--` in the npm command.
+
+## Four-microservice regression
+
+Run only the complete direct-service API regression against an already running environment:
+
+```powershell
+npm run test:api:microservices
+```
+
+Run it with an isolated Compose environment:
+
+```powershell
+npm run test:api:microservices:compose
+```
+
+The generated collection covers user, catalog, trade and interaction APIs, cross-service
+order/content flows, and the public gateway routing contract. Reports are written to
+`reports/microservices/` in JUnit, HTML and JSON formats, with `failure-summary.md` for CI triage.

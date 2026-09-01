@@ -16,6 +16,7 @@ function request(name, method, url, options = {}) {
   ];
   if (options.json !== false && !expected.includes(204)) {
     scripts.push("pm.test(\"Response is JSON\", () => pm.response.to.be.json);");
+    scripts.push("pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });");
   }
   if (options.tests) scripts.push(...options.tests);
 
@@ -42,6 +43,19 @@ const seller = "{{seller_username}}";
 const disposable = "{{disposable_username}}";
 
 const folders = [
+  {
+    name: "00 Gateway routing contract",
+    item: [
+      request("MS-GATEWAY-CATALOG-001 products route", "GET", "{{gateway_url}}/api/products", {
+        tests: ["pm.expect(pm.response.json().data).to.be.an('array');"],
+      }),
+      request("MS-GATEWAY-TRADE-001 cart route", "GET", "{{gateway_url}}/api/cart", { expected: [401] }),
+      request("MS-GATEWAY-INTERACTION-001 topics route", "GET", "{{gateway_url}}/api/topics", {
+        tests: ["pm.expect(pm.response.json().data).to.be.an('array');"],
+      }),
+      request("MS-GATEWAY-USER-001 users route", "GET", "{{gateway_url}}/api/users/999999999", { expected: [404] }),
+    ],
+  },
   {
     name: "00 Health and authentication failures",
     item: [
@@ -255,6 +269,7 @@ const variables = {
   catalog_url: "http://127.0.0.1:8082",
   trade_url: "http://127.0.0.1:8083",
   interaction_url: "http://127.0.0.1:8084",
+  gateway_url: "http://127.0.0.1:18080",
   test_password: "test123",
   run_id: "", product_title: "", topic_title: "",
   buyer_username: "", seller_username: "", disposable_username: "", buyer_token: "", seller_token: "", admin_token: "",

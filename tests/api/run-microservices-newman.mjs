@@ -28,6 +28,7 @@ const urls = {
   catalog_url: argument("catalog-url", process.env.CATALOG_SERVICE_URL || "http://127.0.0.1:8082"),
   trade_url: argument("trade-url", process.env.TRADE_SERVICE_URL || "http://127.0.0.1:8083"),
   interaction_url: argument("interaction-url", process.env.INTERACTION_SERVICE_URL || "http://127.0.0.1:8084"),
+  gateway_url: argument("gateway-url", process.env.GATEWAY_URL || "http://127.0.0.1:18080"),
 };
 
 function run(command, commandArgs, options = {}) {
@@ -86,6 +87,30 @@ function cleanup() {
   run("docker", [...composeArgs, "down", "--volumes", "--remove-orphans"], { allowFailure: true });
 }
 
+function writeFailureSummary(reportPath, summaryPath) {
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const failures = report.run?.failures ?? [];
+  const lines = [
+    "# Microservices E2E failure summary",
+    "",
+    `Generated: ${new Date().toISOString()}`,
+    `Failures: ${failures.length}`,
+    "",
+  ];
+  for (const failure of failures) {
+    const source = failure.source ?? {};
+    const request = source.request ?? failure.parent?.request ?? {};
+    const url = request.url?.raw ?? request.url ?? "unknown";
+    lines.push(`## ${source.name ?? failure.error?.name ?? "Unknown failure"}`);
+    lines.push(`- Request: ${request.method ?? "unknown"} ${url}`);
+    lines.push(`- Assertion: ${failure.error?.test ?? failure.error?.message ?? "unknown"}`);
+    lines.push(`- Actual: ${failure.error?.message ?? "No error message"}`);
+    lines.push("");
+  }
+  if (failures.length === 0) lines.push("No Newman assertion failures were recorded. Check environment diagnostics.");
+  fs.writeFileSync(summaryPath, `${lines.join("\n")}\n`, "utf8");
+}
+
 let exitCode = 0;
 try {
   if (!fs.existsSync(newmanCli)) {
@@ -120,6 +145,10 @@ try {
     "--reporter-htmlextra-export", path.join(reportDirectory, "newman-report.html"),
     "--reporter-json-export", path.join(reportDirectory, "newman-report.json"),
   ], { allowFailure: true });
+  writeFailureSummary(
+    path.join(reportDirectory, "newman-report.json"),
+    path.join(reportDirectory, "failure-summary.md"),
+  );
   exitCode = result.status ?? 1;
   metadata.finishedAt = new Date().toISOString();
   metadata.exitCode = exitCode;

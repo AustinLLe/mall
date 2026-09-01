@@ -7,6 +7,121 @@
   },
   "item": [
     {
+      "name": "00 Gateway routing contract",
+      "item": [
+        {
+          "name": "MS-GATEWAY-CATALOG-001 products route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/products",
+              "host": [
+                "{{gateway_url}}/api/products"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
+                  "pm.expect(pm.response.json().data).to.be.an('array');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MS-GATEWAY-TRADE-001 cart route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/cart",
+              "host": [
+                "{{gateway_url}}/api/cart"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 401\", () => pm.expect([401]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MS-GATEWAY-INTERACTION-001 topics route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/topics",
+              "host": [
+                "{{gateway_url}}/api/topics"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
+                  "pm.expect(pm.response.json().data).to.be.an('array');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MS-GATEWAY-USER-001 users route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/999999999",
+              "host": [
+                "{{gateway_url}}/api/users/999999999"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 404\", () => pm.expect([404]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "00 Health and authentication failures",
       "item": [
         {
@@ -30,6 +145,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "pm.expect(pm.response.json().data).to.eql('interaction-service');"
                 ]
               }
@@ -56,7 +172,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 401\", () => pm.expect([401]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -87,7 +204,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 401\", () => pm.expect([401]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -131,7 +249,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 400\", () => pm.expect([400]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -171,7 +290,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 401\", () => pm.expect([401]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -217,6 +337,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"buyer_token\", body.data.token);",
                   "pm.collectionVariables.set('buyer_id', body.data.user.userId);"
                 ]
@@ -259,6 +380,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"seller_token\", body.data.token);",
                   "pm.collectionVariables.set('seller_id', body.data.user.userId);"
                 ]
@@ -301,6 +423,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"disposable_user_id\", body.data.user.userId);"
                 ]
               }
@@ -341,7 +464,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 409\", () => pm.expect([409]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -382,6 +506,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"buyer_token\", body.data.token);"
                 ]
               }
@@ -423,6 +548,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"seller_token\", body.data.token);"
                 ]
               }
@@ -464,6 +590,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"admin_token\", body.data.token);"
                 ]
               }
@@ -504,7 +631,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 401\", () => pm.expect([401]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -536,6 +664,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "pm.expect(pm.response.json().data.userId).to.eql(Number(pm.collectionVariables.get('buyer_id')));"
                 ]
               }
@@ -581,6 +710,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "pm.expect(pm.response.json().data.avatarUrl).to.eql('https://example.test/avatar.png');"
                 ]
               }
@@ -608,6 +738,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "pm.expect(pm.response.json().data).to.be.an('array').that.is.not.empty;"
                 ]
               }
@@ -634,7 +765,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -674,7 +806,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 409\", () => pm.expect([409]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -700,7 +833,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -750,6 +884,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body=pm.response.json(); pm.expect(body.code).to.eql(0); pm.expect(body.data).to.be.an('array').that.is.not.empty;",
                   "pm.collectionVariables.set('address_id', body.data[body.data.length-1].addressId);"
                 ]
@@ -782,7 +917,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -826,7 +962,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -857,7 +994,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -883,7 +1021,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -914,7 +1053,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -945,7 +1085,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -976,7 +1117,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1021,6 +1163,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"buyer_realname_id\", body.data.realName.id);"
                 ]
               }
@@ -1052,7 +1195,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1083,7 +1227,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1128,6 +1273,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"seller_realname_id\", body.data.realName.id);"
                 ]
               }
@@ -1172,7 +1318,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1203,7 +1350,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1247,7 +1395,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1278,7 +1427,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1309,7 +1459,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1353,7 +1504,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1397,7 +1549,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1428,7 +1581,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1459,7 +1613,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1509,6 +1664,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"product_id\", body.data.id);",
                   "pm.collectionVariables.set('store_id', body.data.storeId);"
                 ]
@@ -1536,7 +1692,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1567,7 +1724,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1593,7 +1751,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1637,7 +1796,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1663,7 +1823,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1689,7 +1850,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1720,7 +1882,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1746,7 +1909,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1772,7 +1936,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1816,7 +1981,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 201\", () => pm.expect([201]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1847,7 +2013,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -1927,6 +2094,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body=pm.response.json(); pm.expect(body.code).to.eql(0); pm.expect(body.data).to.be.an('array').that.is.not.empty;",
                   "pm.collectionVariables.set('cart_id', body.data[body.data.length-1].cartId);"
                 ]
@@ -1959,7 +2127,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2003,7 +2172,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2047,7 +2217,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2092,6 +2263,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body=pm.response.json(); pm.expect(body.code).to.eql(0); pm.expect(body.data).to.be.an('array').that.is.not.empty;",
                   "const created=body.data.find(x => String(x.goodsId) === String(pm.collectionVariables.get('product_id'))) || body.data[0]; pm.collectionVariables.set('order_id', created.id);"
                 ]
@@ -2124,7 +2296,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2150,7 +2323,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2176,7 +2350,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2202,7 +2377,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2228,7 +2404,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2272,7 +2449,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2303,7 +2481,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2334,7 +2513,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2384,6 +2564,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"topic_id\", body.data.id);"
                 ]
               }
@@ -2410,7 +2591,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2441,7 +2623,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2472,7 +2655,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2517,6 +2701,7 @@
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
                   "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });",
                   "const body=pm.response.json(); pm.expect(body.code).to.eql(0); pm.expect(body.data).to.be.an('array').that.is.not.empty;",
                   "pm.collectionVariables.set('post_id', body.data[body.data.length-1].id);"
                 ]
@@ -2549,7 +2734,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2593,7 +2779,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2624,7 +2811,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2668,7 +2856,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2699,7 +2888,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"Response uses the API envelope\", () => { const body = pm.response.json(); pm.expect(body).to.be.an('object'); pm.expect(body.code).to.be.a('number'); });"
                 ]
               }
             }
@@ -2746,6 +2936,11 @@
     {
       "key": "interaction_url",
       "value": "http://127.0.0.1:8084",
+      "type": "string"
+    },
+    {
+      "key": "gateway_url",
+      "value": "http://127.0.0.1:18080",
       "type": "string"
     },
     {

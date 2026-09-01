@@ -5,16 +5,9 @@ services:
   catalog-service:
     ports:
       - "127.0.0.1:8082:8082"
-    environment:
-      # Current schema contains MySQL-incompatible compatibility ALTERs after
-      # fully-specified CREATE TABLE statements. Keep the test harness running
-      # so the API report exposes application-level gaps without editing the service.
-      SPRING_SQL_INIT_CONTINUE_ON_ERROR: "true"
   trade-service:
     ports:
       - "127.0.0.1:8083:8083"
-    environment:
-      SPRING_SQL_INIT_CONTINUE_ON_ERROR: "true"
   interaction-service:
     ports:
       - "127.0.0.1:8084:8084"
