@@ -26,7 +26,6 @@ public class AuthService {
 
     public AuthService(UserMapper userMapper) {
         this.userMapper = userMapper;
-        ensureSchema();
         ensureSeedUser("demo", "demo123", "13800138000", "buyer");
         ensureSeedUser("seller", "seller123", "13700000000", "seller");
         ensureSeedUser("admin", "admin123", "13900000000", "admin");
@@ -126,18 +125,6 @@ public class AuthService {
         String token = UUID.randomUUID().toString().replace("-", "");
         tokenToUsername.put(token, user.getUsername());
         return new LoginResponse(token, toView(user));
-    }
-
-    private void ensureSchema() {
-        if (userMapper.countUserColumn("role") == 0) {
-            userMapper.addRoleColumn();
-        }
-        if (userMapper.countUserColumn("status") == 0) {
-            userMapper.addStatusColumn();
-        }
-        if (userMapper.countUserColumn("avatar_url") == 0) {
-            userMapper.addAvatarUrlColumn();
-        }
     }
 
     private void ensureSeedUser(String username, String password, String phone, String role) {

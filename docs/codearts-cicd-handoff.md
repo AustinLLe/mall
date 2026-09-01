@@ -50,7 +50,7 @@ release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORTER}
 1. 编译和单元测试：后端执行 Maven test 并保留 Surefire、JaCoCo；前端安装依赖并构建。
 2. API 测试：运行 `npm run test:api`，发布 `tests/api/reports/`。
 3. E2E 测试：运行 `.cloudbuild/e2e.yml`，发布 Surefire、截图、页面源码和 Compose 日志。
-4. 镜像制作：docker 插件 login/build/push 两个 SWR 镜像，Tag 相同且不可变。
+4. 镜像制作：docker 插件 login/build/push 三个 SWR 镜像（backend、frontend、trade-service），Tag 相同且不可变。
 5. 部署：SSH 到 ECS 执行 `ops/remote-deploy.sh`。失败先上传 `ci-artifacts/**`，再回滚上一成功版本，流水线仍为失败。
 6. 健康检查：再确认 Pod `1/1`、Deployment 注解、`/` 与 `/api/products` HTTP 200。
 7. 部署与健康检查必须串行；新的执行必须排队，不能同时操作 ECS。
@@ -65,8 +65,8 @@ release-${PIPELINE_NUMBER}-${COMMIT_ID_SHORTER}
 
 ## 验收标准
 
-- 两个 SWR 仓库出现相同的新 Tag，旧 Tag 未被覆盖。
-- MySQL、后端、前端均为 `1/1 Running`。
+- 三个 SWR 仓库（`shop-backend`、`shop-frontend`、`trade-service`）出现相同的新 Tag，旧 Tag 未被覆盖。
+- MySQL、后端、前端、trade-service 均为 `1/1 Running`。
 - Deployment 注解中的版本、Commit、流水线编号与发布元数据一致。
 - 首页和 `/api/products` 返回 HTTP 200。
 - 测试失败时不制作镜像；部署失败时恢复上一成功版本，但流水线仍显示失败。

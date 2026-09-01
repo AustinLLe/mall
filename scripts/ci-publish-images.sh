@@ -23,8 +23,15 @@ bash "$repo_root/scripts/ci-prepare-release.sh"
 printf '%s' "$swr_password" | docker login "$registry" --username "$swr_username" --password-stdin
 
 images_json=""
-while IFS='|' read -r service dockerfile image_name deployment container; do
+while IFS='|' read -r service dockerfile image_name deployment container module_dir jar_name; do
   [[ -z "$service" || "$service" == \#* ]] && continue
+  service="${service%%$'\r'}"
+  dockerfile="${dockerfile%%$'\r'}"
+  image_name="${image_name%%$'\r'}"
+  deployment="${deployment%%$'\r'}"
+  container="${container%%$'\r'}"
+  module_dir="${module_dir%%$'\r'}"
+  jar_name="${jar_name%%$'\r'}"
   full_name="${registry}/${organization}/${image_name}"
   image_ref="${full_name}:${image_tag}"
 
@@ -38,11 +45,15 @@ while IFS='|' read -r service dockerfile image_name deployment container; do
     exit 3
   fi
 
-  docker build \
-    --file "$dockerfile" \
-    --build-arg "DOCKER_HUB=${docker_hub}" \
-    --tag "$image_ref" \
-    .
+  build_args=(
+    --file "$dockerfile"
+    --build-arg "DOCKER_HUB=${docker_hub}"
+    --tag "$image_ref"
+  )
+  if [[ -n "${module_dir:-}" && -n "${jar_name:-}" ]]; then
+    build_args+=(--build-arg "MODULE_DIR=${module_dir}" --build-arg "JAR_NAME=${jar_name}")
+  fi
+  docker build "${build_args[@]}" .
   docker push "$image_ref"
 
   digest="unavailable"
