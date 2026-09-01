@@ -3,6 +3,7 @@ package com.example.mall.identity;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -11,6 +12,7 @@ import java.util.Optional;
 @Service
 public class UserService {
     private final JdbcClient jdbc;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserService(JdbcClient jdbc) {
         this.jdbc = jdbc;
@@ -18,8 +20,10 @@ public class UserService {
 
     public UserView create(CreateUser request) {
         try {
-            jdbc.sql("INSERT INTO users(username, phone, role) VALUES (:username, :phone, :role)")
+            String encodedPassword = passwordEncoder.encode(request.password());
+            jdbc.sql("INSERT INTO users(username, password_hash, phone, role) VALUES (:username, :passwordHash, :phone, :role)")
                     .param("username", request.username())
+                    .param("passwordHash", encodedPassword)
                     .param("phone", request.phone())
                     .param("role", request.role())
                     .update();
@@ -44,7 +48,7 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "address not found"));
     }
 
-    public record CreateUser(String username, String phone, String role) {}
+    public record CreateUser(String username, String password, String phone, String role) {}
     public record UserView(long userId, String username, String phone, String role, int credit, String status) {}
     public record AddressView(long addressId, long userId, String receiverName, String receiverPhone,
                               String detailAddress, boolean isDefault) {}
