@@ -10,6 +10,7 @@ import java.util.Optional;
 
 @Service
 public class UserService {
+    private static final String UNUSABLE_PASSWORD_HASH = "!";
     private final JdbcClient jdbc;
 
     public UserService(JdbcClient jdbc) {
@@ -18,8 +19,10 @@ public class UserService {
 
     public UserView create(CreateUser request) {
         try {
-            jdbc.sql("INSERT INTO users(username, phone, role) VALUES (:username, :phone, :role)")
+            jdbc.sql("INSERT INTO users(username, password_hash, phone, role) " +
+                            "VALUES (:username, :passwordHash, :phone, :role)")
                     .param("username", request.username())
+                    .param("passwordHash", UNUSABLE_PASSWORD_HASH)
                     .param("phone", request.phone())
                     .param("role", request.role())
                     .update();

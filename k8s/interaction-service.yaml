@@ -59,9 +59,9 @@ spec:
                 secretKeyRef:
                   name: shop-db
                   key: DB_PASSWORD
-            # user：登录态仍在单体 /api/auth/me；user-service 供集群内用户服务 DNS
+            # user：鉴权与用户服务
             - name: AUTH_BASE_URL
-              value: http://backend:8080
+              value: http://user-service:8081
             - name: USER_BASE_URL
               value: http://user-service:8081
             # catalog：帖子里的商品/店铺卡片

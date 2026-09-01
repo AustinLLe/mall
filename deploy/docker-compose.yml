@@ -82,12 +82,12 @@ services:
       DB_URL: jdbc:mysql://mysql:3306/catalog_db?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: ${DB_USERNAME:-shop_user}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      AUTH_BASE_URL: http://backend:8080
+      AUTH_BASE_URL: http://user-service:8081
       TZ: Asia/Shanghai
     depends_on:
       mysql:
         condition: service_healthy
-      backend:
+      user-service:
         condition: service_started
     networks:
       - shop_internal
@@ -106,14 +106,12 @@ services:
       DB_USERNAME: ${DB_USERNAME:-shop_user}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       USER_BASE_URL: http://user-service:8081
-      AUTH_BASE_URL: http://backend:8080
+      AUTH_BASE_URL: http://user-service:8081
       CATALOG_BASE_URL: http://catalog-service:8082
       TZ: Asia/Shanghai
     depends_on:
       mysql:
         condition: service_healthy
-      backend:
-        condition: service_started
       user-service:
         condition: service_started
       catalog-service:
@@ -134,13 +132,13 @@ services:
       DB_URL: jdbc:mysql://mysql:3306/interaction_db?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: ${DB_USERNAME:-shop_user}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      AUTH_BASE_URL: http://backend:8080
+      AUTH_BASE_URL: http://user-service:8081
       CATALOG_BASE_URL: http://catalog-service:8082
       TZ: Asia/Shanghai
     depends_on:
       mysql:
         condition: service_healthy
-      backend:
+      user-service:
         condition: service_started
       catalog-service:
         condition: service_started

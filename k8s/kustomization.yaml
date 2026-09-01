@@ -1,6 +1,5 @@
-# 发版只改下面的 newTag（前后端必须同号；微服务可单独打 tag）。
-# 格式：{自定义名}-{yyyyMMdd}，同一天发两次再加 -HHmm，例如 keshe-20260827-1510
-# 自定义名只用小写英文、数字、连字符；不要覆盖 SWR 里已有的 tag。
+# 发版由流水线把所有 newTag 改成同一个 release-<流水线号>-<commit>。
+# 手工改 tag 时 backend / frontend / 各微服务应对齐，不要覆盖 SWR 里已有的 tag。
 # 部署：sudo kubectl apply -k k8s/
 # 不要 kubectl apply -f k8s/
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -16,11 +15,14 @@ resources:
   - mysql.yaml
   - backend.yaml
   - frontend.yaml
+  - trade-service.yaml
   - interaction-service.yaml
 images:
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-backend
     newTag: mytest-20260827
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend
     newTag: mytest-20260827
+  - name: swr.cn-north-4.myhuaweicloud.com/songguo/trade-service
+    newTag: release-trade-service-20260901-2
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/interaction-service
     newTag: mytest-20260827
