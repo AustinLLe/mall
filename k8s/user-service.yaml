@@ -80,14 +80,14 @@ spec:
               memory: 512Mi
           readinessProbe:
             httpGet:
-              path: /api/auth/me
+              path: /actuator/health
               port: 8081
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /api/auth/me
+              path: /actuator/health
               port: 8081
             periodSeconds: 20
             timeoutSeconds: 5
