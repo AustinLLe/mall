@@ -2,6 +2,9 @@ package com.example.e2e;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestWatcher;
@@ -31,6 +35,9 @@ import org.openqa.selenium.remote.LocalFileDetector;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.logging.LogType;
+import org.openqa.selenium.logging.LoggingPreferences;
+import java.util.logging.Level;
 
 abstract class BaseE2ETest {
 
@@ -43,12 +50,33 @@ abstract class BaseE2ETest {
     protected WebDriver driver;
     protected WebDriverWait wait;
 
+    @BeforeAll
+    static void verifyMicroserviceGateway() throws Exception {
+        String apiUrl = normalizeBaseUrl(System.getProperty("e2e.apiUrl", ""));
+        if (apiUrl.isBlank()) return;
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        verifyEndpoint(client, apiUrl + "/api/products", 200, "catalog-service gateway");
+        verifyEndpoint(client, apiUrl + "/api/cart", 401, "trade-service gateway");
+        verifyEndpoint(client, apiUrl + "/api/topics", 200, "interaction-service gateway");
+    }
+
+    private static void verifyEndpoint(HttpClient client, String url, int expected, String name) throws Exception {
+        HttpResponse<String> response = client.send(
+                HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != expected) {
+            throw new IllegalStateException(name + " readiness failed: expected HTTP " + expected
+                    + " but got " + response.statusCode() + " from " + url);
+        }
+    }
+
     @RegisterExtension
     final TestWatcher browserLifecycle = new TestWatcher() {
         @Override
         public void testFailed(ExtensionContext context, Throwable cause) {
             saveScreenshot("FAILED-" + context.getRequiredTestMethod().getName());
             savePageSource("FAILED-" + context.getRequiredTestMethod().getName());
+            saveBrowserDiagnostics("FAILED-" + context.getRequiredTestMethod().getName());
             closeBrowser();
         }
 
@@ -77,6 +105,7 @@ abstract class BaseE2ETest {
         if (!remoteUrl.isBlank()) {
             ChromeOptions options = new ChromeOptions();
             applyChromeCiOptions(options, headless);
+            enableBrowserLogging(options);
             RemoteWebDriver remoteDriver = new RemoteWebDriver(
                     URI.create(remoteUrl).toURL(), options);
             remoteDriver.setFileDetector(new LocalFileDetector());
@@ -84,6 +113,7 @@ abstract class BaseE2ETest {
         } else if ("chrome".equalsIgnoreCase(System.getProperty("e2e.browser", ""))) {
             ChromeOptions options = new ChromeOptions();
             applyChromeCiOptions(options, headless);
+            enableBrowserLogging(options);
             options.addArguments("--disable-gpu");
             options.addArguments("--disable-extensions");
             options.addArguments("--no-first-run");
@@ -138,6 +168,12 @@ abstract class BaseE2ETest {
         }
     }
 
+    private static void enableBrowserLogging(ChromeOptions options) {
+        LoggingPreferences logging = new LoggingPreferences();
+        logging.enable(LogType.BROWSER, Level.ALL);
+        options.setCapability("goog:loggingPrefs", logging);
+    }
+
     private void warmUpBrowser() {
         try {
             driver.get("about:blank");
@@ -186,6 +222,22 @@ abstract class BaseE2ETest {
             Files.writeString(target, driver.getPageSource(), StandardCharsets.UTF_8);
         } catch (IOException | WebDriverException sourceError) {
             System.err.println("Unable to save E2E page source: " + sourceError.getMessage());
+        }
+    }
+
+    private void saveBrowserDiagnostics(String evidenceName) {
+        if (driver == null) return;
+        try {
+            Files.createDirectories(ARTIFACT_DIR);
+            String safeName = evidenceName.replaceAll("[^a-zA-Z0-9._-]", "-");
+            StringBuilder output = new StringBuilder();
+            output.append("URL: ").append(driver.getCurrentUrl()).append(System.lineSeparator());
+            driver.manage().logs().get(LogType.BROWSER).forEach(entry ->
+                    output.append(entry.getLevel()).append(" ").append(entry.getMessage())
+                            .append(System.lineSeparator()));
+            Files.writeString(ARTIFACT_DIR.resolve(safeName + "-browser.log"), output, StandardCharsets.UTF_8);
+        } catch (IOException | WebDriverException logError) {
+            System.err.println("Unable to save browser diagnostics: " + logError.getMessage());
         }
     }
 

@@ -15,7 +15,7 @@
 
 ## 首次准备
 
-1. 在华北-北京四的 SWR `songguo` 组织中确认存在 `shop-backend` 和 `shop-frontend`。
+1. 在华北-北京四的 SWR `songguo` 组织中确认存在 `shop-backend`、`shop-frontend` 和 `trade-service`。
 2. ECS 安装 k3s，并确认 `kubectl`、`flock`、`curl` 可用。
 3. 应用 `k8s/namespace.yaml`，创建 `shop` 命名空间。
 4. 通过安全渠道在 ECS 创建 Secret，不要生成或提交包含真实值的 YAML：

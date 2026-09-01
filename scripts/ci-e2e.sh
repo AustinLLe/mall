@@ -26,9 +26,11 @@ ci_docker_dir="/tmp/ci-docker"
 compose=()
 
 archive_e2e_outputs() {
-  mkdir -p e2e-tests/target/e2e-artifacts e2e-tests/target/surefire-reports
+  mkdir -p e2e-tests/target/e2e-artifacts e2e-tests/target/surefire-reports tests/api/reports/microservices tests/e2e/results
   tar -czf e2e-surefire-reports.tgz -C e2e-tests/target surefire-reports || true
   tar -czf e2e-artifacts.tgz -C e2e-tests/target e2e-artifacts || true
+  tar -czf e2e-api-reports.tgz -C tests/api/reports microservices || true
+  tar -czf e2e-run-results.tgz -C tests/e2e results || true
   printf '%s\n' "${e2e_status}" > e2e-exit-code.txt
 }
 
@@ -216,6 +218,29 @@ if [ "${frontend_ok:-0}" -ne 1 ] || [ "${selenium_ok:-0}" -ne 1 ]; then
   exit 1
 fi
 
+echo "===== 微服务 API E2E ====="
+set +e
+docker run --rm \
+  --network "$E2E_NETWORK_NAME" \
+  -v "$(pwd):/work" \
+  -w /work \
+  -e USER_SERVICE_URL=http://user-service:8081 \
+  -e CATALOG_SERVICE_URL=http://catalog-service:8082 \
+  -e TRADE_SERVICE_URL=http://trade-service:8083 \
+  -e INTERACTION_SERVICE_URL=http://interaction-service:8084 \
+  -e GATEWAY_URL=http://frontend \
+  "${E2E_NODE_IMAGE:-${DOCKER_HUB}/library/node:18-bookworm-slim}" \
+  sh -lc 'npm ci --no-audit --no-fund && node tests/api/build-microservices-collection.mjs && node tests/api/run-microservices-newman.mjs'
+api_status=$?
+set -e
+if [ "$api_status" -ne 0 ]; then
+  echo "微服务 API E2E 失败，跳过 UI E2E"
+  e2e_status="$api_status"
+  printf '# CI E2E result\n\nAPI failed with exit code %s. UI was skipped.\n' "$api_status" > tests/e2e/results/summary.md
+  exit "$e2e_status"
+fi
+
+echo "===== 微服务 UI E2E ====="
 set +e
 docker run --rm \
   --network "$E2E_NETWORK_NAME" \
@@ -233,4 +258,5 @@ docker run --rm \
   -De2e.timeoutSeconds=20
 e2e_status=$?
 set -e
+printf '# CI E2E result\n\nAPI: passed\nUI exit code: %s\n' "$e2e_status" > tests/e2e/results/summary.md
 exit "${e2e_status}"

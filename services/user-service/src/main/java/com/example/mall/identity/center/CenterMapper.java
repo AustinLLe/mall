@@ -58,18 +58,6 @@ public interface CenterMapper {
             "reason VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     void createCreditRecordTable();
 
-    @Select("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = #{tableName} AND COLUMN_NAME = #{columnName}")
-    int countColumn(@Param("tableName") String tableName, @Param("columnName") String columnName);
-
-    @Update("ALTER TABLE favorite_goods ADD COLUMN item_title VARCHAR(255) DEFAULT NULL")
-    void addFavoriteTitleColumn();
-
-    @Update("ALTER TABLE browse_history ADD COLUMN item_title VARCHAR(255) DEFAULT NULL")
-    void addBrowseTitleColumn();
-
-    @Update("ALTER TABLE follow_store ADD COLUMN store_name VARCHAR(255) DEFAULT NULL")
-    void addFollowStoreNameColumn();
-
     @Select("SELECT COUNT(*) FROM favorite_goods WHERE user_id = #{userId}")
     int favoriteCount(@Param("userId") Integer userId);
 

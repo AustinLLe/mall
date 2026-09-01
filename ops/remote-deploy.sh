@@ -66,7 +66,7 @@ fi
 collect_diagnostics() {
   kubectl -n "$namespace" get all,ingress,pvc -o wide > "$release_dir/diagnostics/resources.txt" 2>&1 || true
   kubectl -n "$namespace" get events --sort-by=.lastTimestamp > "$release_dir/diagnostics/events.txt" 2>&1 || true
-  for deployment in backend frontend mysql; do
+  for deployment in backend frontend mysql trade-service; do
     kubectl -n "$namespace" describe deployment "$deployment" > "$release_dir/diagnostics/${deployment}-describe.txt" 2>&1 || true
     kubectl -n "$namespace" logs deployment/"$deployment" --all-containers=true --tail=300 > "$release_dir/diagnostics/${deployment}.log" 2>&1 || true
   done
@@ -81,8 +81,9 @@ check_prerequisites() {
 check_rollout_and_health() {
   kubectl -n "$namespace" rollout status deployment/backend --timeout="$rollout_timeout" || return $?
   kubectl -n "$namespace" rollout status deployment/frontend --timeout="$rollout_timeout" || return $?
+  kubectl -n "$namespace" rollout status deployment/trade-service --timeout="$rollout_timeout" || return $?
   kubectl -n "$namespace" get pods || return $?
-  kubectl -n "$namespace" get deployment backend frontend \
+  kubectl -n "$namespace" get deployment backend frontend trade-service \
     -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image,VERSION:.metadata.annotations.songguo\\.dev/image-tag || return $?
   curl -fsS --retry 5 --retry-delay 3 --max-time 10 "$health_base_url/" >/dev/null || return $?
   curl -fsS --retry 5 --retry-delay 3 --max-time 10 "$health_base_url/api/products" >/dev/null || return $?

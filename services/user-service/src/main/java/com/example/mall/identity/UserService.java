@@ -11,6 +11,7 @@ import java.util.Optional;
 
 @Service
 public class UserService {
+    private static final String UNUSABLE_PASSWORD_HASH = "!";
     private final JdbcClient jdbc;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
