@@ -16,6 +16,7 @@ resources:
   - mysql.yaml
   - backend.yaml
   - frontend.yaml
+  - user-service.yaml
 images:
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-backend
     newTag: mytest-20260827
