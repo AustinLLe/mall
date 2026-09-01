@@ -1,4 +1,4 @@
-# 发版只改下面两个 newTag（前后端必须同号）。
+# 发版只改下面的 newTag（前后端必须同号；微服务可单独打 tag）。
 # 格式：{自定义名}-{yyyyMMdd}，同一天发两次再加 -HHmm，例如 keshe-20260827-1510
 # 自定义名只用小写英文、数字、连字符；不要覆盖 SWR 里已有的 tag。
 # 部署：sudo kubectl apply -k k8s/
@@ -16,8 +16,11 @@ resources:
   - mysql.yaml
   - backend.yaml
   - frontend.yaml
+  - interaction-service.yaml
 images:
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-backend
     newTag: mytest-20260827
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend
+    newTag: mytest-20260827
+  - name: swr.cn-north-4.myhuaweicloud.com/songguo/interaction-service
     newTag: mytest-20260827
