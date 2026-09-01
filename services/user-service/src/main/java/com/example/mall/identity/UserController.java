@@ -19,7 +19,7 @@ public class UserController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserService.UserView create(@Valid @RequestBody CreateUserRequest request) {
-        return service.create(new UserService.CreateUser(request.username(), request.phone(), request.role()));
+        return service.create(new UserService.CreateUser(request.username(), request.password(), request.phone(), request.role()));
     }
 
     @GetMapping("/{id}")
@@ -29,6 +29,7 @@ public class UserController {
 
     public record CreateUserRequest(
             @NotBlank @Size(max = 50) String username,
+            @NotBlank String password,
             @Size(max = 20) String phone,
             @NotBlank @Pattern(regexp = "buyer|seller|admin") String role) {}
 }

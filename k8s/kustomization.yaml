@@ -15,6 +15,7 @@ resources:
   - mysql.yaml
   - backend.yaml
   - frontend.yaml
+  - user-service.yaml
   - trade-service.yaml
   - interaction-service.yaml
 images:

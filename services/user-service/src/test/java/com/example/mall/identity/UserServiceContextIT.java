@@ -17,7 +17,7 @@ class UserServiceContextIT {
 
     @Test
     void createsAndReadsUserFromIdentityDatabase() {
-        UserService.UserView created = service.create(new UserService.CreateUser("micro-user", "13800000000", "buyer"));
+        UserService.UserView created = service.create(new UserService.CreateUser("micro-user", "test123", "13800000000", "buyer"));
         assertThat(service.find(created.userId()).username()).isEqualTo("micro-user");
     }
 
