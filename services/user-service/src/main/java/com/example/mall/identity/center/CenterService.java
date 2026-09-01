@@ -244,15 +244,6 @@ public class CenterService {
         mapper.createStoreTable();
         mapper.createOrdersTable();
         mapper.createCreditRecordTable();
-        if (mapper.countColumn("favorite_goods", "item_title") == 0) {
-            mapper.addFavoriteTitleColumn();
-        }
-        if (mapper.countColumn("browse_history", "item_title") == 0) {
-            mapper.addBrowseTitleColumn();
-        }
-        if (mapper.countColumn("follow_store", "store_name") == 0) {
-            mapper.addFollowStoreNameColumn();
-        }
     }
 
     private void ensureCreditRecord(AuthUserView user) {

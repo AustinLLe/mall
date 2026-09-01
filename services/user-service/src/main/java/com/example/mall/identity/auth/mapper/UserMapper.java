@@ -30,21 +30,8 @@ public interface UserMapper {
             "FROM users WHERE username LIKE CONCAT('%', #{keyword}, '%') ESCAPE '\\\\'")
     List<StoredUser> searchUsersByKeyword(@Param("keyword") String keyword);
 
-    @Select("SELECT COUNT(*) FROM information_schema.COLUMNS " +
-            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = #{columnName}")
-    int countUserColumn(@Param("columnName") String columnName);
-
     @Select("SELECT * FROM users WHERE user_id = #{userId}")
     StoredUser findById(@Param("userId") Integer userId);
-
-    @Update("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'buyer' COMMENT 'buyer/seller/admin'")
-    void addRoleColumn();
-
-    @Update("ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'normal' COMMENT 'normal/disabled'")
-    void addStatusColumn();
-
-    @Update("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500) DEFAULT NULL")
-    void addAvatarUrlColumn();
 
     @Update("UPDATE users SET role = #{role} WHERE username = #{username}")
     int updateRoleByUsername(@Param("username") String username, @Param("role") String role);
