@@ -16,8 +16,11 @@ resources:
   - mysql.yaml
   - backend.yaml
   - frontend.yaml
+  - trade-service.yaml
 images:
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-backend
     newTag: mytest-20260827
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend
     newTag: mytest-20260827
+  - name: swr.cn-north-4.myhuaweicloud.com/songguo/trade-service
+    newTag: release-trade-service-20260901
