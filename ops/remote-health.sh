@@ -15,7 +15,7 @@ command -v curl >/dev/null || { echo "curl is required" >&2; exit 2; }
 kubectl -n "$namespace" get all,ingress,pvc -o wide
 kubectl -n "$namespace" get events --sort-by=.lastTimestamp | tail -n 40 || true
 
-for deployment in mysql backend frontend; do
+for deployment in mysql backend frontend trade-service; do
   ready="$(kubectl -n "$namespace" get deployment "$deployment" -o jsonpath='{.status.readyReplicas}')"
   spec="$(kubectl -n "$namespace" get deployment "$deployment" -o jsonpath='{.spec.replicas}')"
   echo "$deployment readyReplicas=$ready specReplicas=$spec"
@@ -26,7 +26,7 @@ for deployment in mysql backend frontend; do
   }
 done
 
-kubectl -n "$namespace" get deployment backend frontend mysql \
+kubectl -n "$namespace" get deployment backend frontend mysql trade-service \
   -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image,TAG:.metadata.annotations.songguo\\.dev/image-tag,COMMIT:.metadata.annotations.songguo\\.dev/commit-id,PIPELINE:.metadata.annotations.songguo\\.dev/pipeline-number
 
 if [[ -n "$expected_tag" ]]; then
@@ -37,12 +37,17 @@ if [[ -n "$expected_tag" ]]; then
   }
   backend_image="$(kubectl -n "$namespace" get deployment backend -o jsonpath='{.spec.template.spec.containers[0].image}')"
   frontend_image="$(kubectl -n "$namespace" get deployment frontend -o jsonpath='{.spec.template.spec.containers[0].image}')"
+  trade_image="$(kubectl -n "$namespace" get deployment trade-service -o jsonpath='{.spec.template.spec.containers[0].image}')"
   [[ "$backend_image" == *":$expected_tag" ]] || {
     echo "backend image '$backend_image' does not end with :$expected_tag" >&2
     exit 4
   }
   [[ "$frontend_image" == *":$expected_tag" ]] || {
     echo "frontend image '$frontend_image' does not end with :$expected_tag" >&2
+    exit 4
+  }
+  [[ "$trade_image" == *":$expected_tag" ]] || {
+    echo "trade-service image '$trade_image' does not end with :$expected_tag" >&2
     exit 4
   }
 fi
