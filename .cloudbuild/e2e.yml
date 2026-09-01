@@ -44,18 +44,13 @@ steps:
         name: e2e-test
         inputs:
           command: |-
-            docker pull swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/debian:bookworm-slim
-            docker build --build-arg DOCKER_HUB=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io --build-arg CI_DB_PASSWORD=${CI_DB_PASSWORD} --build-arg CI_MYSQL_ROOT_PASSWORD=${CI_MYSQL_ROOT_PASSWORD} -f tests/e2e/Dockerfile.ci -t newsecondmall-e2e-export:ci --target export .
-            docker save newsecondmall-e2e-export:ci -o e2e-image.tar
-          ignore_fail: true
-    - maven:
-        name: e2e-extract
-        image: cloudbuild@maven3.9.5-jdk17
-        inputs:
-          cache: false
-          command: |-
-            set -euo pipefail
-            bash scripts/ci-e2e-extract.sh
+            set +e
+            export CI_DB_PASSWORD="${CI_DB_PASSWORD}"
+            export CI_MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD}"
+            bash scripts/ci-e2e.sh
+            status=$?
+            echo "$status" > e2e-exit-code.txt
+            exit 0
           ignore_fail: true
     - upload_artifact:
         name: upload-e2e-surefire
@@ -67,6 +62,18 @@ steps:
         name: upload-e2e-artifacts
         inputs:
           path: "e2e-artifacts.tgz"
+          custom_upload_path: /NewSecondMall-e2e/
+          ignore_fail: true
+    - upload_artifact:
+        name: upload-e2e-api-reports
+        inputs:
+          path: "e2e-api-reports.tgz"
+          custom_upload_path: /NewSecondMall-e2e/
+          ignore_fail: true
+    - upload_artifact:
+        name: upload-e2e-run-results
+        inputs:
+          path: "e2e-run-results.tgz"
           custom_upload_path: /NewSecondMall-e2e/
           ignore_fail: true
     - maven:
