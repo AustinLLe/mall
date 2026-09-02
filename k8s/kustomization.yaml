@@ -26,7 +26,7 @@ images:
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend
     newTag: mytest-20260827
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-user-service
-    newTag: user-20260901
+    newTag: release-user-service-20260902
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-catalog-service
     newTag: release-catalog-schemafix-20260901-1125
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/trade-service
