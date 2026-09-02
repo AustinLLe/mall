@@ -64,7 +64,7 @@ spec:
             - name: CATALOG_BASE_URL
               value: http://catalog-service:8082
             - name: AUTH_BASE_URL
-              value: http://backend:8080
+              value: http://user-service:8081
             - name: TZ
               valueFrom:
                 configMapKeyRef:
