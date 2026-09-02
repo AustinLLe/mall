@@ -26,15 +26,15 @@ ENV CI_DB_PASSWORD=${CI_DB_PASSWORD}
 ENV CI_MYSQL_ROOT_PASSWORD=${CI_MYSQL_ROOT_PASSWORD}
 COPY . .
 
-RUN if [ -f tests/e2e/.ci-secrets ]; then set -a; . tests/e2e/.ci-secrets; set +a; fi; \
-    bash scripts/ci-e2e-incontainer.sh; \
+# 测试全程在容器内完成（MariaDB + 旧单体 + 4 微服务 + Nginx 网关 + Chromium）。
+# 产物由脚本的 EXIT trap 统一打包，即使中途失败也会写出退出码与归档。
+RUN bash scripts/ci-e2e-incontainer.sh; \
     status=$?; \
-    mkdir -p e2e-tests/target/surefire-reports e2e-tests/target/e2e-artifacts; \
-    tar -czf e2e-surefire-reports.tgz -C e2e-tests/target surefire-reports; \
-    tar -czf e2e-artifacts.tgz -C e2e-tests/target e2e-artifacts; \
     if [ ! -f e2e-exit-code.txt ]; then echo "$status" > e2e-exit-code.txt; fi
 
 FROM scratch AS export
 COPY --from=e2e /work/e2e-exit-code.txt /e2e-exit-code.txt
 COPY --from=e2e /work/e2e-surefire-reports.tgz /e2e-surefire-reports.tgz
 COPY --from=e2e /work/e2e-artifacts.tgz /e2e-artifacts.tgz
+COPY --from=e2e /work/e2e-api-reports.tgz /e2e-api-reports.tgz
+COPY --from=e2e /work/e2e-run-results.tgz /e2e-run-results.tgz

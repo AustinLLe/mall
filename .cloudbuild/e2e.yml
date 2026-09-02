@@ -40,17 +40,26 @@ steps:
               "${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}" \
               > tests/e2e/.ci-secrets
             echo "已写入 tests/e2e/.ci-secrets"
+    # CodeArts 的 docker 插件只允许 build/tag/push/pull/save/login，不能
+    # docker run / docker compose（8 月 27 日已实测）。E2E 因此在
+    # tests/e2e/Dockerfile.ci 的镜像构建里跑完整微服务拓扑，再用 export
+    # 目标把退出码和 4 份产物带出来。
     - docker:
         name: e2e-test
         inputs:
           command: |-
-            set +e
-            export CI_DB_PASSWORD="${CI_DB_PASSWORD}"
-            export CI_MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD}"
-            bash scripts/ci-e2e.sh
-            status=$?
-            echo "$status" > e2e-exit-code.txt
-            exit 0
+            docker pull swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/debian:bookworm-slim
+            docker build --build-arg DOCKER_HUB=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io --build-arg CI_DB_PASSWORD=${CI_DB_PASSWORD} --build-arg CI_MYSQL_ROOT_PASSWORD=${CI_MYSQL_ROOT_PASSWORD} -f tests/e2e/Dockerfile.ci -t newsecondmall-e2e-export:ci --target export .
+            docker save newsecondmall-e2e-export:ci -o e2e-image.tar
+          ignore_fail: true
+    - maven:
+        name: e2e-extract
+        image: cloudbuild@maven3.9.5-jdk17
+        inputs:
+          cache: false
+          command: |-
+            set -euo pipefail
+            bash scripts/ci-e2e-extract.sh
           ignore_fail: true
     - upload_artifact:
         name: upload-e2e-surefire
