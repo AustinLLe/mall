@@ -22,12 +22,15 @@ tmp="$(mktemp -d)"
 mkdir -p "${tmp}/out"
 tar -xf e2e-image.tar -C "$tmp"
 found=0
+# 经典 docker save 布局是 <id>/layer.tar；containerd 镜像存储（如本地 Docker
+# Desktop）存的是 OCI 布局 blobs/sha256/<digest>（gzip 层，tar 会自动识别），
+# 两种都遍历，JSON 清单解压失败会被忽略。
 while IFS= read -r layer; do
-  tar -xf "$layer" -C "${tmp}/out" || true
+  tar -xf "$layer" -C "${tmp}/out" 2>/dev/null || true
   if [ -f "${tmp}/out/e2e-exit-code.txt" ]; then
     found=1
   fi
-done < <(find "$tmp" -name 'layer.tar' -print)
+done < <(find "$tmp" -type f \( -name 'layer.tar' -o -path '*/blobs/sha256/*' \) -print)
 
 if [ "$found" -ne 1 ]; then
   echo "镜像里没有 E2E 产物"
