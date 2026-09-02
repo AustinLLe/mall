@@ -10,10 +10,7 @@ cat > "$test_root/bin/kubectl" <<'EOF'
 #!/usr/bin/env bash
 set -e
 args="$*"
-if [[ "$args" == *"get deployment mysql -o jsonpath="* ]] || \
-   [[ "$args" == *"get deployment backend -o jsonpath="* ]] || \
-   [[ "$args" == *"get deployment frontend -o jsonpath="* ]] || \
-   [[ "$args" == *"get deployment trade-service -o jsonpath="* ]]; then
+if [[ "$args" == *"get deployment "*" -o jsonpath="* ]]; then
   if [[ "$args" == *readyReplicas* ]]; then
     printf '1'
     exit 0
@@ -31,6 +28,12 @@ if [[ "$args" == *"get deployment mysql -o jsonpath="* ]] || \
       printf 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend:release-27-abc12345'
     elif [[ "$args" == *"get deployment trade-service"* ]]; then
       printf 'swr.cn-north-4.myhuaweicloud.com/songguo/trade-service:release-27-abc12345'
+    elif [[ "$args" == *"get deployment interaction-service"* ]]; then
+      printf 'swr.cn-north-4.myhuaweicloud.com/songguo/interaction-service:release-27-abc12345'
+    elif [[ "$args" == *"get deployment user-service"* ]]; then
+      printf 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-user-service:release-27-abc12345'
+    elif [[ "$args" == *"get deployment catalog-service"* ]]; then
+      printf 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-catalog-service:release-27-abc12345'
     else
       printf 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-backend:release-27-abc12345'
     fi

@@ -25,9 +25,11 @@ images:
     newTag: mytest-20260827
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend
     newTag: mytest-20260827
+  - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-user-service
+    newTag: user-20260901
+  - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-catalog-service
+    newTag: release-catalog-schemafix-20260901-1125
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/trade-service
     newTag: release-trade-service-20260901-2
   - name: swr.cn-north-4.myhuaweicloud.com/songguo/interaction-service
-    newTag: mytest-20260827
-  - name: swr.cn-north-4.myhuaweicloud.com/songguo/shop-catalog-service
-    newTag: release-catalog-schemafix-20260901-1125
+    newTag: release-20260827

@@ -9,6 +9,7 @@ release_root="${RELEASE_ROOT:-/opt/soft-shop/releases}"
 rollout_timeout="${ROLLOUT_TIMEOUT:-300s}"
 current_link="$release_root/current"
 release_dir="$release_root/$image_tag"
+workload_deployments=(backend frontend user-service catalog-service trade-service interaction-service)
 
 [[ "$image_tag" =~ ^release-[a-zA-Z0-9._-]+$ ]] || { echo "Invalid release tag: $image_tag" >&2; exit 2; }
 [[ "$release_root" == /opt/soft-shop/releases ]] || { echo "Unexpected release root" >&2; exit 2; }
@@ -24,32 +25,31 @@ cp "$release_source/release-metadata.json" "$release_dir/release-metadata.json"
 exec > >(tee "$release_dir/deploy.log") 2>&1
 
 bootstrap_current_release() {
-  local backend_image frontend_image backend_tag frontend_tag bootstrap_dir
-  backend_image="$(kubectl -n "$namespace" get deployment backend -o jsonpath='{.spec.template.spec.containers[0].image}')"
-  frontend_image="$(kubectl -n "$namespace" get deployment frontend -o jsonpath='{.spec.template.spec.containers[0].image}')"
-  backend_tag="${backend_image##*:}"
-  frontend_tag="${frontend_image##*:}"
-  [[ -n "$backend_tag" && -n "$frontend_tag" && "$backend_tag" != "$backend_image" && "$frontend_tag" != "$frontend_image" ]] || {
-    echo "Cannot discover current image tags for rollback bootstrap" >&2
-    return 1
-  }
+  local deployment image image_name tag bootstrap_dir
   bootstrap_dir="$release_root/release-bootstrap-$(date -u +%Y%m%d%H%M%S)"
   mkdir -p "$bootstrap_dir"
   cp -R "$release_dir/k8s" "$bootstrap_dir/k8s"
-  awk -v backend="$backend_tag" -v frontend="$frontend_tag" '
-    /^  - name: .*shop-backend$/ { target="backend" }
-    /^  - name: .*shop-frontend$/ { target="frontend" }
-    target == "backend" && /^    newTag:/ { sub(/newTag:.*/, "newTag: " backend); target="" }
-    target == "frontend" && /^    newTag:/ { sub(/newTag:.*/, "newTag: " frontend); target="" }
-    { print }
-  ' "$bootstrap_dir/k8s/kustomization.yaml" > "$bootstrap_dir/k8s/kustomization.yaml.tmp"
-  mv "$bootstrap_dir/k8s/kustomization.yaml.tmp" "$bootstrap_dir/k8s/kustomization.yaml"
+  for deployment in "${workload_deployments[@]}"; do
+    image="$(kubectl -n "$namespace" get deployment "$deployment" -o jsonpath='{.spec.template.spec.containers[0].image}')"
+    tag="${image##*:}"
+    [[ -n "$tag" && "$tag" != "$image" ]] || {
+      echo "Cannot discover current image tag for rollback bootstrap: $deployment" >&2
+      return 1
+    }
+    image_name="${image%:*}"
+    awk -v image_name="$image_name" -v tag="$tag" '
+      $0 == "  - name: " image_name { target=1 }
+      target && /^    newTag:/ { sub(/newTag:.*/, "newTag: " tag); target=0 }
+      { print }
+    ' "$bootstrap_dir/k8s/kustomization.yaml" > "$bootstrap_dir/k8s/kustomization.yaml.tmp"
+    mv "$bootstrap_dir/k8s/kustomization.yaml.tmp" "$bootstrap_dir/k8s/kustomization.yaml"
+  done
   sed -i -E \
     -e 's#(^[[:space:]]*songguo.dev/image-tag:)[[:space:]].*#\1 "bootstrap"#' \
     -e 's#(^[[:space:]]*songguo.dev/commit-id:)[[:space:]].*#\1 "unknown"#' \
     -e 's#(^[[:space:]]*songguo.dev/pipeline-number:)[[:space:]].*#\1 "manual"#' \
     "$bootstrap_dir/k8s/kustomization.yaml"
-  printf '%s\n' "bootstrap from $backend_image and $frontend_image" > "$bootstrap_dir/release-metadata.txt"
+  printf '%s\n' "bootstrap from current workload images" > "$bootstrap_dir/release-metadata.txt"
   ln -sfn "$bootstrap_dir" "$current_link"
   echo "Registered existing cluster state as $bootstrap_dir"
 }
@@ -66,7 +66,7 @@ fi
 collect_diagnostics() {
   kubectl -n "$namespace" get all,ingress,pvc -o wide > "$release_dir/diagnostics/resources.txt" 2>&1 || true
   kubectl -n "$namespace" get events --sort-by=.lastTimestamp > "$release_dir/diagnostics/events.txt" 2>&1 || true
-  for deployment in backend frontend mysql trade-service; do
+  for deployment in mysql "${workload_deployments[@]}"; do
     kubectl -n "$namespace" describe deployment "$deployment" > "$release_dir/diagnostics/${deployment}-describe.txt" 2>&1 || true
     kubectl -n "$namespace" logs deployment/"$deployment" --all-containers=true --tail=300 > "$release_dir/diagnostics/${deployment}.log" 2>&1 || true
   done
@@ -79,11 +79,11 @@ check_prerequisites() {
 }
 
 check_rollout_and_health() {
-  kubectl -n "$namespace" rollout status deployment/backend --timeout="$rollout_timeout" || return $?
-  kubectl -n "$namespace" rollout status deployment/frontend --timeout="$rollout_timeout" || return $?
-  kubectl -n "$namespace" rollout status deployment/trade-service --timeout="$rollout_timeout" || return $?
+  for deployment in "${workload_deployments[@]}"; do
+    kubectl -n "$namespace" rollout status "deployment/$deployment" --timeout="$rollout_timeout" || return $?
+  done
   kubectl -n "$namespace" get pods || return $?
-  kubectl -n "$namespace" get deployment backend frontend trade-service \
+  kubectl -n "$namespace" get deployment "${workload_deployments[@]}" \
     -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image,VERSION:.metadata.annotations.songguo\\.dev/image-tag || return $?
   curl -fsS --retry 5 --retry-delay 3 --max-time 10 "$health_base_url/" >/dev/null || return $?
   curl -fsS --retry 5 --retry-delay 3 --max-time 10 "$health_base_url/api/products" >/dev/null || return $?
