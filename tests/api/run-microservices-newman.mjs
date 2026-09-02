@@ -48,6 +48,37 @@ function run(command, commandArgs, options = {}) {
   return result;
 }
 
+function resolveGitCommit() {
+  const fromEnvironment = [
+    process.env.GIT_COMMIT,
+    process.env.COMMIT_ID,
+    process.env.CODEARTS_COMMIT_ID,
+    process.env.CI_COMMIT_SHA,
+  ].find((value) => value && value.trim());
+  if (fromEnvironment) return fromEnvironment.trim();
+
+  const result = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: projectRoot,
+    stdio: "pipe",
+    encoding: "utf8",
+    env: process.env,
+  });
+  if (!result.error && result.status === 0 && result.stdout?.trim()) {
+    return result.stdout.trim();
+  }
+  return "unavailable";
+}
+
+function writeEnvironmentFailure(error) {
+  fs.mkdirSync(reportDirectory, { recursive: true });
+  const message = error?.stack || error?.message || String(error);
+  fs.writeFileSync(
+    path.join(reportDirectory, "failure-summary.md"),
+    `# Microservices E2E environment failure\n\n${message}\n`,
+    "utf8",
+  );
+}
+
 const composeArgs = [
   "compose", "--project-name", projectName, "--env-file", envFile,
   "-f", composeFile, "-f", composeOverride,
@@ -136,7 +167,7 @@ try {
     collection: path.relative(projectRoot, collection),
     urls,
     isolatedCompose: startCompose,
-    gitCommit: run("git", ["rev-parse", "HEAD"], { capture: true }).stdout.trim(),
+    gitCommit: resolveGitCommit(),
   };
   fs.writeFileSync(path.join(reportDirectory, "run-metadata.json"), `${JSON.stringify(metadata, null, 2)}\n`);
 
@@ -163,6 +194,7 @@ try {
 } catch (error) {
   exitCode = 1;
   console.error(error.stack || error.message);
+  writeEnvironmentFailure(error);
   collectComposeDiagnostics();
 } finally {
   cleanup();

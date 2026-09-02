@@ -42,6 +42,31 @@ const buyer = "{{buyer_username}}";
 const seller = "{{seller_username}}";
 const disposable = "{{disposable_username}}";
 
+// API regression sells its primary product. Keep several approved products available
+// for the UI suite that runs immediately afterwards in the same E2E environment.
+const uiSeedItems = [1, 2, 3].flatMap((index) => [
+  request(`MS-UI-FIXTURE-PUBLISH-00${index} publish available product`, "POST", "{{catalog_url}}/api/products", {
+    headers: [auth("seller_token")],
+    body: {
+      scene: "used",
+      title: `端到端可售商品${index}-{{run_id}}`,
+      image: "https://example.test/e2e-fixture.png",
+      category: "数码",
+      price: 99 + index,
+      condition: "九成新",
+      description: "供后续浏览器端到端测试使用的可售商品",
+      story: "UI E2E fixture",
+      floorPrice: 80,
+      location: "武汉",
+    },
+    tests: [...captureApiData(`ui_product_id_${index}`, "body.data.id")],
+  }),
+  request(`MS-UI-FIXTURE-APPROVE-00${index} approve available product`, "POST", `{{gateway_url}}/api/admin/audit/{{ui_product_id_${index}}}`, {
+    headers: [auth("admin_token")],
+    body: { action: "approve", reason: "UI E2E fixture" },
+  }),
+]);
+
 const folders = [
   {
     name: "00 Gateway routing contract",
@@ -267,6 +292,10 @@ const folders = [
       request("MS-POST-ACTION-001 toggle collect action", "POST", "{{interaction_url}}/api/topic-posts/{{post_id}}/action", { headers: [auth()], body: { actionType: "collect" } }),
       request("MS-TOPIC-UNFOLLOW-001 unfollow topic", "DELETE", "{{interaction_url}}/api/topics/{{topic_id}}/follow", { headers: [auth()] }),
     ],
+  },
+  {
+    name: "06 UI E2E fixtures",
+    item: uiSeedItems,
   },
 ];
 
