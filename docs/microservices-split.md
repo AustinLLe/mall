@@ -111,6 +111,22 @@ flowchart TB
 
 互动与智能服务通过批量接口查询作者公开信息和帖子关联商品摘要，并使用短期缓存。用户服务故障时显示匿名作者；商品服务故障时隐藏商品卡片，帖子正文仍展示。禁止列表页逐条远程调用。
 
+### 熔断降级（Resilience4j）
+
+跨服务 REST 调用在超时之上再包一层 Resilience4j 熔断器（`resilience4j-circuitbreaker` 核心库，直接包装客户端调用，不引入 AOP）。只有 5xx 响应和连接/读写超时计入失败统计，404/422 等业务错误不触发熔断。
+
+- 交易服务：`HttpCatalogClient`（商品快照、标记已售）使用 `catalog` 熔断器，`HttpUserClient`（登录校验、用户/地址校验）使用 `user` 熔断器。熔断打开时快速失败，抛出 `503 SERVICE_UNAVAILABLE`（“商品/用户服务暂不可用，请稍后重试”），上层 `OrderService`/`CartService` 的既有 `catch` 与补偿逻辑（`COMPENSATION_REQUIRED` → 3 次后 `CANCELLED`）不受影响。
+- 互动与智能服务：`CatalogClient`（帖子关联商品/店铺摘要）使用 `catalog` 熔断器，熔断打开时按原有降级语义返回 `null`，即隐藏商品/店铺卡片，帖子正文仍展示。
+
+熔断参数写在各服务 `application.properties`（`app.circuit-breaker.*`，可用环境变量覆盖）：
+
+| 参数 | 默认值 | 含义 |
+|---|---|---|
+| `sliding-window-size` | 10 | 基于计数的滑动窗口，统计最近 10 次调用 |
+| `failure-rate-threshold` | 50 | 窗口内失败率 ≥50% 时熔断打开 |
+| `wait-duration-in-open-state-ms` | 30000 | 熔断打开 30 秒后进入半开 |
+| `permitted-calls-in-half-open-state` | 3 | 半开放行 3 次试探，成功则关闭熔断 |
+
 ## 6. 构建与测试
 
 ```powershell

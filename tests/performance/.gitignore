@@ -1,1 +1,4 @@
-results/
+# JMeter 原始采样结果体积较大，不入库；需要复现时重新运行脚本生成
+*.jtl
+
+# 允许提交 results/ 下的汇总报告（CSV / Markdown / HTML），详见 results/README.md
