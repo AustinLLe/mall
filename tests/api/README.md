@@ -39,6 +39,12 @@ npm run test:api:microservices
 npm run test:api:microservices:compose
 ```
 
-当前集合包含 82 个请求、163 个断言，覆盖 user、catalog、trade、interaction、网关路由、
-商品审核、跨服务下单和关联内容。2026-09-01 最近一次完整执行为 82/82 请求通过、
-163/163 断言通过。报告位于 `reports/microservices/`，失败摘要为 `failure-summary.md`。
+当前集合覆盖 user、catalog、trade、interaction、网关路由、商品审核、跨服务下单和关联内容。
+报告位于 `reports/microservices/`：`newman-report.json/.xml/.html`、`newman-stats.json`（请求/断言/失败统计）、
+`failure-summary.md`。断言或请求失败时退出码非零，CI 门禁保持红色。
+
+门禁契约（不启动服务）可用：
+
+```powershell
+npm run test:api:gate
+```

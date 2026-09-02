@@ -1,4 +1,19 @@
 services:
+  backend:
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:+ExitOnOutOfMemoryError"
+  user-service:
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:+ExitOnOutOfMemoryError"
+  catalog-service:
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:+ExitOnOutOfMemoryError"
+  trade-service:
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:+ExitOnOutOfMemoryError"
+  interaction-service:
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:+ExitOnOutOfMemoryError"
   selenium:
     image: ${SELENIUM_IMAGE:-selenium/standalone-chrome:4.35.0}
     shm_size: 2gb

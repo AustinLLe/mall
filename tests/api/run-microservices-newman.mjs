@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { writeFailureSummary, writeNewmanStats } from "./newman-gate.mjs";
 
 const apiDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(apiDirectory, "../..");
@@ -90,30 +91,6 @@ function cleanup() {
   run("docker", [...composeArgs, "down", "--volumes", "--remove-orphans"], { allowFailure: true });
 }
 
-function writeFailureSummary(reportPath, summaryPath) {
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const failures = report.run?.failures ?? [];
-  const lines = [
-    "# Microservices E2E failure summary",
-    "",
-    `Generated: ${new Date().toISOString()}`,
-    `Failures: ${failures.length}`,
-    "",
-  ];
-  for (const failure of failures) {
-    const source = failure.source ?? {};
-    const request = source.request ?? failure.parent?.request ?? {};
-    const url = request.url?.raw ?? request.url ?? "unknown";
-    lines.push(`## ${source.name ?? failure.error?.name ?? "Unknown failure"}`);
-    lines.push(`- Request: ${request.method ?? "unknown"} ${url}`);
-    lines.push(`- Assertion: ${failure.error?.test ?? failure.error?.message ?? "unknown"}`);
-    lines.push(`- Actual: ${failure.error?.message ?? "No error message"}`);
-    lines.push("");
-  }
-  if (failures.length === 0) lines.push("No Newman assertion failures were recorded. Check environment diagnostics.");
-  fs.writeFileSync(summaryPath, `${lines.join("\n")}\n`, "utf8");
-}
-
 let exitCode = 0;
 try {
   if (!fs.existsSync(newmanCli)) {
@@ -149,13 +126,12 @@ try {
     "--reporter-htmlextra-export", path.join(reportDirectory, "newman-report.html"),
     "--reporter-json-export", path.join(reportDirectory, "newman-report.json"),
   ], { allowFailure: true });
-  writeFailureSummary(
-    path.join(reportDirectory, "newman-report.json"),
-    path.join(reportDirectory, "failure-summary.md"),
-  );
-  exitCode = result.status ?? 1;
+  const reportPath = path.join(reportDirectory, "newman-report.json");
+  writeFailureSummary(reportPath, path.join(reportDirectory, "failure-summary.md"));
+  exitCode = writeNewmanStats(reportPath, path.join(reportDirectory, "newman-stats.json"), result.status ?? 1);
   metadata.finishedAt = new Date().toISOString();
   metadata.exitCode = exitCode;
+  metadata.newmanStats = path.relative(projectRoot, path.join(reportDirectory, "newman-stats.json"));
   fs.writeFileSync(path.join(reportDirectory, "run-metadata.json"), `${JSON.stringify(metadata, null, 2)}\n`);
   if (exitCode !== 0) {
     collectComposeDiagnostics();
@@ -164,6 +140,10 @@ try {
   exitCode = 1;
   console.error(error.stack || error.message);
   collectComposeDiagnostics();
+  fs.mkdirSync(reportDirectory, { recursive: true });
+  const reportPath = path.join(reportDirectory, "newman-report.json");
+  writeFailureSummary(reportPath, path.join(reportDirectory, "failure-summary.md"));
+  writeNewmanStats(reportPath, path.join(reportDirectory, "newman-stats.json"), 1);
 } finally {
   cleanup();
 }
