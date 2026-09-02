@@ -34,14 +34,17 @@ export SWR_PASSWORD="test-password"
 bash "$repo_root/scripts/ci-publish-images.sh"
 
 kustomization="$test_root/artifacts/release/k8s/kustomization.yaml"
-[[ "$(grep -c 'newTag: release-27-abc12345' "$kustomization")" -eq 3 ]]
+[[ "$(grep -c 'newTag: release-27-abc12345' "$kustomization")" -eq 6 ]]
 grep -q 'songguo.dev/image-tag: "release-27-abc12345"' "$kustomization"
 grep -q 'songguo.dev/commit-id: "abc1234567890def"' "$kustomization"
 grep -q 'songguo.dev/pipeline-number: "27"' "$kustomization"
 grep -q '"imageTag": "release-27-abc12345"' "$test_root/artifacts/release/release-metadata.json"
 grep -q 'shop-backend:release-27-abc12345' "$test_root/artifacts/release/release-metadata.json"
 grep -q 'shop-frontend:release-27-abc12345' "$test_root/artifacts/release/release-metadata.json"
+grep -q 'shop-user-service:release-27-abc12345' "$test_root/artifacts/release/release-metadata.json"
+grep -q 'shop-catalog-service:release-27-abc12345' "$test_root/artifacts/release/release-metadata.json"
 grep -q 'trade-service:release-27-abc12345' "$test_root/artifacts/release/release-metadata.json"
+grep -q 'interaction-service:release-27-abc12345' "$test_root/artifacts/release/release-metadata.json"
 [[ -f "$test_root/artifacts/release-release-27-abc12345.tgz" ]]
 
 unset IMAGE_TAG

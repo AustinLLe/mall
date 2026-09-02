@@ -14,12 +14,17 @@ cat > "$test_root/bin/kubectl" <<'EOF'
 set -e
 state="${FAKE_KUBECTL_STATE:?}"
 args="$*"
-if [[ "$args" == *"get deployment backend -o jsonpath="* ]]; then
-  printf '%s' 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-backend:mytest-20260827'
-  exit 0
-fi
-if [[ "$args" == *"get deployment frontend -o jsonpath="* ]]; then
-  printf '%s' 'swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend:mytest-20260827'
+if [[ "$args" == *"get deployment "*" -o jsonpath="* ]]; then
+  case "$args" in
+    *"get deployment backend "*) image='swr.cn-north-4.myhuaweicloud.com/songguo/shop-backend:mytest-20260827' ;;
+    *"get deployment frontend "*) image='swr.cn-north-4.myhuaweicloud.com/songguo/shop-frontend:mytest-20260827' ;;
+    *"get deployment user-service "*) image='swr.cn-north-4.myhuaweicloud.com/songguo/shop-user-service:user-20260901' ;;
+    *"get deployment catalog-service "*) image='swr.cn-north-4.myhuaweicloud.com/songguo/shop-catalog-service:release-catalog-schemafix-20260901-1125' ;;
+    *"get deployment trade-service "*) image='swr.cn-north-4.myhuaweicloud.com/songguo/trade-service:release-trade-service-20260901-2' ;;
+    *"get deployment interaction-service "*) image='swr.cn-north-4.myhuaweicloud.com/songguo/interaction-service:release-20260827' ;;
+    *) image='' ;;
+  esac
+  printf '%s' "$image"
   exit 0
 fi
 if [[ "$args" == *"apply -k"* ]]; then
