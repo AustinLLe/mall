@@ -7,11 +7,14 @@ import com.example.shopping_back.shop.ShopDtos.AiPublishSuggestionRequest;
 import com.example.shopping_back.shop.ShopDtos.AiPublishSuggestionResponse;
 import com.example.shopping_back.shop.ShopDtos.AuditRequest;
 import com.example.shopping_back.shop.ShopDtos.AuditResult;
+import com.example.shopping_back.shop.ShopDtos.CreateOrderRequest;
 import com.example.shopping_back.shop.ShopDtos.KeyValue;
+import com.example.shopping_back.shop.ShopDtos.OrderView;
 import com.example.shopping_back.shop.ShopDtos.ProductView;
 import com.example.shopping_back.shop.ShopDtos.PublishRequest;
 import com.example.shopping_back.shop.ShopDtos.UpdateProductRequest;
 import com.example.shopping_back.shop.ShopDtos.ReviewView;
+import com.example.shopping_back.shop.ShopDtos.ReviewRequest;
 import com.example.shopping_back.shop.ShopDtos.StoreView;
 import com.example.shopping_back.shop.ShopDtos.StoreDetailView;
 import com.example.shopping_back.shop.ShopDtos.StoreUpdateRequest;
@@ -26,6 +29,7 @@ import com.example.shopping_back.shop.mapper.ShopOrderMapper;
 import com.example.shopping_back.shop.mapper.ShopProductMapper;
 import com.example.shopping_back.shop.mapper.ShopStoreMapper;
 import com.example.shopping_back.shop.mapper.ShopTopicMapper;
+import com.example.shopping_back.shop.model.OrderRecord;
 import com.example.shopping_back.shop.model.ProductRecord;
 import com.example.shopping_back.shop.model.ProductReviewRecord;
 import com.example.shopping_back.shop.model.StoreRecord;
@@ -385,6 +389,90 @@ public class ShopService {
             topicMapper.insertLike(id, user.getUserId());
         }
         return topicPosts(String.valueOf(topicId), user);
+    }
+
+    public List<OrderView> orders(AuthUserView user) {
+        return orders(user, null);
+    }
+
+    public List<OrderView> orders(AuthUserView user, String status) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后查看订单");
+        }
+        ensureOrderSchema();
+        String normalized = normalizeOrderStatus(status);
+        return orderMapper.selectBuyerOrdersFiltered(user.getUserId(), normalized).stream()
+                .map(this::toOrderView)
+                .toList();
+    }
+
+    public OrderView cancelOrder(String orderId, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后取消订单");
+        }
+        ensureOrderSchema();
+        Integer id = parseDbId(orderId);
+        OrderRecord order = orderMapper.selectOrder(id);
+        if (order == null || !user.getUserId().equals(order.getBuyerId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "订单不存在");
+        }
+        if ("cancelled".equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "订单已取消");
+        }
+        orderMapper.updateOrderStatus(id, "cancelled");
+        return toOrderView(orderMapper.selectOrder(id));
+    }
+
+    public List<OrderView> createOrders(CreateOrderRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后下单");
+        }
+        if (request == null || request.items() == null || request.items().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "订单商品不能为空");
+        }
+        ensureOrderSchema();
+        for (ShopDtos.CreateOrderItem item : request.items()) {
+            Integer goodsId = parseDbId(item.goodsId());
+            ProductRecord product = productMapper.selectById(goodsId);
+            if (product == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "商品不存在");
+            }
+            if (user.getUserId().equals(product.getSellerId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能购买自己发布的商品");
+            }
+            int quantity = item.quantity() == null || item.quantity() <= 0 ? 1 : item.quantity();
+            BigDecimal price = product.getPrice() == null ? BigDecimal.ZERO : product.getPrice();
+            orderMapper.insertOrder(user.getUserId(), product.getSellerId(), goodsId, "completed", price.multiply(new BigDecimal(quantity)));
+        }
+        return orders(user);
+    }
+
+    public OrderView reviewOrder(String orderId, ReviewRequest request, AuthUserView user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录后评价");
+        }
+        ensureOrderSchema();
+        Integer id = parseDbId(orderId);
+        OrderRecord order = orderMapper.selectOrder(id);
+        if (order == null || !user.getUserId().equals(order.getBuyerId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "订单不存在");
+        }
+        if (!"completed".equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "订单完成后才能评价");
+        }
+        if (orderMapper.reviewCountByOrder(id) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该订单已评价");
+        }
+        int productScore = normalizeScore(request == null ? null : request.productScore());
+        int sellerScore = normalizeScore(request == null ? null : request.sellerScore());
+        String content = request == null ? "" : defaultText(request.content(), "").trim();
+        if (content.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评价内容不能为空");
+        }
+        orderMapper.insertReview(id, order.getGoodsId(), user.getUserId(), order.getSellerId(), productScore, sellerScore, content);
+        orderMapper.refreshSellerCredit(order.getSellerId());
+        orderMapper.refreshStoreCredit(order.getSellerId());
+        return toOrderView(orderMapper.selectOrder(id));
     }
 
     public ProductView publish(PublishRequest request, AuthUserView user) {
@@ -762,6 +850,7 @@ public class ShopService {
 
     private void ensureOrderSchema() {
         try {
+            orderMapper.createOrdersTable();
             orderMapper.createReviewTable();
         } catch (RuntimeException ignored) {
         }
@@ -1130,6 +1219,29 @@ public class ShopService {
         );
     }
 
+    private OrderView toOrderView(OrderRecord record) {
+        boolean reviewed = record.getReviewedAt() != null || record.getProductScore() != null;
+        boolean completed = "completed".equals(record.getStatus());
+        boolean cancelled = "cancelled".equals(record.getStatus());
+        String status = cancelled ? "已取消" : reviewed ? "已评价" : completed ? "已完成" : "待收货";
+        return new OrderView(
+                String.valueOf(record.getOrderId()),
+                defaultText(record.getSellerName(), "卖家"),
+                status,
+                defaultText(record.getGoodsName(), "商品"),
+                defaultText(record.getGoodsImage(), ""),
+                "new".equals(record.getScene()) ? "新品" : "二手",
+                "平台担保",
+                record.getAmount() == null ? BigDecimal.ZERO : record.getAmount(),
+                record.getGoodsId() == null ? "" : String.valueOf(record.getGoodsId()),
+                completed && !reviewed,
+                reviewed,
+                record.getProductScore(),
+                record.getSellerScore(),
+                defaultText(record.getReviewContent(), "")
+        );
+    }
+
     private TopicView toTopicView(TopicRecord record) {
         int postCount = record.getPostCount() == null ? 0 : record.getPostCount();
         int likeCount = record.getLikeCount() == null ? 0 : record.getLikeCount();
@@ -1244,6 +1356,13 @@ public class ShopService {
         return score == null ? 5 : Math.max(1, Math.min(5, score));
     }
 
+    private int normalizeScore(Integer score) {
+        if (score == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "评分不能为空");
+        }
+        return Math.max(1, Math.min(5, score));
+    }
+
     private BigDecimal estimateUsedPrice(String category, String condition) {
         BigDecimal base = category.contains("数码") ? new BigDecimal("680") : category.contains("图书") ? new BigDecimal("28") : new BigDecimal("180");
         if (condition.contains("全新") || condition.contains("99")) {
@@ -1275,6 +1394,21 @@ public class ShopService {
 
     private String normalizeScene(String scene) {
         return "new".equals(scene) ? "new" : "used";
+    }
+
+    private String normalizeOrderStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        String value = status.trim();
+        return switch (value) {
+            case "待付款", "pending_pay" -> "pending_pay";
+            case "待发货", "pending_ship" -> "pending_ship";
+            case "待收货", "pending_receive" -> "pending_receive";
+            case "已完成", "completed" -> "completed";
+            case "已取消", "cancelled" -> "cancelled";
+            default -> null;
+        };
     }
 
     private String normalizeStatus(String status) {
