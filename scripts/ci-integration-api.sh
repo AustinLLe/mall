@@ -10,6 +10,32 @@ if [ ! -f shopping_back/shopping_back/pom.xml ]; then
   cd "$(dirname "$(dirname "$(dirname "$pom")")")"
 fi
 
+report_dir="tests/api/reports/ci"
+mkdir -p "$report_dir"
+backend_pid=""
+current_stage="prepare"
+
+cleanup() {
+  status=$?
+  if [ -n "${backend_pid:-}" ]; then
+    kill "$backend_pid" >/dev/null 2>&1 || true
+  fi
+  if [ -f /tmp/ci-mysql.pid ]; then
+    kill "$(cat /tmp/ci-mysql.pid)" >/dev/null 2>&1 || true
+  fi
+  if [ "$status" -ne 0 ]; then
+    printf 'FAILED_STAGE=%s\nEXIT_CODE=%s\n' "$current_stage" "$status" \
+      > "$report_dir/failure-summary.txt"
+    echo "集成测试失败阶段: $current_stage，退出码: $status"
+    if [ -f "$report_dir/backend.log" ]; then
+      echo "===== 后端日志最后 200 行 ====="
+      tail -n 200 "$report_dir/backend.log" || true
+    fi
+  fi
+}
+trap cleanup EXIT
+exec > >(tee "$report_dir/integration-api.log") 2>&1
+
 export DB_PASSWORD="${CI_DB_PASSWORD:?CI_DB_PASSWORD is required}"
 export MYSQL_ROOT_PASSWORD="${CI_MYSQL_ROOT_PASSWORD:?CI_MYSQL_ROOT_PASSWORD is required}"
 export DB_USERNAME="${DB_USERNAME:-shop_user}"
@@ -218,25 +244,20 @@ install_node() {
 }
 
 echo "===== 1/3 启动测试环境 ====="
+current_stage="mysql-start"
 install_mysql
 start_mysql
 
+current_stage="backend-build"
 cd shopping_back/shopping_back
 mvn -B -ntp -DskipTests package
 jar="$(ls -1 target/shopping_back-*.jar | head -n 1)"
-java -jar "$jar" &
+java -jar "$jar" > "../../$report_dir/backend.log" 2>&1 &
 backend_pid=$!
 cd - >/dev/null
 
-cleanup() {
-  kill "$backend_pid" >/dev/null 2>&1 || true
-  if [ -f /tmp/ci-mysql.pid ]; then
-    kill "$(cat /tmp/ci-mysql.pid)" >/dev/null 2>&1 || true
-  fi
-}
-trap cleanup EXIT
-
 echo "等待 ${base_url}/api/products"
+current_stage="backend-readiness"
 ok=0
 for _ in $(seq 1 60); do
   if curl -fsS --max-time 5 "${base_url}/api/products" >/dev/null 2>&1; then
@@ -251,17 +272,22 @@ if [ "$ok" -ne 1 ]; then
 fi
 
 echo "===== 2/3 集成测试 ====="
+current_stage="blackbox-smoke"
 SMOKE_SKIP_FRONTEND=true bash tests/blackbox/smoke.sh "${base_url}"
 
 echo "===== 3/3 接口测试 ====="
+current_stage="api-fixture"
 "${mysql_home}/bin/mysql" --socket="$mysql_sock" -u"$DB_USERNAME" -p"$DB_PASSWORD" --protocol=SOCKET shop_db \
   < tests/api/fixtures/setup.sql
+current_stage="node-install"
 install_node
 if [ -d "${node_home}/bin" ]; then
   export PATH="${node_home}/bin:${PATH}"
 fi
 npm config set registry https://repo.huaweicloud.com/repository/npm/
 npm ci
+current_stage="newman-api"
 SKIP_API_FIXTURE_SETUP=true API_BASE_URL="${base_url}" npm run test:api
 
+current_stage="complete"
 echo "集成测试和接口测试通过"
