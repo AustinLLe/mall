@@ -2,7 +2,12 @@ param([ValidateSet("monolith", "microservices", "all")][string]$Mode = "all")
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $mvn = Join-Path $root "shopping_back\shopping_back\mvnw.cmd"
+# $javaText = (& java -version 2>&1 | Out-String)
+$oldErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 $javaText = (& java -version 2>&1 | Out-String)
+$ErrorActionPreference = $oldErrorActionPreference
+# -----
 $majorMatch = [regex]::Match($javaText, 'version "(?:1\.)?(\d+)')
 if (-not $majorMatch.Success -or @("17", "21") -notcontains $majorMatch.Groups[1].Value) {
     throw "Unit tests require JDK 17 or 21. Current output: $javaText"

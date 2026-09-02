@@ -30,6 +30,9 @@ const urls = {
   interaction_url: argument("interaction-url", process.env.INTERACTION_SERVICE_URL || "http://127.0.0.1:8084"),
   gateway_url: argument("gateway-url", process.env.GATEWAY_URL || "http://127.0.0.1:18080"),
 };
+if (startCompose && !process.env.HTTP_PORT) {
+  process.env.HTTP_PORT = new URL(urls.gateway_url).port || "80";
+}
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
@@ -118,13 +121,14 @@ try {
   }
   if (startCompose) {
     if (!fs.existsSync(envFile)) throw new Error("deploy/.env is required for the isolated Compose test environment.");
-    compose("up", "-d", "--build", "mysql", "backend", "user-service", "catalog-service", "trade-service", "interaction-service");
+    compose("up", "-d", "--build", "mysql", "backend", "user-service", "catalog-service", "trade-service", "interaction-service", "frontend");
   }
 
   await waitFor("user-service", `${urls.user_url}/api/auth/search-users?keyword=`, [200]);
   await waitFor("catalog-service", `${urls.catalog_url}/api/products`, [200]);
   await waitFor("trade-service", `${urls.trade_url}/api/cart`, [401]);
   await waitFor("interaction-service", `${urls.interaction_url}/api/interaction/health`, [200]);
+  if (startCompose) await waitFor("gateway", `${urls.gateway_url}/api/products`, [200]);
 
   fs.mkdirSync(reportDirectory, { recursive: true });
   const metadata = {

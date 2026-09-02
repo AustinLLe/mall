@@ -75,10 +75,14 @@ public class ConversationService {
             return existing;
         }
         ProductRecord product = shopProductMapper.selectById(request.getGoodsId());
-        if (product == null) {
+        if (product == null && (request.getSellerId() == null || request.getSellerId() <= 0)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "商品不存在");
         }
-        Integer sellerId = product.getSellerId();
+        // 已迁移商品位于 catalog-service，旧聊天库中没有商品行；前端携带目录服务返回的发布者 ID。
+        Integer sellerId = product == null ? request.getSellerId() : product.getSellerId();
+        if (sellerId.equals(buyerId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能与自己创建商品会话");
+        }
         Conversation conv = new Conversation();
         conv.setBuyerId(buyerId);
         conv.setSellerId(sellerId);

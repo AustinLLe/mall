@@ -112,7 +112,7 @@ public class ProductService {
         jdbc.sql("""
                 INSERT INTO goods(seller_id, name, price, status, store_id, store_name, category, description,
                     goods_condition, story, floor_price, scene, location, image)
-                SELECT :sellerId, :name, :price, 'ON_SALE', store_id, store_name, :category, :description,
+                SELECT :sellerId, :name, :price, 'pending', store_id, store_name, :category, :description,
                     :condition, :story, :floorPrice, :scene, :location, :image
                 FROM store WHERE store_id=:storeId
                 """)
@@ -132,6 +132,28 @@ public class ProductService {
         return jdbc.sql(PRODUCT_COLUMNS + " WHERE seller_id=:sellerId ORDER BY goods_id DESC LIMIT 1")
                 .param("sellerId", user.userId())
                 .query(ProductView.class).single();
+    }
+
+    public List<ProductView> pending() {
+        return jdbc.sql(PRODUCT_COLUMNS + " WHERE LOWER(status)='pending' ORDER BY created_at, goods_id")
+                .query(ProductView.class).list();
+    }
+
+    @Transactional
+    public AuditResult audit(long id, String action, String reason) {
+        String normalized = action == null ? "" : action.trim().toLowerCase();
+        String status;
+        if ("approve".equals(normalized)) status = "approved";
+        else if ("reject".equals(normalized)) status = "rejected";
+        else throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "审核动作必须是 approve 或 reject");
+        int changed = jdbc.sql("UPDATE goods SET status=:status, updated_at=CURRENT_TIMESTAMP WHERE goods_id=:id AND LOWER(status)='pending'")
+                .param("status", status).param("id", id).update();
+        if (changed == 0) {
+            int count = jdbc.sql("SELECT COUNT(*) FROM goods WHERE goods_id=:id").param("id", id).query(Integer.class).single();
+            if (count == 0) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "product not found");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "商品已完成审核");
+        }
+        return new AuditResult(String.valueOf(id), status, defaultText(reason, ""));
     }
 
     public StorefrontProduct toStorefront(ProductView product) {
@@ -183,7 +205,7 @@ public class ProductService {
     public void markSold(long id, String orderNumber) {
         int changed = jdbc.sql("""
                 UPDATE goods SET status='SOLD', sold_order_number=:orderNumber, updated_at=CURRENT_TIMESTAMP
-                WHERE goods_id=:id AND (status='ON_SALE' OR sold_order_number=:orderNumber)
+                WHERE goods_id=:id AND (status IN ('ON_SALE', 'approved', '0') OR sold_order_number=:orderNumber)
                 """).param("id", id).param("orderNumber", orderNumber).update();
         if (changed == 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "product is not available");
@@ -249,6 +271,7 @@ public class ProductService {
     public record PublishRequest(String scene, String title, String image, String category, BigDecimal price,
                                  String condition, String description, String story, BigDecimal floorPrice,
                                  String location) {}
+    public record AuditResult(String id, String status, String reason) {}
 
     public record StorefrontProduct(
             String id, String scene, String category, String title, String subtitle, BigDecimal price,

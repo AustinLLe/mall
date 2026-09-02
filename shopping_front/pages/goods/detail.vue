@@ -489,7 +489,8 @@
 						uni.showToast({ title: '商品数据未就绪', icon: 'none' })
 						return
 					}
-					const res = await post('/api/chat/conversations', { goodsId })
+					const sellerId = Number(this.detail.publisherId)
+					const res = await post('/api/chat/conversations', { goodsId, sellerId })
 					if (res.statusCode === 200 && res.data && res.data.data && res.data.data.covId) {
 						uni.setStorageSync('pending_message_focus', {
 							covId: res.data.data.covId,
