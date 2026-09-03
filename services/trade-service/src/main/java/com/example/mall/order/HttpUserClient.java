@@ -1,6 +1,10 @@
 package com.example.mall.order;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
@@ -12,10 +16,18 @@ import org.springframework.web.server.ResponseStatusException;
 public class HttpUserClient implements UserClient {
     private final RestClient authClient;
     private final RestClient userClient;
+    private final CircuitBreaker circuitBreaker;
 
     public HttpUserClient(RestClient authRestClient, RestClient userRestClient) {
+        this(authRestClient, userRestClient, CircuitBreaker.ofDefaults("user"));
+    }
+
+    @Autowired
+    public HttpUserClient(RestClient authRestClient, RestClient userRestClient,
+                          @Qualifier("userCircuitBreaker") CircuitBreaker userCircuitBreaker) {
         this.authClient = authRestClient;
         this.userClient = userRestClient;
+        this.circuitBreaker = userCircuitBreaker;
     }
 
     @Override
@@ -24,10 +36,10 @@ public class HttpUserClient implements UserClient {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
         }
         try {
-            JsonNode body = authClient.get().uri("/api/auth/me")
+            JsonNode body = circuitBreaker.executeSupplier(() -> authClient.get().uri("/api/auth/me")
                     .header("Authorization", authorization)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(JsonNode.class));
             JsonNode data = body == null ? null : body.path("data");
             if (data == null || data.isMissingNode() || data.isNull() || !data.hasNonNull("userId")) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
@@ -39,6 +51,9 @@ public class HttpUserClient implements UserClient {
             return user;
         } catch (ResponseStatusException exception) {
             throw exception;
+        } catch (CallNotPermittedException exception) {
+            // 熔断打开：快速失败，不再发起远程调用
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "用户服务暂不可用，请稍后重试");
         } catch (RestClientResponseException exception) {
             int status = exception.getStatusCode().value();
             if (status == 401 || status == 403) {
@@ -53,12 +68,15 @@ public class HttpUserClient implements UserClient {
     @Override
     public void requireActiveUser(long userId) {
         try {
-            UserSnapshot user = userClient.get().uri("/internal/users/{id}", userId).retrieve().body(UserSnapshot.class);
+            UserSnapshot user = circuitBreaker.executeSupplier(() ->
+                    userClient.get().uri("/internal/users/{id}", userId).retrieve().body(UserSnapshot.class));
             if (user == null || !"normal".equalsIgnoreCase(user.status())) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "user is not active");
             }
         } catch (ResponseStatusException exception) {
             throw exception;
+        } catch (CallNotPermittedException exception) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "用户服务暂不可用，请稍后重试");
         } catch (RestClientResponseException exception) {
             if (exception.getStatusCode().value() == 404) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "user or address does not exist");
@@ -73,8 +91,11 @@ public class HttpUserClient implements UserClient {
     public void requireActiveUserAndAddress(long userId, long addressId) {
         requireActiveUser(userId);
         try {
-            userClient.get().uri("/internal/users/{userId}/addresses/{addressId}", userId, addressId)
-                    .retrieve().toBodilessEntity();
+            circuitBreaker.executeRunnable(() -> userClient.get()
+                    .uri("/internal/users/{userId}/addresses/{addressId}", userId, addressId)
+                    .retrieve().toBodilessEntity());
+        } catch (CallNotPermittedException exception) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "用户服务暂不可用，请稍后重试");
         } catch (RestClientResponseException exception) {
             if (exception.getStatusCode().value() == 404) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "user or address does not exist");

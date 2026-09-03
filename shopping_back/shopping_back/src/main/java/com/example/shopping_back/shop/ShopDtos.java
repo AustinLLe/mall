@@ -196,6 +196,40 @@ public final class ShopDtos {
     ) {
     }
 
+    public record OrderView(
+            String id,
+            String shop,
+            String status,
+            String title,
+            String cover,
+            String type,
+            String service,
+            BigDecimal amount,
+            String goodsId,
+            boolean reviewable,
+            boolean reviewed,
+            Integer productScore,
+            Integer sellerScore,
+            String reviewContent
+    ) {
+        public OrderView(String id, String shop, String status, String title, String cover, String type, String service, BigDecimal amount) {
+            this(id, shop, status, title, cover, type, service, amount, "", false, false, null, null, "");
+        }
+    }
+
+    public record CreateOrderItem(String goodsId, Integer quantity) {
+    }
+
+    public record CreateOrderRequest(List<CreateOrderItem> items) {
+    }
+
+    public record ReviewRequest(
+            @NotNull(message = "商品评分不能为空") Integer productScore,
+            @NotNull(message = "卖家评分不能为空") Integer sellerScore,
+            @NotBlank(message = "评价内容不能为空") String content
+    ) {
+    }
+
     public record PublishRequest(
             String scene,
             @NotBlank(message = "标题不能为空") String title,

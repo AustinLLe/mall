@@ -30,6 +30,9 @@ const urls = {
   interaction_url: argument("interaction-url", process.env.INTERACTION_SERVICE_URL || "http://127.0.0.1:8084"),
   gateway_url: argument("gateway-url", process.env.GATEWAY_URL || "http://127.0.0.1:18080"),
 };
+// 经 Nginx 网关访问时，/api/interaction/health 未暴露（会回落到单体报 500），
+// 可用 --interaction-health-path=/api/topics 指定网关可路由的探活路径。
+const interactionHealthPath = argument("interaction-health-path", process.env.INTERACTION_HEALTH_PATH || "/api/interaction/health");
 if (startCompose && !process.env.HTTP_PORT) {
   process.env.HTTP_PORT = new URL(urls.gateway_url).port || "80";
 }
@@ -46,6 +49,37 @@ function run(command, commandArgs, options = {}) {
     throw new Error(`${command} exited with code ${result.status ?? 1}`);
   }
   return result;
+}
+
+function resolveGitCommit() {
+  const fromEnvironment = [
+    process.env.GIT_COMMIT,
+    process.env.COMMIT_ID,
+    process.env.CODEARTS_COMMIT_ID,
+    process.env.CI_COMMIT_SHA,
+  ].find((value) => value && value.trim());
+  if (fromEnvironment) return fromEnvironment.trim();
+
+  const result = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: projectRoot,
+    stdio: "pipe",
+    encoding: "utf8",
+    env: process.env,
+  });
+  if (!result.error && result.status === 0 && result.stdout?.trim()) {
+    return result.stdout.trim();
+  }
+  return "unavailable";
+}
+
+function writeEnvironmentFailure(error) {
+  fs.mkdirSync(reportDirectory, { recursive: true });
+  const message = error?.stack || error?.message || String(error);
+  fs.writeFileSync(
+    path.join(reportDirectory, "failure-summary.md"),
+    `# Microservices E2E environment failure\n\n${message}\n`,
+    "utf8",
+  );
 }
 
 const composeArgs = [
@@ -69,7 +103,7 @@ async function waitFor(name, url, acceptedStatuses = [200]) {
       }
       lastError = `HTTP ${response.status}`;
     } catch (error) {
-      lastError = error.message;
+      lastError = `${error.message} cause=${error.cause ? (error.cause.code || error.cause.message) : "none"} url=${url}`;
     }
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
@@ -127,7 +161,7 @@ try {
   await waitFor("user-service", `${urls.user_url}/api/auth/search-users?keyword=`, [200]);
   await waitFor("catalog-service", `${urls.catalog_url}/api/products`, [200]);
   await waitFor("trade-service", `${urls.trade_url}/api/cart`, [401]);
-  await waitFor("interaction-service", `${urls.interaction_url}/api/interaction/health`, [200]);
+  await waitFor("interaction-service", `${urls.interaction_url}${interactionHealthPath}`, [200]);
   if (startCompose) await waitFor("gateway", `${urls.gateway_url}/api/products`, [200]);
 
   fs.mkdirSync(reportDirectory, { recursive: true });
@@ -136,7 +170,7 @@ try {
     collection: path.relative(projectRoot, collection),
     urls,
     isolatedCompose: startCompose,
-    gitCommit: run("git", ["rev-parse", "HEAD"], { capture: true }).stdout.trim(),
+    gitCommit: resolveGitCommit(),
   };
   fs.writeFileSync(path.join(reportDirectory, "run-metadata.json"), `${JSON.stringify(metadata, null, 2)}\n`);
 
@@ -163,6 +197,7 @@ try {
 } catch (error) {
   exitCode = 1;
   console.error(error.stack || error.message);
+  writeEnvironmentFailure(error);
   collectComposeDiagnostics();
 } finally {
   cleanup();

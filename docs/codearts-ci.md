@@ -97,10 +97,10 @@
 ## 端到端测试（第 4 张卡片）
 
 文件：`.cloudbuild/e2e.yml`  
-脚本：`scripts/ci-e2e.sh`  
+脚本：`scripts/ci-e2e-incontainer.sh`（容器内执行）、`scripts/ci-e2e-extract.sh`（产物提取）。`scripts/ci-e2e.sh` 是 Compose 版，只用于有真实 Docker 守护进程的环境，CodeArts 不要引用。  
 来源：队友分支 `test/e2e-selenium`（容器化 Selenium + Chrome）。
 
-这张卡片自己起一套 Compose（MySQL、后端、前端、Chrome），用独立端口 `18080`，测完会删掉容器和数据卷。必须接在「集成测试」后面：接口都过不了就不必开浏览器。
+这张卡片在 `docker build` 容器内启动完整微服务拓扑：MariaDB（shop_db + user/catalog/trade/interaction 四个库）、旧单体 8080（未迁移接口兜底）、四个微服务 8081-8084、Nginx 网关 `18080`（路由与 `deploy/nginx/default.conf` 一致）、Chromium。先跑微服务 Newman 全量回归，再跑 Selenium UI。必须接在「集成测试」后面：接口都过不了就不必开浏览器。
 
 不要用 `cloudbuild@docker20.10`（会去 Docker Hub 超时）。不要用 `docker run` / `docker compose`：`docker` 插件只允许 `build/tag/push/pull/login/logout/save`。`sh` 没有 Docker socket；`swr` dockerindocker 在 CodeArts 里没有特权，起不了 dockerd（iptables Permission denied）。
 
@@ -128,15 +128,19 @@ CodeArts 勾选 **私密参数** 后，`docker` 插件读不到 `CI_DB_PASSWORD`
 产物（失败也会尽量上传）：
 
 - `e2e-surefire-reports.tgz`：Surefire / JUnit XML（`e2e-tests/target/surefire-reports/`）
-- `e2e-artifacts.tgz`：截图、页面源码、Compose 日志（`e2e-tests/target/e2e-artifacts/`）
+- `e2e-artifacts.tgz`：截图、页面源码、各服务日志（`e2e-tests/target/e2e-artifacts/`）
+- `e2e-api-reports.tgz`：微服务 Newman JUnit/HTML/JSON 和失败摘要（`tests/api/reports/microservices/`）
+- `e2e-run-results.tgz`：阶段摘要（`tests/e2e/results/`）
 
-构建任务会把这两个包传到软件发布库目录 `/NewSecondMall-e2e/`。流水线里打开该 Build 插件，勾选把构建产物作为流水线产物；下载处应能看到这两个 `.tgz`。
+构建任务会把这些包传到软件发布库目录 `/NewSecondMall-e2e/`。流水线里打开该 Build 插件，勾选把构建产物作为流水线产物；下载处应能看到这些 `.tgz`。
 
-步骤顺序：`e2e-secrets`（写入 `.ci-secrets`）→ `e2e-test`（docker pull/build/save，允许失败以便导出产物）→ `e2e-extract` → 上传两个 `.tgz` → `e2e-gate`。
+步骤顺序：`e2e-secrets`（写入 `.ci-secrets`）→ `e2e-test`（docker pull/build/save，允许失败以便导出产物）→ `e2e-extract` → 上传四个 `.tgz` → `e2e-gate`。
 
-成功时日志应出现 `===== 启动 MariaDB =====`，而不是立刻 `CI_DB_PASSWORD is required`。
+成功时日志应出现 `===== 启动 MariaDB =====` 和 `===== 启动微服务 =====`，而不是立刻 `CI_DB_PASSWORD is required`。
 
 `e2e-test` 用 CodeArts 允许的 Docker 命令在镜像构建里跑浏览器用例。基础镜像走同区域 SWR：`swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/debian:bookworm-slim`（不要 DaoCloud / Docker Hub，`#20260827.12` 在 DaoCloud 第一层直接卡死）。镜像里再用华为云 Debian 源安装 JDK、Maven、Chromium。
+
+不要在 `e2e-test` 步骤里跑 `bash scripts/ci-e2e.sh` 或任何 `docker run` / `docker compose`：docker 插件只允许 `build/tag/push/pull/save/login`，会立刻失败（`#66` 端到端阶段 12 秒失败、产物为空就是这个原因）。完整拓扑已收进 `tests/e2e/Dockerfile.ci` 的镜像构建里。
 
 若 `e2e-test` 报找不到 socket 或拉镜像失败，把该步骤完整日志发我。
 

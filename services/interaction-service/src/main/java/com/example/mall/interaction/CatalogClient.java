@@ -2,8 +2,10 @@ package com.example.mall.interaction;
 
 import com.example.mall.interaction.TopicService.ProductCard;
 import com.example.mall.interaction.TopicService.StoreCard;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.math.BigDecimal;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -11,9 +13,17 @@ import org.springframework.web.client.RestClient;
 @Component
 public class CatalogClient {
     private final RestClient client;
+    private final CircuitBreaker circuitBreaker;
 
     public CatalogClient(@Qualifier("catalogRestClient") RestClient catalogRestClient) {
+        this(catalogRestClient, CircuitBreaker.ofDefaults("catalog"));
+    }
+
+    @Autowired
+    public CatalogClient(@Qualifier("catalogRestClient") RestClient catalogRestClient,
+                         CircuitBreaker catalogCircuitBreaker) {
         this.client = catalogRestClient;
+        this.circuitBreaker = catalogCircuitBreaker;
     }
 
     public TopicService.ProductCard product(Integer productId) {
@@ -59,7 +69,10 @@ public class CatalogClient {
     @SuppressWarnings("unchecked")
     private Map<?, ?> getMap(String path) {
         try {
-            Map<?, ?> body = client.get().uri(path).retrieve().body(Map.class);
+            // 熔断打开时 executeSupplier 直接抛 CallNotPermittedException，被下方 catch 吞掉并返回 null，
+            // 保持原有降级语义：商品/店铺卡片隐藏，帖子正文仍展示
+            Map<?, ?> body = circuitBreaker.executeSupplier(() ->
+                    client.get().uri(path).retrieve().body(Map.class));
             if (body == null) {
                 return null;
             }

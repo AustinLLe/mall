@@ -2892,6 +2892,278 @@
           ]
         }
       ]
+    },
+    {
+      "name": "06 UI E2E fixtures",
+      "item": [
+        {
+          "name": "MS-UI-FIXTURE-PUBLISH-001 publish available product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{seller_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{catalog_url}}/api/products",
+              "host": [
+                "{{catalog_url}}/api/products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scene\": \"used\",\n  \"title\": \"端到端可售商品1-{{run_id}}\",\n  \"image\": \"https://example.test/e2e-fixture.png\",\n  \"category\": \"数码\",\n  \"price\": 100,\n  \"condition\": \"九成新\",\n  \"description\": \"供后续浏览器端到端测试使用的可售商品\",\n  \"story\": \"UI E2E fixture\",\n  \"floorPrice\": 80,\n  \"location\": \"武汉\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"ui_product_id_1\", body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MS-UI-FIXTURE-APPROVE-001 approve available product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/admin/audit/{{ui_product_id_1}}",
+              "host": [
+                "{{gateway_url}}/api/admin/audit/{{ui_product_id_1}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\",\n  \"reason\": \"UI E2E fixture\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MS-UI-FIXTURE-PUBLISH-002 publish available product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{seller_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{catalog_url}}/api/products",
+              "host": [
+                "{{catalog_url}}/api/products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scene\": \"used\",\n  \"title\": \"端到端可售商品2-{{run_id}}\",\n  \"image\": \"https://example.test/e2e-fixture.png\",\n  \"category\": \"数码\",\n  \"price\": 101,\n  \"condition\": \"九成新\",\n  \"description\": \"供后续浏览器端到端测试使用的可售商品\",\n  \"story\": \"UI E2E fixture\",\n  \"floorPrice\": 80,\n  \"location\": \"武汉\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"ui_product_id_2\", body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MS-UI-FIXTURE-APPROVE-002 approve available product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/admin/audit/{{ui_product_id_2}}",
+              "host": [
+                "{{gateway_url}}/api/admin/audit/{{ui_product_id_2}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\",\n  \"reason\": \"UI E2E fixture\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MS-UI-FIXTURE-PUBLISH-003 publish available product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{seller_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{catalog_url}}/api/products",
+              "host": [
+                "{{catalog_url}}/api/products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scene\": \"used\",\n  \"title\": \"端到端可售商品3-{{run_id}}\",\n  \"image\": \"https://example.test/e2e-fixture.png\",\n  \"category\": \"数码\",\n  \"price\": 102,\n  \"condition\": \"九成新\",\n  \"description\": \"供后续浏览器端到端测试使用的可售商品\",\n  \"story\": \"UI E2E fixture\",\n  \"floorPrice\": 80,\n  \"location\": \"武汉\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+                  "const body = pm.response.json(); pm.expect(body.code).to.eql(0); pm.collectionVariables.set(\"ui_product_id_3\", body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MS-UI-FIXTURE-APPROVE-003 approve available product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/admin/audit/{{ui_product_id_3}}",
+              "host": [
+                "{{gateway_url}}/api/admin/audit/{{ui_product_id_3}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\",\n  \"reason\": \"UI E2E fixture\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Response is JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [

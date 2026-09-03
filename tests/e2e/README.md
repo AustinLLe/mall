@@ -53,15 +53,27 @@ npm run test:e2e:microservices
 CodeArts 使用以下文件运行独立的 E2E 测试阶段：
 
 - 流水线配置：`.cloudbuild/e2e.yml`
-- CI 执行脚本：`scripts/ci-e2e.sh`
+- 构建镜像：`tests/e2e/Dockerfile.ci`
+- 容器内执行脚本：`scripts/ci-e2e-incontainer.sh`
+- 产物提取脚本：`scripts/ci-e2e-extract.sh`
 
-在 CodeArts 中需要配置以下加密环境变量：
+CodeArts 的 `docker` 插件只允许 `build/tag/push/pull/save/login`，不能执行
+`docker run` / `docker compose`（2026-08-27 已实测）。因此 CI 不复用本地的
+Compose 拓扑，而是在 `docker build` 容器内启动同一套组件：MariaDB
+（shop_db + 4 个微服务库）、旧单体（8080，未迁移接口兜底）、user/catalog/trade/
+interaction 四个微服务（8081-8084）、Nginx 网关（18080，路由规则与
+`deploy/nginx/default.conf` 一致）和 Chromium，先串行运行 Newman，再运行
+Selenium。API 失败时 UI 会被跳过，以保留最直接的服务故障信号。
+
+`scripts/ci-e2e.sh`（Compose 版）保留给有真实 Docker 守护进程的环境使用，
+CodeArts 流水线不要引用它。
+
+在 CodeArts 中需要配置以下环境变量（**不要**勾选私密参数，否则 docker 插件读不到）：
 
 - `CI_DB_PASSWORD`：E2E 数据库普通用户密码；
 - `CI_MYSQL_ROOT_PASSWORD`：E2E MySQL root 密码。
 
-CI 使用与本地相同的完整 Compose 拓扑，先串行运行 Newman，再运行 Selenium。API
-失败时 UI 会被跳过，以保留最直接的服务故障信号。所有失败都会在最终 gate 阻断流水线：
+所有失败都会在最终 gate 阻断流水线：
 
 - `e2e-surefire-reports.tgz`（Surefire 报告）
 - `e2e-artifacts.tgz`（截图、页面源码、容器日志）
