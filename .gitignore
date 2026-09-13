@@ -33,3 +33,4 @@ tests/e2e/results/
 ci-artifacts/
 tests/unit/results/
 **/target/
+deploy/.env

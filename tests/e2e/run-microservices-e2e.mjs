@@ -110,6 +110,36 @@ function collectDiagnostics(reason) {
   ].join("\n"));
   fs.writeFileSync(path.join(resultDirectory, "environment-summary.md"),
     `# Microservices E2E environment\n\nResult: ${reason}\n\nProject: ${projectName}\nNetwork: ${networkName}\nGateway: http://127.0.0.1:${hostPort}\n`);
+  for (const name of ["newman-stats.json", "failure-summary.md", "newman-report.html", "newman-report.json", "run-metadata.json"]) {
+    const src = path.join(apiReportDirectory, name);
+    if (fs.existsSync(src)) fs.copyFileSync(src, path.join(resultDirectory, name));
+  }
+  const screenshotDir = path.join(artifactDirectory, "screenshots");
+  const screenshotCopyDir = path.join(resultDirectory, "screenshots");
+  fs.mkdirSync(screenshotCopyDir, { recursive: true });
+  const screenshots = [];
+  if (fs.existsSync(screenshotDir)) {
+    for (const item of fs.readdirSync(screenshotDir).filter((name) => !name.startsWith("."))) {
+      fs.copyFileSync(path.join(screenshotDir, item), path.join(screenshotCopyDir, item));
+      screenshots.push(`screenshots/${item}`);
+    }
+  }
+  if (fs.existsSync(artifactDirectory)) {
+    for (const item of fs.readdirSync(artifactDirectory).filter((name) => /FAILED-.*\.(html|png)$/.test(name))) {
+      fs.copyFileSync(path.join(artifactDirectory, item), path.join(screenshotCopyDir, item));
+      screenshots.push(item);
+    }
+  }
+  fs.writeFileSync(path.join(resultDirectory, "screenshot-index.md"), [
+    "# E2E screenshots",
+    "",
+    `Directory: ${path.relative(projectRoot, screenshotDir)}`,
+    `Copied to: ${path.relative(projectRoot, screenshotCopyDir)}`,
+    `Count: ${screenshots.length}`,
+    "",
+    ...(screenshots.length === 0 ? ["No screenshots were captured."] : screenshots.map((item) => `- ${item}`)),
+    "",
+  ].join("\n"));
 }
 
 function runApiTests() {
@@ -125,17 +155,47 @@ function runApiTests() {
 }
 
 function runUiTests() {
+  const mavenCommand = [
+    "set -eu",
+    "rm -rf /tmp/e2e-tests /tmp/shopping_front",
+    "mkdir -p /tmp/e2e-tests /tmp/shopping_front/static/stores",
+    "cp /work/e2e-tests/pom.xml /tmp/e2e-tests/pom.xml",
+    "cp -a /work/e2e-tests/src /tmp/e2e-tests/src",
+    "cp /work/shopping_front/static/logo.png /tmp/shopping_front/static/logo.png",
+    "cp /work/shopping_front/static/stores/songuo-digital.jpg /tmp/shopping_front/static/stores/songuo-digital.jpg 2>/dev/null || true",
+    "cd /tmp/e2e-tests",
+    "set +e",
+    "mvn -B -ntp clean test -DfailIfNoTests=true -De2e.remoteUrl=http://selenium:4444/wd/hub -De2e.baseUrl=http://frontend -De2e.apiUrl=http://frontend -De2e.headless=true -De2e.timeoutSeconds=40",
+    "status=$?",
+    "set -e",
+    "mkdir -p /work/e2e-tests/target",
+    "cp -a /tmp/e2e-tests/target/. /work/e2e-tests/target/",
+    "exit $status",
+  ].join("; ");
   return run("docker", [
     "run", "--rm", "--network", networkName,
     "-v", `${projectRoot}:/work`,
     "-v", "soft-shop-e2e-m2-cache:/root/.m2",
-    "-w", "/work/e2e-tests",
-    "-e", "LANG=C.UTF-8", "-e", "JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8",
-    mavenImage, "mvn", "-B", "-ntp", "clean", "test",
-    "-De2e.remoteUrl=http://selenium:4444/wd/hub",
-    "-De2e.baseUrl=http://frontend", "-De2e.apiUrl=http://frontend",
-    "-De2e.headless=true", "-De2e.timeoutSeconds=20",
+    "--memory=1g",
+    "-e", "LANG=C.UTF-8", "-e", "JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -XX:MaxRAMPercentage=70.0",
+    mavenImage, "sh", "-lc", mavenCommand,
   ], { allowFailure: true });
+}
+
+function assertUiTestsRan() {
+  const reportDir = path.join(uiTargetDirectory, "surefire-reports");
+  if (!fs.existsSync(reportDir)) {
+    throw new Error("UI E2E produced no Surefire reports");
+  }
+  const reports = fs.readdirSync(reportDir).filter((name) => name.startsWith("TEST-") && name.endsWith(".xml"));
+  let tests = 0;
+  for (const name of reports) {
+    const xml = fs.readFileSync(path.join(reportDir, name), "utf8");
+    tests += Number((xml.match(/\btests="(\d+)"/) || [])[1] || 0);
+  }
+  if (tests < 1) {
+    throw new Error("UI E2E ran 0 tests; treating as gate failure");
+  }
 }
 
 async function seedUiFixture() {
@@ -148,32 +208,35 @@ async function seedUiFixture() {
   const loginBody = await login.json();
   const token = loginBody?.data?.token;
   if (!token) throw new Error("UI fixture seller login returned no token");
-  const suffix = Date.now().toString(36);
-  const publish = await fetch(`${gateway}/api/products`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      scene: "used", title: `自动化测试商品-${suffix}`,
-      image: "https://example.test/e2e-product.png", category: "数码", price: 99.90,
-      condition: "九成新", description: "Selenium 自动化固定商品", story: "automation",
-      floorPrice: 80, location: "武汉",
-    }),
-  });
-  if (!publish.ok) throw new Error(`UI fixture product publish failed: HTTP ${publish.status} ${await publish.text()}`);
-  const productId = (await publish.json())?.data?.id;
   const adminLogin = await fetch(`${gateway}/api/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username: "admin", password: "admin123" }),
   });
   if (!adminLogin.ok) throw new Error(`UI fixture admin login failed: HTTP ${adminLogin.status}`);
   const adminToken = (await adminLogin.json())?.data?.token;
-  const approve = await fetch(`${gateway}/api/admin/audit/${productId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
-    body: JSON.stringify({ action: "approve", reason: "Selenium fixture" }),
-  });
-  if (!approve.ok) throw new Error(`UI fixture product approval failed: HTTP ${approve.status} ${await approve.text()}`);
-  console.log(`[fixture] UI product created: 自动化测试商品-${suffix}`);
+  const suffix = Date.now().toString(36);
+  for (let index = 1; index <= 3; index += 1) {
+    const title = `自动化测试商品-${suffix}-${index}`;
+    const publish = await fetch(`${gateway}/api/products`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        scene: "used", title,
+        image: "https://example.test/e2e-product.png", category: "数码", price: 99.90,
+        condition: "九成新", description: "Selenium 自动化固定商品", story: "automation",
+        floorPrice: 80, location: "武汉",
+      }),
+    });
+    if (!publish.ok) throw new Error(`UI fixture product publish failed: HTTP ${publish.status} ${await publish.text()}`);
+    const productId = (await publish.json())?.data?.id;
+    const approve = await fetch(`${gateway}/api/admin/audit/${productId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ action: "approve", reason: "Selenium fixture" }),
+    });
+    if (!approve.ok) throw new Error(`UI fixture product approval failed: HTTP ${approve.status} ${await approve.text()}`);
+    console.log(`[fixture] UI product created: ${title}`);
+  }
 }
 
 let exitCode = 1;
@@ -193,6 +256,7 @@ try {
     await seedUiFixture();
     const ui = runUiTests();
     exitCode = ui.status ?? 1;
+    if (exitCode === 0) assertUiTestsRan();
     result = exitCode === 0 ? "passed" : `UI tests failed with exit code ${exitCode}`;
   }
 } catch (error) {

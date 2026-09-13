@@ -51,6 +51,7 @@
                         <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
                     </systemPropertyVariables>
                     <forkedProcessTimeoutInSeconds>720</forkedProcessTimeoutInSeconds>
+                    <failIfNoTests>true</failIfNoTests>
                 </configuration>
             </plugin>
         </plugins>

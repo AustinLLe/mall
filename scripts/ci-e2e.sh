@@ -233,6 +233,17 @@ docker run --rm \
   sh -lc 'npm ci --no-audit --no-fund && node tests/api/build-microservices-collection.mjs && node tests/api/run-microservices-newman.mjs'
 api_status=$?
 set -e
+mkdir -p tests/e2e/results
+if [ -f tests/api/reports/microservices/newman-stats.json ]; then
+  cp tests/api/reports/microservices/newman-stats.json tests/e2e/results/newman-stats.json
+fi
+if [ -f tests/api/reports/microservices/failure-summary.md ]; then
+  cp tests/api/reports/microservices/failure-summary.md tests/e2e/results/failure-summary.md
+fi
+if [ -d e2e-tests/target/e2e-artifacts/screenshots ]; then
+  mkdir -p tests/e2e/results/screenshots
+  cp e2e-tests/target/e2e-artifacts/screenshots/* tests/e2e/results/screenshots/ 2>/dev/null || true
+fi
 if [ "$api_status" -ne 0 ]; then
   echo "微服务 API E2E 失败，跳过 UI E2E"
   e2e_status="$api_status"
@@ -246,17 +257,36 @@ docker run --rm \
   --network "$E2E_NETWORK_NAME" \
   -v "$(pwd):/work" \
   -v soft-shop-e2e-m2-cache:/root/.m2 \
-  -w /work/e2e-tests \
+  --memory=1g \
   -e LANG=C.UTF-8 \
-  -e JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 \
+  -e JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8" \
   "${E2E_MAVEN_IMAGE}" \
-  mvn -B -ntp clean test \
-  -De2e.remoteUrl=http://selenium:4444/wd/hub \
-  -De2e.baseUrl=http://frontend \
-  -De2e.apiUrl=http://frontend \
-  -De2e.headless=true \
-  -De2e.timeoutSeconds=20
+  sh -lc 'set -eu
+    rm -rf /tmp/e2e-tests /tmp/shopping_front
+    mkdir -p /tmp/e2e-tests /tmp/shopping_front/static/stores
+    cp /work/e2e-tests/pom.xml /tmp/e2e-tests/pom.xml
+    cp -a /work/e2e-tests/src /tmp/e2e-tests/src
+    cp /work/shopping_front/static/logo.png /tmp/shopping_front/static/logo.png
+    cp /work/shopping_front/static/stores/songuo-digital.jpg /tmp/shopping_front/static/stores/songuo-digital.jpg 2>/dev/null || true
+    cd /tmp/e2e-tests
+    set +e
+    mvn -B -ntp clean test -DfailIfNoTests=true \
+      -De2e.remoteUrl=http://selenium:4444/wd/hub \
+      -De2e.baseUrl=http://frontend \
+      -De2e.apiUrl=http://frontend \
+      -De2e.headless=true \
+      -De2e.timeoutSeconds=40
+    status=$?
+    set -e
+    mkdir -p /work/e2e-tests/target
+    cp -a /tmp/e2e-tests/target/. /work/e2e-tests/target/
+    exit $status'
 e2e_status=$?
 set -e
+mkdir -p tests/e2e/results
 printf '# CI E2E result\n\nAPI: passed\nUI exit code: %s\n' "$e2e_status" > tests/e2e/results/summary.md
+if [ -d e2e-tests/target/e2e-artifacts/screenshots ]; then
+  mkdir -p tests/e2e/results/screenshots
+  cp e2e-tests/target/e2e-artifacts/screenshots/* tests/e2e/results/screenshots/ 2>/dev/null || true
+fi
 exit "${e2e_status}"

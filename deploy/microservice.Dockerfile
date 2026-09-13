@@ -6,6 +6,7 @@ ARG DOCKER_HUB=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io
 FROM ${DOCKER_HUB}/library/maven:3-eclipse-temurin-17 AS build
 ARG MODULE_DIR
 WORKDIR /build
+COPY deploy/maven-settings.xml /root/.m2/settings.xml
 COPY services/common/pom.xml ./common/pom.xml
 COPY services/common/src ./common/src
 RUN mvn -B -ntp -f common/pom.xml -DskipTests install

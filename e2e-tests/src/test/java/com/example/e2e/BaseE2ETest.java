@@ -61,13 +61,26 @@ abstract class BaseE2ETest {
     }
 
     private static void verifyEndpoint(HttpClient client, String url, int expected, String name) throws Exception {
-        HttpResponse<String> response = client.send(
-                HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).GET().build(),
-                HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() != expected) {
-            throw new IllegalStateException(name + " readiness failed: expected HTTP " + expected
-                    + " but got " + response.statusCode() + " from " + url);
+        Exception lastError = null;
+        for (int attempt = 1; attempt <= 4; attempt++) {
+            try {
+                HttpResponse<String> response = client.send(
+                        HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == expected) {
+                    return;
+                }
+                lastError = new IllegalStateException(name + " readiness failed: expected HTTP " + expected
+                        + " but got " + response.statusCode() + " from " + url);
+            } catch (Exception error) {
+                lastError = error;
+            }
+            Thread.sleep(1_000L * attempt);
         }
+        if (lastError != null) {
+            throw lastError;
+        }
+        throw new IllegalStateException(name + " readiness failed");
     }
 
     @RegisterExtension
@@ -163,6 +176,9 @@ abstract class BaseE2ETest {
         options.addArguments("--window-size=1440,1000");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--disable-software-rasterizer");
+        options.addArguments("--remote-allow-origins=*");
         if (headless) {
             options.addArguments("--headless=new");
         }

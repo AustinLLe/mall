@@ -3,6 +3,7 @@ FROM ${DOCKER_HUB}/library/maven:3-eclipse-temurin-17 AS build
 
 WORKDIR /build
 
+COPY deploy/maven-settings.xml /root/.m2/settings.xml
 COPY shopping_back/shopping_back/pom.xml ./pom.xml
 COPY shopping_back/shopping_back/src ./src
 # CodeArts docker 插件是经典 docker build，没有 BuildKit cache mount。
