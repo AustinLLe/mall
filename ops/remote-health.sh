@@ -53,4 +53,21 @@ echo "GET /api/products -> $api_code"
 [[ "$home_code" == "200" ]] || { echo "homepage did not return HTTP 200" >&2; exit 5; }
 [[ "$api_code" == "200" ]] || { echo "/api/products did not return HTTP 200" >&2; exit 5; }
 
+# 四服务公网路由可达性检查：公开接口必须被 Nginx 路由到对应微服务且服务在线。
+# 判定：返回码不是 404（未路由）/ 502（网关无可用后端）/ 503（服务不可用）。
+echo "--- microservice public route reachability ---"
+route_check() {
+  local path="$1" service="$2"
+  local code
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$health_base_url$path")"
+  echo "GET $path -> $code (${service})"
+  case "$code" in
+    404|502|503) echo "route check failed: $path ($service) returned $code" >&2; return 1 ;;
+  esac
+}
+route_check "/api/auth/me" "user-service"       || exit 6
+route_check "/api/products" "catalog-service"   || exit 6
+route_check "/api/orders" "trade-service"       || exit 6
+route_check "/api/topics" "interaction-service" || exit 6
+
 echo "Health check succeeded"
